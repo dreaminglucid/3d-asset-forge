@@ -1,4 +1,4 @@
-# Hyperscape AI Asset Generation System
+# 3D Asset Forge
 
 A comprehensive React/Vite application for AI-powered 3D asset generation, rigging, and fitting. Built for the Hyperscape RPG, this system combines OpenAI's GPT-4 and DALL-E with Meshy.ai to create game-ready 3D models from text descriptions.
 
