@@ -3,6 +3,7 @@ import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import { HandRiggingResult } from '../services/hand-rigging/HandRiggingService'
 import { SimpleHandRiggingResult } from '../services/hand-rigging/SimpleHandRiggingService'
+import type { Asset } from '../types'
 
 export type ProcessingStage = 
   | 'idle' 
@@ -27,8 +28,9 @@ export interface ProcessingStep {
 }
 
 interface HandRiggingState {
-  // File management
-  selectedFile: File | null
+  // Asset management
+  selectedAvatar: Asset | null
+  selectedFile: File | null  // Keep for backwards compatibility
   modelUrl: string | null
   
   // Processing state
@@ -50,7 +52,7 @@ interface HandRiggingState {
   // Visualization
   showSkeleton: boolean
   showDebugImages: boolean
-  debugImages: { left?: string; right?: string }
+  debugImages: { left?: string; right?: string; [key: string]: string | undefined }
   
   // UI state
   showExportModal: boolean
@@ -59,6 +61,7 @@ interface HandRiggingState {
   error: string | null
   
   // Actions
+  setSelectedAvatar: (asset: Asset | null) => void
   setSelectedFile: (file: File | null) => void
   setModelUrl: (url: string | null) => void
   setProcessingStage: (stage: ProcessingStage) => void
@@ -71,7 +74,7 @@ interface HandRiggingState {
   setUseSimpleMode: (simple: boolean) => void
   setShowSkeleton: (show: boolean) => void
   setShowDebugImages: (show: boolean) => void
-  setDebugImages: (images: { left?: string; right?: string }) => void
+  setDebugImages: (images: { left?: string; right?: string; [key: string]: string | undefined }) => void
   setShowExportModal: (show: boolean) => void
   setError: (error: string | null) => void
   
@@ -94,6 +97,7 @@ export const useHandRiggingStore = create<HandRiggingState>()(
       subscribeWithSelector(
         immer((set, get) => ({
           // Initial state
+          selectedAvatar: null,
           selectedFile: null,
           modelUrl: null,
           processingStage: 'idle',
@@ -111,11 +115,21 @@ export const useHandRiggingStore = create<HandRiggingState>()(
           error: null,
           
           // Basic actions
+          setSelectedAvatar: (asset) => set((state) => {
+            state.selectedAvatar = asset
+            if (!asset) {
+              state.modelUrl = null
+              state.modelInfo = null
+              state.selectedFile = null
+            }
+          }),
+          
           setSelectedFile: (file) => set((state) => {
             state.selectedFile = file
             if (!file) {
               state.modelUrl = null
               state.modelInfo = null
+              state.selectedAvatar = null
             }
           }),
           
@@ -192,6 +206,7 @@ export const useHandRiggingStore = create<HandRiggingState>()(
               URL.revokeObjectURL(state.modelUrl)
             }
             
+            state.selectedAvatar = null
             state.selectedFile = null
             state.modelUrl = null
             state.processingStage = 'idle'
@@ -257,8 +272,8 @@ export const useHandRiggingStore = create<HandRiggingState>()(
           },
           
           canStartProcessing: () => {
-            const { selectedFile, serviceInitialized, processingStage } = get()
-            return !!selectedFile && serviceInitialized && (processingStage === 'idle' || processingStage === 'complete')
+            const { selectedAvatar, selectedFile, serviceInitialized, processingStage } = get()
+            return (!!selectedAvatar || !!selectedFile) && serviceInitialized && (processingStage === 'idle' || processingStage === 'complete')
           },
           
           canExport: () => {

@@ -149,8 +149,12 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
   useEffect(() => {
     // Initialize pipeline stages
     initializePipelineStages()
+  }, [generationType, useGPT4Enhancement, enableRetexturing, enableSprites, enableRigging, initializePipelineStages])
+  
+  // Add icons to stages after they're initialized
+  useEffect(() => {
+    if (pipelineStages.length === 0) return
     
-    // Add icons to stages after initialization
     const stagesWithIcons = pipelineStages.map(stage => ({
       ...stage,
       icon: stage.id === 'text-input' ? <FileText className="w-4 h-4" /> :
@@ -159,13 +163,19 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
             stage.id === 'image-to-3d' ? <Box className="w-4 h-4" /> :
             stage.id === 'rigging' ? <User className="w-4 h-4" /> :
             stage.id === 'retexturing' ? <Layers className="w-4 h-4" /> :
-            stage.id === 'sprites' ? <Grid3x3 className="w-4 h-4" /> : null
+            stage.id === 'sprites' ? <Grid3x3 className="w-4 h-4" /> : 
+            <Sparkles className="w-4 h-4" /> // Default icon
     }))
     
-    if (JSON.stringify(stagesWithIcons) !== JSON.stringify(pipelineStages)) {
+    // Only update if icons have changed
+    const needsUpdate = stagesWithIcons.some((stage, index) => 
+      stage.icon !== pipelineStages[index]?.icon
+    )
+    
+    if (needsUpdate) {
       setPipelineStages(stagesWithIcons)
     }
-  }, [generationType, useGPT4Enhancement, enableRetexturing, enableSprites, enableRigging, initializePipelineStages])
+  }, [pipelineStages.length]) // Only depend on length to avoid infinite loops
 
   // Handle model loading state when selected asset changes
   useEffect(() => {
@@ -242,6 +252,7 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
   
   // Listen for status updates
   useEffect(() => {
+    console.log('Pipeline status effect triggered. currentPipelineId:', currentPipelineId)
     if (!currentPipelineId) return
     
     const stageMapping: Record<string, string> = {
@@ -257,27 +268,25 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
     
     intervalRef.current = setInterval(async () => {
       try {
-        const status = await apiClient.getPipelineStatus(currentPipelineId)
+        console.log('Fetching pipeline status for:', currentPipelineId)
+        const status = await apiClient.fetchPipelineStatus(currentPipelineId)
+        console.log('Received status:', status)
         
         if (status) {
           // Update pipeline stages
           Object.entries(status.stages || {}).forEach(([stageName, stageData]: [string, any]) => {
+            console.log('Processing stage:', stageName, stageData)
             const uiStageId = stageMapping[stageName]
             if (uiStageId) {
-                        const updatedStages = pipelineStages.map(stage => {
-                if (stage.id === uiStageId) {
-                  let uiStatus = stageData.status === 'processing' ? 'active' : stageData.status
-                  
-                  // Check configuration overrides
-                  if (stage.id === 'gpt4-enhancement' && !useGPT4Enhancement) uiStatus = 'skipped'
-                  if (stage.id === 'retexturing' && !enableRetexturing) uiStatus = 'skipped'
-                  if (stage.id === 'sprites' && !enableSprites) uiStatus = 'skipped'
-                  
-                  return { ...stage, status: uiStatus }
-                }
-                return stage
-              })
-              setPipelineStages(updatedStages)
+              let uiStatus = stageData.status === 'processing' ? 'active' : stageData.status
+              
+              // Check configuration overrides
+              if (uiStageId === 'gpt4-enhancement' && !useGPT4Enhancement) uiStatus = 'skipped'
+              if (uiStageId === 'retexturing' && !enableRetexturing) uiStatus = 'skipped'
+              if (uiStageId === 'sprites' && !enableSprites) uiStatus = 'skipped'
+              
+              // Use updatePipelineStage to update individual stage
+              updatePipelineStage(uiStageId, uiStatus)
             }
           })
           
@@ -352,7 +361,7 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
         intervalRef.current = null
       }
     }
-  }, [currentPipelineId, apiClient, useGPT4Enhancement, enableRetexturing, enableSprites, assetName])
+  }, [currentPipelineId, apiClient, useGPT4Enhancement, enableRetexturing, enableSprites, assetName, updatePipelineStage])
 
   const handleGenerateSprites = async (assetId: string) => {
     try {
@@ -1492,10 +1501,12 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
                                 <CheckCircle className="w-6 h-6" />
                               ) : isFailed ? (
                                 <XCircle className="w-6 h-6" />
-                              ) : (
+                              ) : stage.icon ? (
                                 React.cloneElement(stage.icon as React.ReactElement, {
                                   className: "w-6 h-6"
                                 })
+                              ) : (
+                                <Sparkles className="w-6 h-6" />
                               )}
                     </div>
                     

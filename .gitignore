@@ -168,3 +168,5 @@ temp-images/*
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
+
+SCRATCHPAD.md

@@ -13,7 +13,7 @@ interface HandRiggingControlsProps {
 
 export function HandRiggingControls({ onStartProcessing }: HandRiggingControlsProps) {
   const {
-    selectedFile,
+    selectedAvatar,
     processingStage,
     useSimpleMode,
     showDebugImages,
@@ -28,14 +28,9 @@ export function HandRiggingControls({ onStartProcessing }: HandRiggingControlsPr
   
   const handleReset = () => {
     reset()
-    // Clear file input if it exists
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
-    if (fileInput) {
-      fileInput.value = ''
-    }
   }
   
-  if (!selectedFile) {
+  if (!selectedAvatar) {
     return null
   }
   

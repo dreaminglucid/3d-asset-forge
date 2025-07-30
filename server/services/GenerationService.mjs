@@ -68,7 +68,9 @@ export class GenerationService extends EventEmitter {
         imageGeneration: { status: 'pending', progress: 0 },
         image3D: { status: 'pending', progress: 0 },
         textureGeneration: { status: 'pending', progress: 0 },
-        vertexColorExtraction: { status: 'pending', progress: 0 }
+        vertexColorExtraction: { status: 'pending', progress: 0 },
+        ...(config.generationType === 'avatar' && config.enableRigging ? { rigging: { status: 'pending', progress: 0 } } : {}),
+        ...(config.enableSprites ? { spriteGeneration: { status: 'pending', progress: 0 } } : {})
       },
       results: {},
       createdAt: new Date().toISOString()

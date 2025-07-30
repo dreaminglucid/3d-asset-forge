@@ -185,8 +185,7 @@ app.get('/api/assets/:id/vertex-colors.json', async (req, res, next) => {
 })
 */
 
-// DELETE endpoint - COMMENTED OUT AS UNUSED
-/*
+// DELETE endpoint
 app.delete('/api/assets/:id', async (req, res, next) => {
   try {
     const { id } = req.params
@@ -206,7 +205,6 @@ app.delete('/api/assets/:id', async (req, res, next) => {
     next(error)
   }
 })
-*/
 
 // Update asset metadata
 app.patch('/api/assets/:id', async (req, res, next) => {

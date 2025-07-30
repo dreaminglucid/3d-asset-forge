@@ -386,9 +386,12 @@ export const useGenerationStore = create<GenerationState>()(
           }),
           
           updatePipelineStage: (stageId, status) => set((state) => {
+            console.log('Updating pipeline stage:', stageId, 'to status:', status)
             const stage = state.pipelineStages.find(s => s.id === stageId)
             if (stage) {
               stage.status = status
+            } else {
+              console.warn('Stage not found:', stageId, 'Available stages:', state.pipelineStages.map(s => s.id))
             }
           }),
           

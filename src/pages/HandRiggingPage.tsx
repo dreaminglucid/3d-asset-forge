@@ -16,16 +16,16 @@ import { HandRiggingService, HandRiggingResult } from '../services/hand-rigging/
 import { SimpleHandRiggingService, SimpleHandRiggingResult } from '../services/hand-rigging/SimpleHandRiggingService'
 import { useHandRiggingStore } from '../store'
 import type { ProcessingStage } from '../store'
-import { HandUploadZone, HandProcessingSteps, HandRiggingControls } from '../components/HandRigging'
+import { HandAvatarSelector, HandProcessingSteps, HandRiggingControls } from '../components/HandRigging'
 
 export function HandRiggingPage() {
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const viewerRef = useRef<any>(null)
   const handRiggingService = useRef<HandRiggingService | null>(null)
   const simpleHandRiggingService = useRef<SimpleHandRiggingService | null>(null)
   
   // Get state and actions from store
   const {
+    selectedAvatar,
     selectedFile,
     modelUrl,
     processingStage,
@@ -40,6 +40,7 @@ export function HandRiggingPage() {
     showDebugImages,
     useSimpleMode,
     showExportModal,
+    setSelectedAvatar,
     setSelectedFile,
     setModelUrl,
     setProcessingStage,
@@ -112,36 +113,9 @@ export function HandRiggingPage() {
     }
   }, [modelUrl])
 
-  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file && (file.name.endsWith('.glb') || file.name.endsWith('.gltf'))) {
-      setSelectedFile(file)
-      setModelUrl(URL.createObjectURL(file))
-      setError(null)
-    } else {
-      setError('Please select a GLB or GLTF file')
-    }
-  }, [setSelectedFile, setModelUrl, setError])
-
-  const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    const file = event.dataTransfer.files[0]
-    if (file && (file.name.endsWith('.glb') || file.name.endsWith('.gltf'))) {
-      setSelectedFile(file)
-      setModelUrl(URL.createObjectURL(file))
-      setError(null)
-    } else {
-      setError('Please drop a GLB or GLTF file')
-    }
-  }, [setSelectedFile, setModelUrl, setError])
-
-  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault()
-  }, [])
-
   const handleStartProcessing = async () => {
-    if (!selectedFile || (!handRiggingService.current && !simpleHandRiggingService.current)) {
-      setError('Please select a file first')
+    if (!selectedAvatar || !modelUrl || (!handRiggingService.current && !simpleHandRiggingService.current)) {
+      setError('Please select an avatar first')
       return
     }
     
@@ -155,6 +129,15 @@ export function HandRiggingPage() {
     await new Promise(resolve => setTimeout(resolve, 500))
     
     try {
+      // Fetch the model data from the already set modelUrl (which points to t-pose if available)
+      const response = await fetch(modelUrl)
+      if (!response.ok) {
+        throw new Error('Failed to fetch avatar model')
+      }
+      
+      const modelBlob = await response.blob()
+      const modelFile = new File([modelBlob], `${selectedAvatar.name}.glb`, { type: 'model/gltf-binary' })
+      
       // Update stages
       const updateStage = (stage: ProcessingStage) => {
         setProcessingStage(stage)
@@ -169,7 +152,7 @@ export function HandRiggingPage() {
       
       if (useSimpleMode && simpleHandRiggingService.current) {
         // Run the simple rigging process
-        result = await simpleHandRiggingService.current.rigHands(selectedFile, {
+        result = await simpleHandRiggingService.current.rigHands(modelFile, {
           debugMode: true,
           palmBoneLength: 0.05,    // 5cm palm (reduced from 8cm)
           fingerBoneLength: 0.08   // 8cm fingers (reduced from 10cm)
@@ -183,7 +166,7 @@ export function HandRiggingPage() {
         
       } else if (handRiggingService.current) {
         // Run the complex AI-based rigging process
-        result = await handRiggingService.current.rigHands(selectedFile, {
+        result = await handRiggingService.current.rigHands(modelFile, {
           debugMode: true,
           minConfidence: 0.7,
           smoothingIterations: 3,
@@ -246,9 +229,6 @@ export function HandRiggingPage() {
 
   const handleReset = () => {
     reset()
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
   }
 
   const handleModelLoad = useCallback((info: { vertices: number; faces: number; materials: number }) => {
@@ -273,12 +253,12 @@ export function HandRiggingPage() {
     
     // Generate a proper filename
     let filename = 'rigged_model.glb'
-    if (selectedFile) {
-      const baseName = selectedFile.name
-      // Remove the extension(s) - handle cases like .glb, .gltf, or even .tpose.glb
-      const nameWithoutExt = baseName.replace(/\.(?:glb|gltf)$/i, '').replace(/[-_]?tpose$/i, '')
+    if (selectedAvatar) {
+      const baseName = selectedAvatar.name
+      // Remove any existing rigged suffix
+      const nameWithoutRigged = baseName.replace(/[-_]?rigged$/i, '')
       // Add _rigged suffix and .glb extension
-      filename = `${nameWithoutExt}_rigged.glb`
+      filename = `${nameWithoutRigged}_rigged.glb`
     }
     
     link.download = filename
@@ -295,9 +275,9 @@ export function HandRiggingPage() {
           <div className="lg:col-span-4 space-y-6">
             
             {/* Upload Card with Controls */}
-            <HandUploadZone />
+            <HandAvatarSelector />
               
-              {selectedFile && (
+              {selectedAvatar && (
               <HandRiggingControls onStartProcessing={handleStartProcessing} />
             )}
 
@@ -359,7 +339,7 @@ export function HandRiggingPage() {
                       showGroundPlane={true}
                       onModelLoad={handleModelLoad}
                       assetInfo={{
-                        name: selectedFile?.name.replace(/\.(glb|gltf)$/i, '') || 'Model',
+                        name: selectedAvatar?.name || 'Model',
                         type: 'character',
                         format: 'GLB'
                       }}
@@ -636,13 +616,13 @@ export function HandRiggingPage() {
               </p>
             </div>
             
-            {selectedFile && (
+            {selectedAvatar && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-text-primary">Export Details:</p>
                 <div className="space-y-1 text-xs text-text-secondary">
                   <div className="flex justify-between">
-                    <span>Original File:</span>
-                    <span className="font-mono">{selectedFile.name}</span>
+                    <span>Original Avatar:</span>
+                    <span className="font-mono">{selectedAvatar.name}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Export Format:</span>

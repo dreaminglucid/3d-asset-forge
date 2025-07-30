@@ -1,13 +1,14 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, Text, useGLTF, useAnimations } from '@react-three/drei'
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import * as THREE from 'three'
-import { GenericMeshFittingService, GenericFittingParameters } from '../../services/fitting/armor/GenericMeshFittingService'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { OrbitControls, useGLTF, Text as DreiText, useAnimations } from '@react-three/drei'
+import { GenericMeshFittingService } from '../../services/fitting/armor/GenericMeshFittingService'
 import { ArmorFittingService } from '../../services/fitting/armor/ArmorFittingService'
-import { X, Play, RotateCcw, Sliders, Box, Activity, Pause, Link, Grid3x3 } from 'lucide-react'
-import { Select } from '../common'
 import { cn } from '../../styles'
+import { X, Play, Grid3x3, Link, Activity, RotateCcw, Pause, Box, Sliders } from 'lucide-react'
 import { useDebuggerStore } from '../../store/useDebuggerStore'
+// import DebugArrows from '../shared/DebugArrows' // Comment out if this component doesn't exist yet
+import { useAssets } from '../../hooks/useAssets'
 
 // Available avatars and armors from gdd-assets
 const AVAILABLE_AVATARS = [
@@ -221,7 +222,7 @@ function Scene({
             {/* Cube to Sphere Demo (left side) */}
             <group position={[-2.5, 0, 0]}>
               {/* Label */}
-              <Text
+              <DreiText
                 position={[0, 2, 0]}
                 fontSize={0.3}
                 color="#ffffff"
@@ -229,7 +230,7 @@ function Scene({
                 anchorY="middle"
               >
                 Cube → Sphere
-              </Text>
+              </DreiText>
               
               {/* Source Cube (larger, to wrap onto sphere) */}
         <mesh 
@@ -253,7 +254,7 @@ function Scene({
             {/* Sphere to Cube Demo (right side) */}
             <group position={[2.5, 0, 0]}>
               {/* Label */}
-              <Text
+              <DreiText
                 position={[0, 2, 0]}
                 fontSize={0.3}
                 color="#ffffff"
@@ -261,7 +262,7 @@ function Scene({
                 anchorY="middle"
               >
                 Sphere → Cube
-              </Text>
+              </DreiText>
               
               {/* Source Sphere (larger, to wrap onto cube) */}
               <mesh 
@@ -687,7 +688,7 @@ const AvatarArmorDemo: React.FC<{
   return (
     <group position={[0, 0, 0]}>
       {/* Label */}
-      <Text
+      <DreiText
         position={[0, 4.5, 0]}
         fontSize={0.3}
         color="#ffffff"
@@ -695,7 +696,7 @@ const AvatarArmorDemo: React.FC<{
         anchorY="middle"
       >
         Real Armor → Avatar
-      </Text>
+      </DreiText>
       
       <group ref={avatarRef}>
         <primitive object={avatarClone} />
@@ -971,7 +972,7 @@ const HelmetDemo: React.FC<{
   return (
     <group position={[0, 0, 0]}>
       {/* Label */}
-      <Text
+      <DreiText
         position={[0, 4.5, 0]}
         fontSize={0.3}
         color="#ffffff"
@@ -979,7 +980,7 @@ const HelmetDemo: React.FC<{
         anchorY="middle"
       >
         Helmet Fitting
-      </Text>
+      </DreiText>
       
       <group ref={avatarRef}>
         <primitive object={avatarClone} />
@@ -997,22 +998,66 @@ const HelmetDemo: React.FC<{
   )
 }
 
-// Available helmets
-const AVAILABLE_HELMETS = [
-  { id: 'helmet-leather-base', name: 'Leather Helmet', path: './gdd-assets/helmet-leather-base/helmet-leather-base.glb' },
-  { id: 'helmet-leather-hard-leather', name: 'Leather Helmet (Hard)', path: './gdd-assets/helmet-leather-hard-leather/helmet-leather-hard-leather.glb' },
-  { id: 'helmet-leather-studded-leather', name: 'Leather Helmet (Studded)', path: './gdd-assets/helmet-leather-studded-leather/helmet-leather-studded-leather.glb' },
-  { id: 'helmet-metal-base', name: 'Metal Helmet', path: './gdd-assets/helmet-metal-base/helmet-metal-base.glb' },
-  { id: 'helmet-metal-mithril', name: 'Mithril Helmet', path: './gdd-assets/helmet-metal-mithril/helmet-metal-mithril.glb' },
-  { id: 'spiked-helmet', name: 'Spiked Helmet', path: './gdd-assets/spiked-helmet/spiked-helmet.glb' }
-]
+// Available helmets will be loaded dynamically from useAssets hook
 
-// Preload the models
-AVAILABLE_AVATARS.forEach(avatar => useGLTF.preload(avatar.path))
-AVAILABLE_ARMORS.forEach(armor => useGLTF.preload(armor.path))
-AVAILABLE_HELMETS.forEach(helmet => useGLTF.preload(helmet.path))
+// Shared select styling for dark theme
+const selectClassName = `w-full px-3 py-2 rounded-lg bg-bg-secondary border border-white/10 text-text-primary 
+  focus:border-primary focus:ring-1 focus:ring-primary transition-all
+  [&>option]:bg-bg-primary [&>option]:text-text-primary
+  [&>option]:py-2 [&>option:hover]:bg-primary/20`
 
 export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
+  // Get assets from the API
+  const { assets, loading } = useAssets()
+  
+  // Transform assets into the format expected by the component
+  const availableAvatars = React.useMemo(() => {
+    return assets
+      .filter(asset => asset.type === 'character' && asset.hasModel)
+      .map(asset => ({
+        id: asset.id,
+        name: asset.name,
+        path: `/api/assets/${asset.id}/model`
+      }))
+  }, [assets])
+  
+  const availableArmors = React.useMemo(() => {
+    return assets
+      .filter(asset => 
+        asset.hasModel && (
+          asset.type === 'armor' || 
+          (asset.name.toLowerCase().includes('body') && !asset.name.toLowerCase().includes('helmet'))
+        )
+      )
+      .map(asset => ({
+        id: asset.id,
+        name: asset.name,
+        path: `/api/assets/${asset.id}/model`
+      }))
+  }, [assets])
+  
+  const availableHelmets = React.useMemo(() => {
+    return assets
+      .filter(asset => 
+        asset.hasModel && (
+          asset.name.toLowerCase().includes('helmet') ||
+          asset.name.toLowerCase().includes('head')
+        )
+      )
+      .map(asset => ({
+        id: asset.id,
+        name: asset.name,
+        path: `/api/assets/${asset.id}/model`
+      }))
+  }, [assets])
+  
+  // Preload models when assets are loaded
+  React.useEffect(() => {
+    availableAvatars.forEach(avatar => useGLTF.preload(avatar.path))
+    availableArmors.forEach(armor => useGLTF.preload(armor.path))
+    availableHelmets.forEach(helmet => useGLTF.preload(helmet.path))
+  }, [availableAvatars, availableArmors, availableHelmets])
+  
   // Get state and actions from Zustand store
   const {
     // State
@@ -3075,6 +3120,17 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
     })
   }
   
+  // Show loading state if assets are still loading
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="bg-bg-primary rounded-2xl border border-white/10 p-8 text-center animate-in zoom-in-95 duration-200">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+          <p className="text-text-primary">Loading assets...</p>
+        </div>
+      </div>
+    )
+  }
 
   
   return (
@@ -3217,7 +3273,7 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
             )}
             
             {/* Control Buttons */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-wrap justify-center gap-3 z-10 max-w-[90%]">
               {viewMode === 'sphereCube' ? (
                 <>
               <button
@@ -3337,14 +3393,14 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
             
             {/* Animation Controls - Show in avatar/armor and helmet fitting modes */}
             {(viewMode === 'avatarArmor' || viewMode === 'helmetFitting') && (
-              <div className="absolute bottom-20 left-4 right-4 bg-bg-primary/90 backdrop-blur-sm rounded-lg p-3 border border-white/10 shadow-xl">
+              <div className="absolute bottom-28 left-4 right-4 max-w-md mx-auto bg-bg-primary/90 backdrop-blur-sm rounded-lg p-3 border border-white/10 shadow-xl z-10">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <Activity className="w-4 h-4 text-primary" />
                     <span className="text-sm font-medium text-text-primary">Animations</span>
                   </div>
                   
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <button
                       onClick={() => {
                         setCurrentAnimation('tpose')
@@ -3434,38 +3490,40 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
                     {/* Avatar Dropdown */}
                     <div className="space-y-2">
                       <label className="label">Avatar</label>
-                      <Select
+                      <select
                         value={selectedAvatar?.id || ''}
-                        onChange={(e) => {
-                          const avatar = AVAILABLE_AVATARS.find(a => a.id === e.target.value)
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                          const avatar = availableAvatars.find(a => a.id === e.target.value)
                           if (avatar) setSelectedAvatar(avatar)
                         }}
+                        className={selectClassName}
                       >
-                        {AVAILABLE_AVATARS.map(avatar => (
+                        {availableAvatars.map(avatar => (
                           <option key={avatar.id} value={avatar.id}>
                             {avatar.name}
                           </option>
                         ))}
-                      </Select>
+                      </select>
                       <p className="helper-text">{selectedAvatar?.name || 'No avatar selected'} character model</p>
                     </div>
                     
                     {/* Armor Dropdown */}
                     <div className="space-y-2">
                       <label className="label">Armor</label>
-                      <Select
+                      <select
                         value={selectedArmor?.id || ''}
-                        onChange={(e) => {
-                          const armor = AVAILABLE_ARMORS.find(a => a.id === e.target.value)
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                          const armor = availableArmors.find(a => a.id === e.target.value)
                           if (armor) setSelectedArmor(armor)
                         }}
+                        className={selectClassName}
                       >
-                        {AVAILABLE_ARMORS.map(armor => (
+                        {availableArmors.map(armor => (
                           <option key={armor.id} value={armor.id}>
                             {armor.name}
                           </option>
                         ))}
-                      </Select>
+                      </select>
                       <p className="helper-text">{selectedArmor?.name || 'No armor selected'} armor variant</p>
                     </div>
                     
@@ -3523,51 +3581,54 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
                     {/* Avatar Dropdown */}
                     <div className="space-y-2">
                       <label className="label">Avatar</label>
-                      <Select
+                      <select
                         value={selectedAvatar?.id || ''}
-                        onChange={(e) => {
-                          const avatar = AVAILABLE_AVATARS.find(a => a.id === e.target.value)
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                          const avatar = availableAvatars.find(a => a.id === e.target.value)
                           if (avatar) setSelectedAvatar(avatar)
                         }}
+                        className={selectClassName}
                       >
-                        {AVAILABLE_AVATARS.map(avatar => (
+                        {availableAvatars.map(avatar => (
                           <option key={avatar.id} value={avatar.id}>
                             {avatar.name}
                           </option>
                         ))}
-                      </Select>
+                      </select>
                       <p className="helper-text">{selectedAvatar?.name || 'No avatar selected'} character model</p>
                     </div>
                     
                     {/* Helmet Dropdown */}
                     <div className="space-y-2">
                       <label className="label">Helmet</label>
-                      <Select
+                      <select
                         value={selectedHelmet?.id || ''}
-                        onChange={(e) => {
-                          const helmet = AVAILABLE_HELMETS.find(h => h.id === e.target.value)
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                          const helmet = availableHelmets.find(h => h.id === e.target.value)
                           if (helmet) setSelectedHelmet(helmet)
                         }}
+                        className={selectClassName}
                       >
-                        {AVAILABLE_HELMETS.map(helmet => (
+                        {availableHelmets.map(helmet => (
                           <option key={helmet.id} value={helmet.id}>
                             {helmet.name}
                           </option>
                         ))}
-                      </Select>
+                      </select>
                       <p className="helper-text">{selectedHelmet?.name || 'No helmet selected'}</p>
                     </div>
                     
                     {/* Fitting Method */}
                     <div className="space-y-2">
                       <label className="label">Fitting Method</label>
-                      <Select
+                      <select
                         value={helmetFittingMethod}
-                        onChange={(e) => setHelmetFittingMethod(e.target.value as 'auto' | 'manual')}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setHelmetFittingMethod(e.target.value as 'auto' | 'manual')}
+                        className={selectClassName}
                       >
                         <option value="auto">Automatic</option>
                         <option value="manual">Manual</option>
-                      </Select>
+                      </select>
                       <p className="helper-text">{helmetFittingMethod === 'auto' ? 'AI-powered placement' : 'Manual adjustment'}</p>
                     </div>
                   </div>
@@ -3989,11 +4050,9 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
                         <label className="text-sm font-medium text-text-primary">Color Mode</label>
                         <select
                           value={fittingParameters.debugColorMode || 'direction'}
-                          onChange={(e) => updateFittingParameters({ ...fittingParameters, debugColorMode: e.target.value as 'direction' | 'magnitude' | 'sidedness' })}
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateFittingParameters({ ...fittingParameters, debugColorMode: e.target.value as 'direction' | 'magnitude' | 'sidedness' })}
                           disabled={!fittingParameters.showDebugArrows}
-                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-text-primary 
-                                   focus:border-primary focus:ring-1 focus:ring-primary transition-all
-                                   disabled:opacity-50 disabled:cursor-not-allowed"
+                          className={`${selectClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                           <option value="direction">Movement Direction</option>
                           <option value="magnitude">Movement Magnitude</option>
