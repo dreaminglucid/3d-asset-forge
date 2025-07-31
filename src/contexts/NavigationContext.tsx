@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react'
 import { NavigationView, NavigationContextValue } from '../types'
+import { NAVIGATION_VIEWS } from '../constants'
 
 const NavigationContext = createContext<NavigationContextValue | null>(null)
 
 export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentView, setCurrentView] = useState<NavigationView>('assets')
+  const [currentView, setCurrentView] = useState<NavigationView>(NAVIGATION_VIEWS.ASSETS)
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
   const [navigationHistory, setNavigationHistory] = useState<NavigationView[]>([])
 
@@ -14,7 +15,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setCurrentView(view)
       
       // Clear selected asset when navigating away from assets
-      if (view !== 'assets') {
+      if (view !== NAVIGATION_VIEWS.ASSETS) {
         setSelectedAssetId(null)
       }
     }
@@ -22,7 +23,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const navigateToAsset = useCallback((assetId: string) => {
     setSelectedAssetId(assetId)
-    navigateTo('assets')
+    navigateTo(NAVIGATION_VIEWS.ASSETS)
   }, [navigateTo])
 
   const goBack = useCallback(() => {

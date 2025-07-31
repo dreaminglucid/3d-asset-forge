@@ -501,6 +501,22 @@
     animation: shimmer-rtl 2s ease-in-out infinite;
   }
   
+  /* Slide down animation for notifications */
+  @keyframes slide-down {
+    from { 
+      opacity: 0; 
+      transform: translateX(-50%) translateY(-20px); 
+    }
+    to { 
+      opacity: 1; 
+      transform: translateX(-50%) translateY(0); 
+    }
+  }
+  
+  .animate-slide-down {
+    animation: slide-down 0.3s ease-out;
+  }
+  
   /* Custom Scrollbar */
   .custom-scrollbar {
     scrollbar-width: thin;
@@ -637,4 +653,73 @@ body {
 /* Ensure the app takes full viewport */
 #root {
   min-height: 100vh;
+} 
+
+/* Progress animation */
+@keyframes progress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.animate-progress {
+  animation: progress 2s ease-in-out infinite;
+}
+
+/* Float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+} 
+
+/**
+ * Custom Tailwind Utility Classes
+ * ================================
+ * These utilities combine commonly used Tailwind classes to reduce repetition
+ * and maintain consistency across the application.
+ * 
+ * Usage: <div className="page-container">...</div>
+ * 
+ * Benefits:
+ * - Single source of truth for common patterns
+ * - Easier to maintain and update globally
+ * - Cleaner component code
+ * - Better performance (less class parsing)
+ */
+@layer utilities {
+  /* Page layouts */
+  .page-container {
+    @apply flex h-[calc(100vh-60px)] bg-gradient-to-br from-bg-primary to-bg-secondary p-4 gap-4;
+  }
+  
+  .page-container-no-padding {
+    @apply flex h-[calc(100vh-60px)] bg-gradient-to-br from-bg-primary to-bg-secondary;
+  }
+  
+  /* Backgrounds */
+  .gradient-bg {
+    @apply bg-gradient-to-br from-bg-primary to-bg-secondary;
+  }
+  
+  /* Cards */
+  .card-gradient {
+    @apply card overflow-hidden bg-gradient-to-br from-bg-primary to-bg-secondary;
+  }
+  
+  /* States */
+  .empty-state {
+    @apply flex items-center justify-center h-full bg-gradient-to-br from-bg-primary to-bg-secondary;
+  }
+  
+  .loading-state {
+    @apply flex items-center justify-center h-[calc(100vh-60px)] bg-gradient-to-br from-bg-primary to-bg-secondary;
+  }
+  
+  /* Dimensions */
+  .viewport-height {
+    @apply h-[calc(100vh-60px)];
+  }
 } 

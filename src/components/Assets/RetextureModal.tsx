@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Asset, MaterialPreset } from '../../types'
 import { useMaterialPresets, useRetexturing } from '../../hooks/useAssets'
 import { 
-  X, Sparkles, Package, Loader, CheckCircle, 
-  Zap, ChevronRight, AlertCircle, Wand2, Plus,
-  Palette, Upload, Image as ImageIcon, Type
+  Sparkles, Package, Loader, CheckCircle, 
+  ChevronRight, Wand2, Plus,
+  Image as ImageIcon, Type
 } from 'lucide-react'
 
 // Import components and utilities
@@ -16,11 +16,9 @@ import {
   ModalSection,
   Button,
   Card,
-  CardHeader,
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
   Input,
   Textarea,
   Select,

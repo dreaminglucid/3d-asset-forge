@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Badge, Input } from '../common'
+import { Card, CardContent, Badge, Input } from '../common'
 import { cn } from '../../styles'
-import { Search, ChevronRight, Package, Shield, Sword, HardHat } from 'lucide-react'
+import { Search, ChevronRight, Package } from 'lucide-react'
 import { Asset } from '../../types'
+import { EQUIPMENT_SLOTS } from '../../constants'
 
 interface EquipmentListProps {
   assets: Asset[]
@@ -12,52 +13,6 @@ interface EquipmentListProps {
   onSlotChange?: (slot: string) => void
   isLoading?: boolean
 }
-
-interface EquipmentSlot {
-  id: string
-  name: string
-  icon: React.ReactNode
-  bone: string
-  description?: string
-}
-
-const EQUIPMENT_SLOTS: EquipmentSlot[] = [
-  { 
-    id: 'Hand_R', 
-    name: 'Right Hand', 
-    icon: <Sword className="w-4 h-4" />, 
-    bone: 'Hand_R',
-    description: 'Weapons, tools, and held items'
-  },
-  { 
-    id: 'Hand_L', 
-    name: 'Left Hand', 
-    icon: <Shield className="w-4 h-4" />, 
-    bone: 'Hand_L',
-    description: 'Shields and off-hand items'
-  },
-  { 
-    id: 'Head', 
-    name: 'Head', 
-    icon: <HardHat className="w-4 h-4" />, 
-    bone: 'Head',
-    description: 'Helmets and headgear'
-  },
-  { 
-    id: 'Spine2', 
-    name: 'Chest', 
-    icon: <Package className="w-4 h-4" />, 
-    bone: 'Spine2',
-    description: 'Body armor and clothing'
-  },
-  { 
-    id: 'Hips', 
-    name: 'Legs', 
-    icon: <Package className="w-4 h-4" />, 
-    bone: 'Hips',
-    description: 'Leg armor and pants'
-  }
-]
 
 export const EquipmentList: React.FC<EquipmentListProps> = ({
   assets,
@@ -163,7 +118,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({
                       ? "bg-primary text-primary-foreground"
                       : "bg-bg-tertiary text-text-secondary"
                   )}>
-                    {slot.icon}
+                    <slot.icon className="w-4 h-4" />
                   </div>
                   <div className="flex-1">
                     <div className="font-medium text-sm">{slot.name}</div>

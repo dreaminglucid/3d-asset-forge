@@ -4,10 +4,10 @@ import { FittingConfig } from '../../services/fitting/armor/ArmorFittingService'
 import { cn } from '../../styles'
 import { 
   Sliders, Save, Download, RefreshCw, Eye, EyeOff,
-  Move, Maximize2, Activity, Shield, Sparkles,
-  Grid3X3, Box, Wand2, Zap, Target, Hand, 
-  HardHat, Package, Info, Layers
+  Move, Activity, Sparkles,
+  Grid3X3, Box, Wand2, Zap, Target, Layers
 } from 'lucide-react'
+import { EQUIPMENT_SLOTS } from '../../constants'
 
 interface ArmorFittingControlsProps {
   // Fitting config
@@ -82,13 +82,7 @@ const FITTING_METHODS = {
   }
 }
 
-const EQUIPMENT_SLOTS = [
-  { id: 'Head', name: 'Helmet', icon: <HardHat size={20} />, description: 'Head armor' },
-  { id: 'Spine2', name: 'Chestplate', icon: <Shield size={20} />, description: 'Body armor' },
-  { id: 'Hips', name: 'Legs', icon: <Package size={20} />, description: 'Leg armor' },
-  { id: 'Hand_R', name: 'Right Hand', icon: <Hand size={20} className="scale-x-[-1]" />, description: 'Weapons' },
-  { id: 'Hand_L', name: 'Left Hand', icon: <Hand size={20} />, description: 'Shields' }
-]
+
 
 export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
   fittingConfig,
@@ -135,7 +129,7 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
                 )}
               >
                 <div className={cn(equipmentSlot === slot.id ? 'text-primary' : 'text-text-secondary')}>
-                  {slot.icon}
+                                      <slot.icon size={20} />
                 </div>
                 <span className={cn("text-xs font-medium", equipmentSlot === slot.id ? 'text-primary' : 'text-text-primary')}>
                   {slot.name}
@@ -156,7 +150,7 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
                 )}
               >
                 <div className={cn(equipmentSlot === slot.id ? 'text-primary' : 'text-text-secondary')}>
-                  {slot.icon}
+                                      <slot.icon size={20} />
                 </div>
                 <span className={cn("text-xs font-medium", equipmentSlot === slot.id ? 'text-primary' : 'text-text-primary')}>
                   {slot.name}

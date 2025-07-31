@@ -1,11 +1,12 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Asset } from '../../types'
 import { useAssetsStore } from '../../store'
+import { getTierColor } from '../../constants'
 
 import { 
   Package, Shield, Swords, Diamond, Hammer, Building, 
   User, Trees, Box, Target, HelpCircle, Sparkles,
-  ChevronRight, ChevronDown, Layers, Trash2, AlertTriangle
+  ChevronRight, Layers
 } from 'lucide-react'
 
 interface AssetListProps {
@@ -20,7 +21,6 @@ interface AssetGroup {
 
 const AssetList: React.FC<AssetListProps> = ({
   assets,
-  onAssetDelete
 }) => {
   // Get state and actions from store
   const { selectedAsset, handleAssetSelect } = useAssetsStore()
@@ -101,23 +101,7 @@ const AssetList: React.FC<AssetListProps> = ({
     }
   }
   
-  const getTierColor = (tier?: string): string => {
-    switch (tier) {
-      case 'bronze': return '#CD7F32'
-      case 'iron': return '#434B4D' 
-      case 'steel': return '#71797E'
-      case 'mithril': return '#26619C'
-      case 'adamant': return '#2D5016'
-      case 'rune': return '#00FFFF'
-      case 'wood': return '#8B4513'
-      case 'oak': return '#654321'
-      case 'willow': return '#7C4E3E'
-      case 'leather': return '#8B4513'
-      case 'hard-leather': return '#654321'
-      case 'studded-leather': return '#434B4D'
-      default: return 'var(--color-primary)'
-    }
-  }
+
   
   // Clean up asset names for display
   const cleanAssetName = (name: string, isBase: boolean = false): string => {

@@ -8,6 +8,7 @@ import { GenerationPage } from './pages/GenerationPage'
 import { EquipmentPage } from './pages/EquipmentPage'
 import { HandRiggingPage } from './pages/HandRiggingPage'
 import { ArmorFittingPage } from './pages/ArmorFittingPage'
+import { NAVIGATION_VIEWS, APP_BACKGROUND_STYLES } from './constants'
 
 function AppContent() {
   const { currentView, navigateTo, navigateToAsset } = useNavigation()
@@ -17,9 +18,8 @@ function AppContent() {
       {/* Subtle grid background */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.02]">
         <div className="h-full w-full" style={{
-          backgroundImage: `linear-gradient(to right, var(--color-primary) 1px, transparent 1px),
-                           linear-gradient(to bottom, var(--color-primary) 1px, transparent 1px)`,
-          backgroundSize: '50px 50px'
+          backgroundImage: APP_BACKGROUND_STYLES.gridImage,
+          backgroundSize: APP_BACKGROUND_STYLES.gridSize
         }} />
       </div>
       
@@ -29,24 +29,24 @@ function AppContent() {
         <NotificationBar />
       
         <main className="flex-1">
-          {currentView === 'assets' && (
+          {currentView === NAVIGATION_VIEWS.ASSETS && (
             <div className="h-full overflow-hidden">
               <AssetsPage />
             </div>
           )}
-          {currentView === 'generation' && (
+          {currentView === NAVIGATION_VIEWS.GENERATION && (
             <GenerationPage 
-              onNavigateToAssets={() => navigateTo('assets')}
+              onNavigateToAssets={() => navigateTo(NAVIGATION_VIEWS.ASSETS)}
               onNavigateToAsset={navigateToAsset}
             />
           )}
-          {currentView === 'equipment' && (
+          {currentView === NAVIGATION_VIEWS.EQUIPMENT && (
             <EquipmentPage />
           )}
-          {currentView === 'handRigging' && (
+          {currentView === NAVIGATION_VIEWS.HAND_RIGGING && (
             <HandRiggingPage />
           )}
-          {currentView === 'armorFitting' && (
+          {currentView === NAVIGATION_VIEWS.ARMOR_FITTING && (
             <ArmorFittingPage />
           )}
         </main>

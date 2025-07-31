@@ -1,9 +1,9 @@
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Input } from '../common'
+import { Card, CardHeader, CardTitle, CardContent, Button } from '../common'
 import { 
   Sliders, Target, RotateCw, Move, RefreshCw, 
-  Eye, Download, Save, Wand2, Play, Pause,
-  CheckCircle, AlertCircle
+  Eye, Download, Save, Play, Pause,
+  CheckCircle
 } from 'lucide-react'
 
 interface Vector3 {

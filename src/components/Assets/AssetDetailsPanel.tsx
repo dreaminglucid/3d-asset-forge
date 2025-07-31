@@ -2,9 +2,10 @@ import React, { useState } from 'react'
 import { Asset } from '../../types'
 import { 
   X, Package, Hash, Tag, Calendar, Layers, Palette, Box, 
-  FileCode, Clock, User, ChevronRight, Copy, Check,
+  FileCode, ChevronRight, Copy, Check,
   Sparkles, AlertCircle, Download, Share2, Code
 } from 'lucide-react'
+import { getTierColor } from '../../constants'
 
 interface AssetDetailsPanelProps {
   asset: Asset
@@ -17,20 +18,7 @@ const AssetDetailsPanel: React.FC<AssetDetailsPanelProps> = ({ asset, isOpen, on
   const [copiedId, setCopiedId] = useState(false)
   const [activeTab, setActiveTab] = useState<'info' | 'metadata' | 'actions'>('info')
   
-  const getTierColor = (tier?: string): string => {
-    switch (tier) {
-      case 'bronze': return '#CD7F32'
-      case 'iron': return '#434B4D'
-      case 'steel': return '#43464B'
-      case 'mithril': return '#26619C'
-      case 'adamant': return '#2D5016'
-      case 'rune': return '#00FFFF'
-      case 'wood': return '#8B4513'
-      case 'oak': return '#654321'
-      case 'willow': return '#7C4E3E'
-      default: return 'var(--color-primary)'
-    }
-  }
+
   
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)

@@ -1,4 +1,3 @@
-import * as THREE from 'three'
 import { Vector3, BufferGeometry, BufferAttribute, Mesh } from 'three'
 
 export interface VertexConnection {

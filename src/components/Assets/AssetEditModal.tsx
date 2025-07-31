@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Save, Trash2, AlertTriangle } from 'lucide-react'
 import { Modal, Button, Input } from '../common'
 import type { Asset, AssetMetadata } from '../../types'

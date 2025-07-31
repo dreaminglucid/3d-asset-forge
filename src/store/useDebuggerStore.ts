@@ -163,10 +163,10 @@ const defaultFittingParameters: GenericFittingParameters = {
   debugColorMode: 'direction'
 }
 
-// Default selections to prevent null errors
-const defaultAvatar = { id: 'thug', name: 'Thug', path: './gdd-assets/thug/thug_rigged.glb' }
-const defaultArmor = { id: 'body-metal-base', name: 'Metal Base', path: './gdd-assets/body-metal-base/body-metal-base.glb' }
-const defaultHelmet = { id: 'helmet-leather-base', name: 'Leather Helmet', path: './gdd-assets/helmet-leather-base/helmet-leather-base.glb' }
+// Default selections - empty to force selection from available assets
+const defaultAvatar: ModelOption = { id: '', name: 'Select Avatar', path: '' }
+const defaultArmor: ModelOption = { id: '', name: 'Select Armor', path: '' }
+const defaultHelmet: ModelOption = { id: '', name: 'Select Helmet', path: '' }
 
 const initialState: DebuggerState = {
   // View and Demo Settings
@@ -178,9 +178,9 @@ const initialState: DebuggerState = {
   selectedAvatar: defaultAvatar,
   selectedArmor: defaultArmor,
   selectedHelmet: defaultHelmet,
-  selectedAvatarPath: defaultAvatar.path,
-  selectedArmorPath: defaultArmor.path,
-  selectedHelmetPath: defaultHelmet.path,
+  selectedAvatarPath: defaultAvatar?.path || '',
+  selectedArmorPath: defaultArmor?.path || '',
+  selectedHelmetPath: defaultHelmet?.path || '',
   
   // Animation Settings
   currentAnimation: 'tpose',
@@ -250,7 +250,7 @@ export const useDebuggerStore = create<DebuggerStore>()(
           // Model Selection
           setSelectedAvatar: (avatar) => set((state) => {
             state.selectedAvatar = avatar
-            state.selectedAvatarPath = avatar.path
+            state.selectedAvatarPath = avatar?.path || ''
             state.isArmorFitted = false
             state.isArmorBound = false
             state.isHelmetAttached = false
@@ -259,7 +259,7 @@ export const useDebuggerStore = create<DebuggerStore>()(
           
           setSelectedArmor: (armor) => set((state) => {
             state.selectedArmor = armor
-            state.selectedArmorPath = armor.path
+            state.selectedArmorPath = armor?.path || ''
             state.isArmorFitted = false
             state.isArmorBound = false
             state.lastError = null
@@ -267,7 +267,7 @@ export const useDebuggerStore = create<DebuggerStore>()(
           
           setSelectedHelmet: (helmet) => set((state) => {
             state.selectedHelmet = helmet
-            state.selectedHelmetPath = helmet.path
+            state.selectedHelmetPath = helmet?.path || ''
             state.isHelmetAttached = false
             state.lastError = null
           }),

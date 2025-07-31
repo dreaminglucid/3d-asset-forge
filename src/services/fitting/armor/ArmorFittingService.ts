@@ -4,8 +4,6 @@ import { BVHAcceleratedMeshFittingService } from './BVHAcceleratedMeshFittingSer
 import { GenericMeshFittingService } from './GenericMeshFittingService'
 import { MeshDeformationService } from '../deformation/MeshDeformationService'
 import { WeightTransferService } from '../deformation/WeightTransferService'
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 export interface BodyRegion {
   name: string

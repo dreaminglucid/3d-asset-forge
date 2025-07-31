@@ -1,7 +1,7 @@
 import React, { useRef, useCallback } from 'react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button } from '../common'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../common'
 import { cn } from '../../styles'
-import { Upload, Box, CheckCircle, X, AlertCircle, Sparkles, Loader2, RotateCw } from 'lucide-react'
+import { Upload, Box, CheckCircle, AlertCircle } from 'lucide-react'
 import { useHandRiggingStore } from '../../store'
 
 export function HandUploadZone() {
@@ -9,13 +9,10 @@ export function HandUploadZone() {
   
   const {
     selectedFile,
-    serviceInitialized,
-    processingStage,
     error,
     setSelectedFile,
     setModelUrl,
     setError,
-    canStartProcessing
   } = useHandRiggingStore()
   
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {

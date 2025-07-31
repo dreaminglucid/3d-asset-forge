@@ -8,17 +8,12 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { HandPoseDetectionService, HandLandmarks, Point3D, HandDetectionResult } from './HandPoseDetectionService'
 import { OrthographicHandRenderer, WristBoneInfo, HandCaptureResult } from './OrthographicHandRenderer'
-import { HandSegmentationService, FingerSegmentation, VertexSegmentation } from './HandSegmentationService'
+import { HandSegmentationService, FingerSegmentation } from './HandSegmentationService'
 import { HandBoneStructure, HandRiggingResult, HandRiggingOptions, RequiredHandRiggingOptions, HandRiggingResultWithDebug } from '../../types'
+import { HAND_BONE_NAMES } from '../../constants'
 
 // Re-export for backward compatibility
 export type { HandBoneStructure, HandRiggingResult, HandRiggingOptions }
-
-
-
-
-
-
 
 export class HandRiggingService {
   private loader: GLTFLoader
@@ -27,28 +22,6 @@ export class HandRiggingService {
   private handRenderer: OrthographicHandRenderer
   private segmentationService: HandSegmentationService
   public debugCaptures?: Record<string, string>
-  
-  // Bone naming conventions
-  private readonly BONE_NAMES = {
-    left: {
-      wrist: 'Hand_L',
-      palm: 'Palm_L',
-      thumb: ['Thumb_01_L', 'Thumb_02_L', 'Thumb_03_L'],
-      index: ['Index_01_L', 'Index_02_L', 'Index_03_L'],
-      middle: ['Middle_01_L', 'Middle_02_L', 'Middle_03_L'],
-      ring: ['Ring_01_L', 'Ring_02_L', 'Ring_03_L'],
-      pinky: ['Pinky_01_L', 'Pinky_02_L', 'Pinky_03_L']
-    },
-    right: {
-      wrist: 'Hand_R',
-      palm: 'Palm_R',
-      thumb: ['Thumb_01_R', 'Thumb_02_R', 'Thumb_03_R'],
-      index: ['Index_01_R', 'Index_02_R', 'Index_03_R'],
-      middle: ['Middle_01_R', 'Middle_02_R', 'Middle_03_R'],
-      ring: ['Ring_01_R', 'Ring_02_R', 'Ring_03_R'],
-      pinky: ['Pinky_01_R', 'Pinky_02_R', 'Pinky_03_R']
-    }
-  }
   
   constructor() {
     this.loader = new GLTFLoader()
@@ -561,7 +534,7 @@ export class HandRiggingService {
     landmarks3D: Point3D[],
     side: 'left' | 'right'
   ): HandBoneStructure {
-    const boneNames = this.BONE_NAMES[side]
+    const boneNames = HAND_BONE_NAMES[side]
     const bones: HandBoneStructure = {
       wrist: wristBone,
       fingers: {

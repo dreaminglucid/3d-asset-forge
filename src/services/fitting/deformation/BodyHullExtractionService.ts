@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { Vector3, BufferGeometry, BufferAttribute, SkinnedMesh, Bone, Skeleton, Mesh, MeshBasicMaterial } from 'three'
+import { Vector3, BufferGeometry, BufferAttribute, SkinnedMesh, Mesh, MeshBasicMaterial } from 'three'
 
 export interface BodyHullResult {
   mesh: Mesh

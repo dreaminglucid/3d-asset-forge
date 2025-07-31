@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { Asset } from '../types'
 import { FittingConfig, BodyRegion, CollisionPoint } from '../services/fitting/armor/ArmorFittingService'
 import { ArmorFittingViewerRef } from '../components/ArmorFitting/ArmorFittingViewer'

@@ -1,4 +1,3 @@
-import React from 'react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../common'
 import { cn } from '../../styles'
 import { CheckCircle, AlertCircle, Search, Camera, Wand2, Activity, Layers } from 'lucide-react'

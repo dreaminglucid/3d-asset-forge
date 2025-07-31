@@ -3,11 +3,11 @@
  * Allows regenerating the base model for an asset
  */
 
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { Asset } from '../../types'
 import { Modal, ModalHeader, ModalBody, ModalFooter, ModalSection, Button } from '../common'
 import { formatAssetName } from '../../utils/formatAssetName'
-import { Download, Upload, RefreshCw, CheckCircle, AlertCircle, Loader2, AlertTriangle } from 'lucide-react'
+import { RefreshCw, CheckCircle, AlertCircle, Loader2, AlertTriangle } from 'lucide-react'
 
 interface RegenerateModalProps {
   asset: Asset

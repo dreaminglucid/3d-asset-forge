@@ -4,6 +4,7 @@
  */
 
 import { CREATURE_SIZE_CATEGORIES, getCreatureCategory } from '../../types/NormalizationConventions'
+import { MIN_WEAPON_SIZES, MAX_WEAPON_SIZES, BASE_WEAPON_PROPORTIONS } from '../../constants'
 
 export interface WeaponScaleResult {
   scaleFactor: number
@@ -17,48 +18,7 @@ export interface WeaponScaleResult {
 }
 
 export class CreatureScalingService {
-  // Weapon type proportions for medium (human-sized) creatures
-  private static readonly BASE_WEAPON_PROPORTIONS: Record<string, number> = {
-    sword: 0.65,      // 65% of height
-    dagger: 0.25,     // 25% of height
-    axe: 0.5,         // 50% of height
-    mace: 0.45,       // 45% of height
-    staff: 1.1,       // 110% of height
-    spear: 1.2,       // 120% of height
-    bow: 0.7,         // 70% of height
-    crossbow: 0.5,    // 50% of height
-    shield: 0.4,      // 40% of height
-    wand: 0.2,        // 20% of height
-  }
-  
-  // Minimum weapon sizes to maintain visibility
-  private static readonly MIN_WEAPON_SIZES: Record<string, number> = {
-    sword: 0.5,       // meters
-    dagger: 0.15,
-    axe: 0.3,
-    mace: 0.3,
-    staff: 0.8,
-    spear: 1.0,
-    bow: 0.5,
-    crossbow: 0.4,
-    shield: 0.3,
-    wand: 0.1,
-  }
-  
-  // Maximum weapon sizes for game balance
-  private static readonly MAX_WEAPON_SIZES: Record<string, number> = {
-    sword: 3.0,       // meters
-    dagger: 0.8,
-    axe: 2.5,
-    mace: 2.0,
-    staff: 5.0,
-    spear: 7.0,
-    bow: 3.0,
-    crossbow: 2.0,
-    shield: 3.0,
-    wand: 1.0,
-  }
-  
+
   /**
    * Get weapon scale factor for a creature
    */
@@ -68,7 +28,7 @@ export class CreatureScalingService {
     currentWeaponLength: number
   ): WeaponScaleResult {
     const category = getCreatureCategory(creatureHeight)
-    const baseProportion = this.BASE_WEAPON_PROPORTIONS[weaponType.toLowerCase()] || 0.5
+    const baseProportion = BASE_WEAPON_PROPORTIONS[weaponType.toLowerCase()] || 0.5
     
     // Calculate adaptive proportion based on creature size
     const adaptiveProportion = this.calculateAdaptiveProportion(
@@ -84,8 +44,8 @@ export class CreatureScalingService {
     let scaleFactor = idealWeaponLength / currentWeaponLength
     
     // Apply constraints
-    const minSize = this.MIN_WEAPON_SIZES[weaponType.toLowerCase()] || 0.1
-    const maxSize = this.MAX_WEAPON_SIZES[weaponType.toLowerCase()] || 5.0
+    const minSize = MIN_WEAPON_SIZES[weaponType.toLowerCase()] || 0.1
+    const maxSize = MAX_WEAPON_SIZES[weaponType.toLowerCase()] || 5.0
     
     const scaledLength = currentWeaponLength * scaleFactor
     let constraintApplied = false

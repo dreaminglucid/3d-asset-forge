@@ -3,6 +3,8 @@
  * Defines the standard conventions for all normalized assets
  */
 
+import { CREATURE_SIZE_CATEGORIES, getCreatureCategory } from '../constants'
+
 export interface AssetConvention {
   scale: string
   origin: string
@@ -156,23 +158,5 @@ export function getConvention(assetType: string, subtype?: string): AssetConvent
   }
 }
 
-// Size categories for creatures
-export const CREATURE_SIZE_CATEGORIES = {
-  tiny: { min: 0.3, max: 0.6, name: 'Tiny' },
-  small: { min: 0.6, max: 1.2, name: 'Small' },
-  medium: { min: 1.2, max: 2.4, name: 'Medium' },
-  large: { min: 2.4, max: 4.0, name: 'Large' },
-  huge: { min: 4.0, max: 7.0, name: 'Huge' },
-  gargantuan: { min: 7.0, max: 10.0, name: 'Gargantuan' }
-}
-
-export function getCreatureCategory(height: number): keyof typeof CREATURE_SIZE_CATEGORIES {
-  for (const [category, bounds] of Object.entries(CREATURE_SIZE_CATEGORIES)) {
-    if (height >= bounds.min && height <= bounds.max) {
-      return category as keyof typeof CREATURE_SIZE_CATEGORIES
-    }
-  }
-  
-  // Default to medium if out of bounds
-  return 'medium'
-}
+// Re-export for backwards compatibility
+export { CREATURE_SIZE_CATEGORIES, getCreatureCategory }

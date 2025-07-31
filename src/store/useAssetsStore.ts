@@ -17,8 +17,7 @@ interface AssetsState {
   // Filter States
   searchTerm: string
   typeFilter: string
-  tierFilter: string
-  statusFilter: string
+  materialFilter: string
   
   // Viewer States
   showGroundPlane: boolean
@@ -36,8 +35,7 @@ interface AssetsState {
   setSelectedAsset: (asset: Asset | null) => void
   setSearchTerm: (term: string) => void
   setTypeFilter: (type: string) => void
-  setTierFilter: (tier: string) => void
-  setStatusFilter: (status: string) => void
+  setMaterialFilter: (material: string) => void
   setShowGroundPlane: (show: boolean) => void
   setIsWireframe: (wireframe: boolean) => void
   setIsLightBackground: (light: boolean) => void
@@ -75,8 +73,7 @@ export const useAssetsStore = create<AssetsState>()(
           selectedAsset: null,
           searchTerm: '',
           typeFilter: '',
-          tierFilter: '',
-          statusFilter: '',
+          materialFilter: '',
           showGroundPlane: false,
           isWireframe: false,
           isLightBackground: false,
@@ -101,12 +98,8 @@ export const useAssetsStore = create<AssetsState>()(
             state.typeFilter = type
           }),
           
-          setTierFilter: (tier) => set(state => {
-            state.tierFilter = tier
-          }),
-          
-          setStatusFilter: (status) => set(state => {
-            state.statusFilter = status
+          setMaterialFilter: (material) => set(state => {
+            state.materialFilter = material
           }),
           
           setShowGroundPlane: (show) => set(state => {
@@ -203,12 +196,23 @@ export const useAssetsStore = create<AssetsState>()(
             return assets.filter(asset => {
               if (state.searchTerm && !asset.name.toLowerCase().includes(state.searchTerm.toLowerCase())) return false
               if (state.typeFilter && asset.type !== state.typeFilter) return false
-              if (state.tierFilter && asset.metadata.tier !== state.tierFilter) return false
-              if (state.statusFilter) {
-                const isPlaceholder = asset.metadata.isPlaceholder
-                if (state.statusFilter === 'placeholder' && !isPlaceholder) return false
-                if (state.statusFilter === 'generated' && isPlaceholder) return false
+              
+              // Material filtering logic
+              if (state.materialFilter) {
+                // For variant assets with materialPreset
+                if (asset.metadata.isVariant && asset.metadata.materialPreset) {
+                  if (asset.metadata.materialPreset.id !== state.materialFilter) return false
+                }
+                // For variant assets with baseMaterial
+                else if (asset.metadata.isVariant && asset.metadata.baseMaterial) {
+                  if (asset.metadata.baseMaterial !== state.materialFilter) return false
+                }
+                // Base assets don't have materials, so exclude them when material filter is active
+                else if (asset.metadata.isBaseModel) {
+                  return false
+                }
               }
+              
               return true
             })
           }
@@ -223,8 +227,7 @@ export const useAssetsStore = create<AssetsState>()(
           isLightBackground: state.isLightBackground,
           searchTerm: state.searchTerm,
           typeFilter: state.typeFilter,
-          tierFilter: state.tierFilter,
-          statusFilter: state.statusFilter
+          materialFilter: state.materialFilter
         })
       }
     ),

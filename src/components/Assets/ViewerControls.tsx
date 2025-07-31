@@ -2,7 +2,6 @@ import React from 'react'
 import { useAssetsStore } from '../../store'
 import { 
   RotateCw, 
-  Download, 
   Eye, 
   EyeOff, 
   Grid, 
@@ -10,11 +9,9 @@ import {
   Moon, 
   Palette, 
   RefreshCw,
-  Settings,
   X,
   Layers,
   Camera,
-  Maximize2,
   Edit3,
   Activity
 } from 'lucide-react'

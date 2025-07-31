@@ -1,5 +1,4 @@
-import * as THREE from 'three'
-import { Vector3, Mesh, BufferGeometry, BufferAttribute, Matrix4 } from 'three'
+import { Vector3, Mesh, BufferGeometry, BufferAttribute } from 'three'
 
 export interface ControlPoint {
   source: Vector3

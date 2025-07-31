@@ -22,7 +22,6 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
   modelUrl, 
   animations,
   className,
-  riggedModelPath,
   characterHeight,
   assetId: assetIdProp
 }) => {

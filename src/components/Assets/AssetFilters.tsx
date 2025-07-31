@@ -1,6 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Search, Filter, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { useAssetsStore } from '../../store'
+
+interface MaterialPreset {
+  id: string
+  displayName: string
+  category: string
+  tier: number
+  color: string
+}
 
 interface AssetFiltersProps {
   totalAssets: number
@@ -12,20 +20,31 @@ const AssetFilters: React.FC<AssetFiltersProps> = ({
   filteredCount
 }) => {
   const [isExpanded, setIsExpanded] = useState(true)
+  const [materialPresets, setMaterialPresets] = useState<MaterialPreset[]>([])
   
   // Get filter state and actions from store
   const {
     searchTerm,
     typeFilter,
-    tierFilter,
-    statusFilter,
+    materialFilter,
     setSearchTerm,
     setTypeFilter,
-    setTierFilter,
-    setStatusFilter
+    setMaterialFilter
   } = useAssetsStore()
   
-  const hasActiveFilters = searchTerm || typeFilter || tierFilter || statusFilter
+  // Load material presets
+  useEffect(() => {
+    fetch('/material-presets.json')
+      .then(res => res.json())
+      .then(data => {
+        // Sort by tier to display in logical order
+        const sorted = data.sort((a: MaterialPreset, b: MaterialPreset) => a.tier - b.tier)
+        setMaterialPresets(sorted)
+      })
+      .catch(err => console.error('Failed to load material presets:', err))
+  }, [])
+  
+  const hasActiveFilters = searchTerm || typeFilter || materialFilter
 
   return (
     <div className="card bg-gradient-to-br from-bg-primary to-bg-secondary border-border-primary animate-scale-in">
@@ -115,43 +134,23 @@ const AssetFilters: React.FC<AssetFiltersProps> = ({
             </select>
           </div>
 
-          {/* Tier Filter */}
+          {/* Material Filter */}
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">Tier</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">Material</label>
             <select
-              value={tierFilter}
-              onChange={(e) => setTierFilter(e.target.value)}
+              value={materialFilter}
+              onChange={(e) => setMaterialFilter(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-bg-primary border border-border-primary rounded-lg
                        text-text-primary
                        focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50 focus:border-primary
                        transition-all duration-200 cursor-pointer hover:border-border-secondary"
             >
-              <option value="">All Tiers</option>
-              <option value="base">Base</option>
-              <option value="bronze">Bronze</option>
-              <option value="iron">Iron</option>
-              <option value="steel">Steel</option>
-              <option value="mithril">Mithril</option>
-              <option value="adamant">Adamant</option>
-              <option value="rune">Rune</option>
-              <option value="dragon">Dragon</option>
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-bg-primary border border-border-primary rounded-lg
-                       text-text-primary
-                       focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50 focus:border-primary
-                       transition-all duration-200 cursor-pointer hover:border-border-secondary"
-            >
-              <option value="">All Status</option>
-              <option value="generated">Generated</option>
-              <option value="placeholder">Placeholder</option>
+              <option value="">All Materials</option>
+              {materialPresets.map(preset => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.displayName}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -161,8 +160,7 @@ const AssetFilters: React.FC<AssetFiltersProps> = ({
               onClick={() => {
                 setSearchTerm('')
                 setTypeFilter('')
-                setTierFilter('')
-                setStatusFilter('')
+                setMaterialFilter('')
               }}
               className="w-full py-2 text-sm text-text-secondary hover:text-primary 
                        bg-bg-primary hover:bg-primary hover:bg-opacity-10 

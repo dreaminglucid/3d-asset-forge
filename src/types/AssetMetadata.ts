@@ -93,6 +93,7 @@ export interface VariantAssetMetadata extends RiggingMetadata {
   
   // Material Information
   materialPreset: MaterialPresetInfo
+  baseMaterial?: string  // Optional for backwards compatibility with older variant format
   
   // Generation Info
   retextureTaskId: string

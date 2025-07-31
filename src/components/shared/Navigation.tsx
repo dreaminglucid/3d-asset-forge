@@ -1,6 +1,7 @@
 import React from 'react'
 import { Database, Wand2, Wrench, Hand, Shield } from 'lucide-react'
 import { NavigationView } from '../../types'
+import { NAVIGATION_VIEWS } from '../../constants'
 
 interface NavigationProps {
   currentView: NavigationView
@@ -18,11 +19,11 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) =>
         <div className="flex items-center gap-2">
           <button
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-base ${
-              currentView === 'assets' 
+              currentView === NAVIGATION_VIEWS.ASSETS 
                 ? 'bg-primary bg-opacity-10 text-primary' 
                 : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
             }`}
-            onClick={() => onViewChange('assets')}
+            onClick={() => onViewChange(NAVIGATION_VIEWS.ASSETS)}
           >
             <Database size={18} />
             <span>Assets</span>
@@ -30,11 +31,11 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) =>
           
           <button
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-base ${
-              currentView === 'generation' 
+              currentView === NAVIGATION_VIEWS.GENERATION 
                 ? 'bg-primary bg-opacity-10 text-primary' 
                 : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
             }`}
-            onClick={() => onViewChange('generation')}
+            onClick={() => onViewChange(NAVIGATION_VIEWS.GENERATION)}
           >
             <Wand2 size={18} />
             <span>Generate</span>
@@ -42,11 +43,11 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) =>
           
           <button
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-base ${
-              currentView === 'equipment' 
+              currentView === NAVIGATION_VIEWS.EQUIPMENT 
                 ? 'bg-primary bg-opacity-10 text-primary' 
                 : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
             }`}
-            onClick={() => onViewChange('equipment')}
+            onClick={() => onViewChange(NAVIGATION_VIEWS.EQUIPMENT)}
           >
             <Wrench size={18} />
             <span>Equipment Fitting</span>
@@ -54,11 +55,11 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) =>
           
           <button
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-base ${
-              currentView === 'handRigging' 
+              currentView === NAVIGATION_VIEWS.HAND_RIGGING 
                 ? 'bg-primary bg-opacity-10 text-primary' 
                 : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
             }`}
-            onClick={() => onViewChange('handRigging')}
+            onClick={() => onViewChange(NAVIGATION_VIEWS.HAND_RIGGING)}
           >
             <Hand size={18} />
             <span>Hand Rigging</span>
@@ -66,11 +67,11 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) =>
           
           <button
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-base ${
-              currentView === 'armorFitting' 
+              currentView === NAVIGATION_VIEWS.ARMOR_FITTING 
                 ? 'bg-primary bg-opacity-10 text-primary' 
                 : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
             }`}
-            onClick={() => onViewChange('armorFitting')}
+            onClick={() => onViewChange(NAVIGATION_VIEWS.ARMOR_FITTING)}
           >
             <Shield size={18} />
             <span>Armor Fitting</span>

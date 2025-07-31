@@ -15,12 +15,6 @@ interface ArmorAssetListProps {
   onAssetTypeChange: (type: 'avatar' | 'armor') => void
 }
 
-const EQUIPMENT_SLOTS = {
-  Head: 'helmet',
-  Spine2: 'chest',
-  Hips: 'legs'
-}
-
 export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
   assets,
   loading,

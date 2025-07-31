@@ -35,8 +35,6 @@ export class IterativeArmorFittingService {
     console.log('🎯 IterativeArmorFittingService: Armor fitting complete')
   }
   
-
-  
   /**
    * Create a debug mesh showing the target body region
    */

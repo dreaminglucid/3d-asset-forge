@@ -7,7 +7,6 @@ import * as THREE from 'three'
 import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { getConvention, NormalizationResult, AssetConvention } from '../../types/NormalizationConventions'
-import { promises as fs } from 'fs'
 
 export interface NormalizedAssetResult {
   glb: ArrayBuffer
