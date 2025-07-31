@@ -19,18 +19,6 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) =>
         <div className="flex items-center gap-2">
           <button
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-base ${
-              currentView === NAVIGATION_VIEWS.ASSETS 
-                ? 'bg-primary bg-opacity-10 text-primary' 
-                : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
-            }`}
-            onClick={() => onViewChange(NAVIGATION_VIEWS.ASSETS)}
-          >
-            <Database size={18} />
-            <span>Assets</span>
-          </button>
-          
-          <button
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-base ${
               currentView === NAVIGATION_VIEWS.GENERATION 
                 ? 'bg-primary bg-opacity-10 text-primary' 
                 : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
@@ -43,14 +31,14 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) =>
           
           <button
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-base ${
-              currentView === NAVIGATION_VIEWS.EQUIPMENT 
+              currentView === NAVIGATION_VIEWS.ASSETS 
                 ? 'bg-primary bg-opacity-10 text-primary' 
                 : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
             }`}
-            onClick={() => onViewChange(NAVIGATION_VIEWS.EQUIPMENT)}
+            onClick={() => onViewChange(NAVIGATION_VIEWS.ASSETS)}
           >
-            <Wrench size={18} />
-            <span>Equipment Fitting</span>
+            <Database size={18} />
+            <span>Assets</span>
           </button>
           
           <button
@@ -63,6 +51,18 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, onViewChange }) =>
           >
             <Hand size={18} />
             <span>Hand Rigging</span>
+          </button>
+          
+          <button
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-base ${
+              currentView === NAVIGATION_VIEWS.EQUIPMENT 
+                ? 'bg-primary bg-opacity-10 text-primary' 
+                : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
+            }`}
+            onClick={() => onViewChange(NAVIGATION_VIEWS.EQUIPMENT)}
+          >
+            <Wrench size={18} />
+            <span>Equipment Fitting</span>
           </button>
           
           <button
