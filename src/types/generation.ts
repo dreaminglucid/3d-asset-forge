@@ -110,7 +110,6 @@ export interface GenerationConfig {
   enableGeneration?: boolean
   enableRetexturing?: boolean
   enableSprites?: boolean
-  enableVertexColors?: boolean
   enableRigging?: boolean
   
   // Rigging options
@@ -122,7 +121,6 @@ export interface GenerationConfig {
   generateVariants?: boolean
   variantMaterials?: string[]
   generateSprites?: boolean
-  extractVertexColors?: boolean
   
   // New configuration options
   materialPresets?: Array<{
@@ -165,7 +163,6 @@ export interface PipelineResult {
   baseAsset?: BaseAssetMetadata
   variants?: AssetMetadata[]
   sprites?: SpriteResult[]
-  vertexColors?: VertexColorData
   status: 'running' | 'completed' | 'failed'
   createdAt: Date
   completedAt?: Date
@@ -176,12 +173,6 @@ export interface SpriteResult {
   imageUrl: string
   width: number
   height: number
-}
-
-export interface VertexColorData {
-  dominantColor: string
-  colorPalette: string[]
-  colorMap?: Record<string, number> // color -> vertex count
 }
 
 export interface PipelineServiceConfig {

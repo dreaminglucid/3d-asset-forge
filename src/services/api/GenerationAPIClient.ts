@@ -17,7 +17,6 @@ export interface PipelineStages {
   generation: PipelineStage
   retexturing: PipelineStage
   sprites: PipelineStage
-  vertexColors: PipelineStage
 }
 
 export interface PipelineResults {
@@ -54,11 +53,6 @@ export interface PipelineResult {
   }
   variants?: Array<{ name: string; modelUrl: string }>
   sprites?: Array<{ angle: number; imageUrl: string }>
-  vertexColors?: {
-    dominantColor: string
-    colorPalette: string[]
-    colorMap?: Record<string, number>
-  }
 }
 
 // Event map for type-safe event handling
@@ -118,8 +112,7 @@ export class GenerationAPIClient extends EventEmitter {
       stages: {
         generation: { status: 'pending', progress: 0 },
         retexturing: { status: 'pending', progress: 0 },
-        sprites: { status: 'pending', progress: 0 },
-        vertexColors: { status: 'pending', progress: 0 }
+        sprites: { status: 'pending', progress: 0 }
       },
       config,
       results: {}

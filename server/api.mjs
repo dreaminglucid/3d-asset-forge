@@ -13,7 +13,6 @@ import { errorHandler } from './middleware/errorHandler.mjs'
 import { AssetService } from './services/AssetService.mjs'
 import { RetextureService } from './services/RetextureService.mjs'
 import { GenerationService } from './services/GenerationService.mjs'
-// import { VertexColorService } from './services/VertexColorService.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -62,7 +61,6 @@ const retextureService = new RetextureService({
   imageServerBaseUrl: process.env.IMAGE_SERVER_URL || 'http://localhost:8080'
 })
 const generationService = new GenerationService()
-// const vertexColorService = new VertexColorService()
 
 // Routes
 app.get('/api/health', (req, res) => {

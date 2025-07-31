@@ -5,7 +5,6 @@
 
 import EventEmitter from 'events'
 import { AICreationService } from './AICreationService.mjs'
-import { VertexColorService } from './VertexColorService.mjs'
 import { ImageHostingService } from './ImageHostingService.mjs'
 import fs from 'fs/promises'
 import path from 'path'
@@ -44,9 +43,6 @@ export class GenerationService extends EventEmitter {
       }
     })
     
-    // Initialize vertex color service
-    this.vertexColorService = new VertexColorService()
-    
     // Initialize image hosting service
     this.imageHostingService = new ImageHostingService()
   }
@@ -68,7 +64,6 @@ export class GenerationService extends EventEmitter {
         imageGeneration: { status: 'pending', progress: 0 },
         image3D: { status: 'pending', progress: 0 },
         textureGeneration: { status: 'pending', progress: 0 },
-        vertexColorExtraction: { status: 'pending', progress: 0 },
         ...(config.generationType === 'avatar' && config.enableRigging ? { rigging: { status: 'pending', progress: 0 } } : {}),
         ...(config.enableSprites ? { spriteGeneration: { status: 'pending', progress: 0 } } : {})
       },
@@ -688,37 +683,6 @@ export class GenerationService extends EventEmitter {
           // Continue without rigging - don't fail the entire pipeline
           console.log('⚠️  Continuing without rigging - avatar will not have animations')
         }
-      }
-      
-      // Stage 6: Vertex Color Extraction
-      if (pipeline.config.enableVertexColors && baseModelPath) {
-        pipeline.stages.vertexColorExtraction.status = 'processing'
-        
-        try {
-          const vertexColors = await this.vertexColorService.extractColors(baseModelPath)
-          
-          pipeline.stages.vertexColorExtraction.status = 'completed'
-          pipeline.stages.vertexColorExtraction.progress = 100
-          pipeline.stages.vertexColorExtraction.result = vertexColors
-          pipeline.results.vertexColorExtraction = vertexColors
-          
-          // Save vertex color data
-          const outputDir = path.join('gdd-assets', pipeline.config.assetId)
-          await fs.writeFile(
-            path.join(outputDir, 'vertex-colors.json'),
-            JSON.stringify(vertexColors, null, 2)
-          )
-          
-        } catch (error) {
-          console.error('Vertex color extraction failed:', error)
-          pipeline.stages.vertexColorExtraction.status = 'failed'
-          pipeline.stages.vertexColorExtraction.error = error.message
-        }
-        
-        pipeline.progress = 100
-        
-      } else {
-        pipeline.stages.vertexColorExtraction.status = 'skipped'
       }
       
       // Complete

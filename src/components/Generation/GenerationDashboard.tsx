@@ -65,7 +65,6 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
     useGPT4Enhancement,
     enableRetexturing,
     enableSprites,
-    enableVertexColors,
     
     // Avatar Configuration
     enableRigging,
@@ -113,7 +112,6 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
     setUseGPT4Enhancement,
     setEnableRetexturing,
     setEnableSprites,
-    setEnableVertexColors,
     setEnableRigging,
     setCharacterHeight,
     setSelectedMaterials,

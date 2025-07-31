@@ -80,7 +80,6 @@ interface GenerationState {
   useGPT4Enhancement: boolean
   enableRetexturing: boolean
   enableSprites: boolean
-  enableVertexColors: boolean
   
   // Avatar-specific Configuration
   enableRigging: boolean
@@ -143,7 +142,6 @@ interface GenerationState {
   setUseGPT4Enhancement: (use: boolean) => void
   setEnableRetexturing: (enable: boolean) => void
   setEnableSprites: (enable: boolean) => void
-  setEnableVertexColors: (enable: boolean) => void
   
   // Avatar Configuration Actions
   setEnableRigging: (enable: boolean) => void
@@ -216,7 +214,6 @@ export const useGenerationStore = create<GenerationState>()(
           useGPT4Enhancement: true,
           enableRetexturing: true,
           enableSprites: false,
-          enableVertexColors: false,
           
           enableRigging: true,
           characterHeight: 1.7,
@@ -336,10 +333,6 @@ export const useGenerationStore = create<GenerationState>()(
           
           setEnableSprites: (enable) => set((state) => {
             state.enableSprites = enable
-          }),
-          
-          setEnableVertexColors: (enable) => set((state) => {
-            state.enableVertexColors = enable
           }),
           
           // Avatar Configuration Actions
@@ -545,7 +538,6 @@ export const useGenerationStore = create<GenerationState>()(
           useGPT4Enhancement: state.useGPT4Enhancement,
           enableRetexturing: state.enableRetexturing,
           enableSprites: state.enableSprites,
-          enableVertexColors: state.enableVertexColors,
           enableRigging: state.enableRigging,
           characterHeight: state.characterHeight,
           selectedMaterials: state.selectedMaterials,
