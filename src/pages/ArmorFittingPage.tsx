@@ -120,7 +120,7 @@ export const ArmorFittingPage: React.FC = () => {
 
       {/* Center - 3D Viewport */}
       <div className="flex-1 flex flex-col">
-        <div className="card overflow-hidden flex-1 relative">
+        <div className="overflow-hidden flex-1 relative bg-gradient-to-br from-bg-primary to-bg-secondary rounded-xl">
           {selectedAvatar || selectedArmor ? (
             <>
               <ArmorFittingViewer
@@ -160,11 +160,13 @@ export const ArmorFittingPage: React.FC = () => {
               )}
             </>
           ) : (
-            <EmptyState
-              icon={Package}
-              title="No Preview Available"
-              description="Select an avatar and armor piece to begin fitting"
-            />
+            <div className="flex items-center justify-center h-full">
+              <EmptyState
+                icon={Package}
+                title="No Preview Available"
+                description="Select an avatar and armor piece to begin fitting"
+              />
+            </div>
           )}
         </div>
       </div>

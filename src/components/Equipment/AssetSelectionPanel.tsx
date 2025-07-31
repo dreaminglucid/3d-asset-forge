@@ -1,7 +1,7 @@
 import React from 'react'
 import { Badge, Input } from '../common'
 import { cn } from '../../styles'
-import { Search, ChevronRight, User, Sword, Box, Loader2 } from 'lucide-react'
+import { Search, ChevronRight, User, Sword, Shield, Box, Loader2 } from 'lucide-react'
 import { Asset } from '../../types'
 
 interface AssetSelectionPanelProps {
@@ -23,21 +23,60 @@ export const AssetSelectionPanel: React.FC<AssetSelectionPanelProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = React.useState('')
   const [assetTypeFilter, setAssetTypeFilter] = React.useState<'avatar' | 'equipment'>('avatar')
-  
+
   // Filter assets
   const avatarAssets = assets.filter(a => a.type === 'character')
-  const equipmentAssets = assets.filter(a => ['weapon', 'armor', 'shield'].includes(a.type))
-  
-  const filteredAssets = assetTypeFilter === 'avatar' 
+  const equipmentAssets = assets.filter(a => {
+    // Only include weapons and shields, exclude armor
+    if (a.type === 'armor') return false
+    if (a.type === 'weapon') return true
+    if (a.type === 'shield') return true
+    // Check by name for items that might be shields
+    const name = a.name.toLowerCase()
+    return name.includes('shield')
+  })
+
+  const filteredAssets = assetTypeFilter === 'avatar'
     ? avatarAssets.filter(a => a.name.toLowerCase().includes(searchTerm.toLowerCase()))
     : equipmentAssets.filter(a => a.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  
+
+  // Group equipment by type
+  const groupedEquipment = React.useMemo(() => {
+    if (assetTypeFilter !== 'equipment') return {}
+
+    const groups: Record<string, Asset[]> = {
+      weapons: [],
+      shields: []
+    }
+
+    filteredAssets.forEach(asset => {
+      const name = asset.name.toLowerCase()
+      if (name.includes('shield') || asset.type === 'shield') {
+        groups.shields.push(asset)
+      } else {
+        groups.weapons.push(asset)
+      }
+    })
+
+    return groups
+  }, [assetTypeFilter, filteredAssets])
+
+  // Get icon for asset type
+  const getAssetIcon = (asset: Asset) => {
+    if (asset.type === 'character') return User
+    const name = asset.name.toLowerCase()
+    if (name.includes('shield')) return Shield
+    // All weapons get sword icon
+    if (asset.type === 'weapon') return Sword
+    return Sword // Default for equipment
+  }
+
   return (
     <div className="card overflow-hidden w-80 flex flex-col bg-gradient-to-br from-bg-primary to-bg-secondary">
       {/* Header */}
       <div className="p-4 border-b border-border-primary bg-bg-primary bg-opacity-30">
         <h2 className="text-lg font-semibold text-text-primary mb-4">Asset Library</h2>
-        
+
         {/* Asset Type Toggle */}
         <div className="flex gap-2 p-1 bg-bg-tertiary/30 rounded-xl">
           <button
@@ -66,7 +105,7 @@ export const AssetSelectionPanel: React.FC<AssetSelectionPanelProps> = ({
           </button>
         </div>
       </div>
-      
+
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {/* Search */}
@@ -82,7 +121,7 @@ export const AssetSelectionPanel: React.FC<AssetSelectionPanelProps> = ({
             />
           </div>
         </div>
-        
+
         {/* Asset List */}
         <div className="p-2 pt-4">
           {loading ? (
@@ -100,54 +139,113 @@ export const AssetSelectionPanel: React.FC<AssetSelectionPanelProps> = ({
                 <p className="text-text-tertiary/60 text-xs mt-1">Try a different search term</p>
               )}
             </div>
-          ) : (
+          ) : assetTypeFilter === 'avatar' ? (
+            // Avatar list
             <div className="space-y-2">
-              {filteredAssets.map((asset) => (
-                <button
-                  key={asset.id}
-                  onClick={() => {
-                    if (assetTypeFilter === 'avatar') {
-                      onSelectAvatar(asset)
-                    } else {
-                      onSelectEquipment(asset)
-                    }
-                  }}
-                  className={cn(
-                    "w-full p-4 rounded-xl border transition-all duration-200 text-left group",
-                    (assetTypeFilter === 'avatar' ? selectedAvatar?.id === asset.id : selectedEquipment?.id === asset.id)
-                      ? "bg-primary/20 border-primary shadow-md shadow-primary/20"
-                      : "bg-bg-tertiary/20 border-white/10 hover:border-white/20 hover:bg-bg-tertiary/30"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-text-primary">{asset.name}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" size="sm" className="capitalize bg-bg-tertiary/50 text-text-secondary border border-white/10">
-                          {asset.type}
-                        </Badge>
-                        {asset.hasModel && (
-                          <Badge variant="primary" size="sm" className="bg-primary/20 text-primary border border-primary/30">
-                            <Box size={10} className="mr-1" />
-                            3D
-                          </Badge>
-                        )}
+              {filteredAssets.map((asset) => {
+                const Icon = getAssetIcon(asset)
+                return (
+                  <button
+                    key={asset.id}
+                    onClick={() => onSelectAvatar(asset)}
+                    className={cn(
+                      "w-full p-4 rounded-xl border transition-all duration-200 text-left group",
+                      selectedAvatar?.id === asset.id
+                        ? "bg-primary/20 border-primary shadow-md shadow-primary/20"
+                        : "bg-bg-tertiary/20 border-white/10 hover:border-white/20 hover:bg-bg-tertiary/30"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="w-10 h-10 bg-bg-tertiary rounded flex items-center justify-center">
+                          <Icon className="w-5 h-5 text-text-secondary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-text-primary">{asset.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" size="sm" className="capitalize bg-bg-tertiary/50 text-text-secondary border border-white/10">
+                              {asset.type}
+                            </Badge>
+                            <Badge variant="primary" size="sm" className="bg-primary/20 text-primary border border-primary/30">
+                              <Box size={10} className="mr-1" />
+                              3D
+                            </Badge>
+                          </div>
+                        </div>
                       </div>
+                      <ChevronRight size={18} className={cn(
+                        "text-text-tertiary transition-transform duration-200",
+                        selectedAvatar?.id === asset.id
+                          ? "translate-x-1 text-primary"
+                          : "group-hover:translate-x-1"
+                      )} />
                     </div>
-                    <ChevronRight size={18} className={cn(
-                      "text-text-tertiary transition-transform duration-200",
-                      (assetTypeFilter === 'avatar' ? selectedAvatar?.id === asset.id : selectedEquipment?.id === asset.id)
-                        ? "translate-x-1 text-primary"
-                        : "group-hover:translate-x-1"
-                    )} />
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            // Equipment list grouped by type
+            <div className="space-y-6">
+              {Object.entries(groupedEquipment).map(([group, groupAssets]) => {
+                if (groupAssets.length === 0) return null
+
+                return (
+                  <div key={group}>
+                    <h3 className="text-sm font-medium text-text-secondary mb-3 capitalize">
+                      {group} ({groupAssets.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {groupAssets.map((asset) => {
+                        const Icon = getAssetIcon(asset)
+                        return (
+                          <button
+                            key={asset.id}
+                            onClick={() => onSelectEquipment(asset)}
+                            className={cn(
+                              "w-full p-4 rounded-xl border transition-all duration-200 text-left group",
+                              selectedEquipment?.id === asset.id
+                                ? "bg-primary/20 border-primary shadow-md shadow-primary/20"
+                                : "bg-bg-tertiary/20 border-white/10 hover:border-white/20 hover:bg-bg-tertiary/30"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3 flex-1">
+                                <div className="w-10 h-10 bg-bg-tertiary rounded flex items-center justify-center">
+                                  <Icon className="w-5 h-5 text-text-secondary" />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-text-primary">{asset.name}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="secondary" size="sm" className="capitalize bg-bg-tertiary/50 text-text-secondary border border-white/10">
+                                      {asset.type}
+                                    </Badge>
+                                    <Badge variant="primary" size="sm" className="bg-primary/20 text-primary border border-primary/30">
+                                      <Box size={10} className="mr-1" />
+                                      3D
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                              <ChevronRight size={18} className={cn(
+                                "text-text-tertiary transition-transform duration-200",
+                                selectedEquipment?.id === asset.id
+                                  ? "translate-x-1 text-primary"
+                                  : "group-hover:translate-x-1"
+                              )} />
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                </button>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
       </div>
-      
+
       {/* Selected Assets Summary */}
       <div className="p-4 border-t border-border-primary bg-bg-primary bg-opacity-30">
         <div>

@@ -1,7 +1,7 @@
 import React from 'react'
 import { cn } from '../../styles'
 import { Ruler, RefreshCw, Info } from 'lucide-react'
-import { RangeInput, Button, Badge } from '../common'
+import { RangeInput, Button, Badge, Checkbox } from '../common'
 import { CREATURE_PRESETS, CREATURE_SIZE_CATEGORIES, getCreatureCategory } from '../../constants'
 import { CreatureScalingService } from '../../services/processing/CreatureScalingService'
 
@@ -61,14 +61,13 @@ export const CreatureSizeControls: React.FC<CreatureSizeControlsProps> = ({
                   setCreatureCategory(preset.category)
                 }}
                 className={cn(
-                  "px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 flex flex-col items-center gap-1",
+                  "px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center",
                   creatureCategory === preset.category
                     ? "bg-primary/80 text-white shadow-lg shadow-primary/20"
                     : "bg-bg-tertiary/20 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/30 border border-white/10"
                 )}
               >
-                <span className="text-lg">{preset.icon}</span>
-                <span className="text-xs">{preset.name}</span>
+                <span className="text-xs font-medium">{preset.name}</span>
               </button>
             ))}
           </div>
@@ -101,17 +100,11 @@ export const CreatureSizeControls: React.FC<CreatureSizeControlsProps> = ({
         
         {/* Weapon Scaling */}
         <div className="space-y-3">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoScaleWeapon}
-              onChange={(e) => setAutoScaleWeapon(e.target.checked)}
-              className="w-4 h-4 rounded border-border-primary text-primary focus:ring-primary"
-            />
-            <span className="text-sm font-medium text-text-primary">
-              Auto-scale weapon to creature size
-            </span>
-          </label>
+          <Checkbox
+            checked={autoScaleWeapon}
+            onChange={(e) => setAutoScaleWeapon(e.target.checked)}
+            label="Auto-scale weapon to creature size"
+          />
           
           {!autoScaleWeapon && (
             <div className="space-y-2">

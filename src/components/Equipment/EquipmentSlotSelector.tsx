@@ -12,6 +12,11 @@ export const EquipmentSlotSelector: React.FC<EquipmentSlotSelectorProps> = ({
   equipmentSlot,
   onSlotChange
 }) => {
+  // Filter to only show weapon slots (Right Hand and Left Hand)
+  const weaponSlots = EQUIPMENT_SLOTS.filter(slot => 
+    slot.id === 'Hand_R' || slot.id === 'Hand_L'
+  )
+  
   return (
     <div className="bg-bg-primary/40 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden">
       <div className="p-4 border-b border-white/5">
@@ -27,53 +32,25 @@ export const EquipmentSlotSelector: React.FC<EquipmentSlotSelectorProps> = ({
       </div>
       <div className="p-4">
         <div className="grid grid-cols-2 gap-2">
-          {EQUIPMENT_SLOTS.map((slot) => {
+          {weaponSlots.map((slot) => {
             const Icon = slot.icon
             return (
               <button
                 key={slot.id}
                 onClick={() => onSlotChange(slot.id)}
                 className={cn(
-                  "relative p-4 rounded-lg border transition-all duration-300 group overflow-hidden",
+                  "p-3 rounded-lg border transition-all duration-200 flex flex-col items-center gap-1.5",
                   equipmentSlot === slot.id
-                    ? "bg-primary/10 border-primary shadow-lg shadow-primary/10"
-                    : "bg-bg-secondary/40 border-white/10 hover:border-white/20 hover:bg-bg-secondary/60"
+                    ? "bg-primary/10 border-primary"
+                    : "bg-bg-secondary/40 border-white/10 hover:border-white/20"
                 )}
               >
-                {/* Hover effect background */}
-                <div className={cn(
-                  "absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/10 opacity-0 transition-opacity duration-300",
-                  equipmentSlot !== slot.bone && "group-hover:opacity-100"
-                )} />
-                
-                <div className="relative flex flex-col items-center gap-2.5">
-                  <div className={cn(
-                    "w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-300",
-                    equipmentSlot === slot.id
-                      ? "bg-primary text-white shadow-md scale-110"
-                      : "bg-bg-tertiary/50 text-text-secondary group-hover:bg-bg-tertiary/70 group-hover:text-text-primary group-hover:scale-105"
-                  )}>
-                    <Icon size={20} />
-                  </div>
-                  <div className="text-center">
-                    <span className={cn(
-                      "text-sm font-medium block transition-colors duration-300",
-                      equipmentSlot === slot.id ? "text-primary" : "text-text-primary group-hover:text-white"
-                    )}>
-                      {slot.name}
-                    </span>
-                    {slot.description && (
-                      <span className="text-[11px] text-text-tertiary mt-0.5 block">{slot.description}</span>
-                    )}
-                  </div>
+                <div className={cn(equipmentSlot === slot.id ? 'text-primary' : 'text-text-secondary')}>
+                  <Icon size={20} />
                 </div>
-                
-                {/* Selection indicator */}
-                {equipmentSlot === slot.bone && (
-                  <div className="absolute top-2 right-2">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                  </div>
-                )}
+                <span className={cn("text-xs font-medium", equipmentSlot === slot.id ? 'text-primary' : 'text-text-primary')}>
+                  {slot.name}
+                </span>
               </button>
             )
           })}

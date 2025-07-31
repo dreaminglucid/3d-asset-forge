@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '../common'
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Checkbox } from '../common'
 import { FittingConfig } from '../../services/fitting/armor/ArmorFittingService'
 import { cn } from '../../styles'
 import { 
@@ -105,40 +105,24 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
   fittingProgress,
   canFit
 }) => {
+  // Filter out weapon slots - only show armor slots (Head, Chest, Legs)
+  const armorSlots = EQUIPMENT_SLOTS.filter(slot => 
+    slot.id === 'Head' || slot.id === 'Spine2' || slot.id === 'Hips'
+  )
+  
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Equipment Slot Selection */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <Target className="w-4 h-4" />
             Equipment Slot
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent>
           <div className="grid grid-cols-3 gap-2">
-            {EQUIPMENT_SLOTS.slice(0, 3).map((slot) => (
-              <button
-                key={slot.id}
-                onClick={() => onEquipmentSlotChange(slot.id)}
-                className={cn(
-                  "p-3 rounded-lg border transition-all duration-200 flex flex-col items-center gap-1.5",
-                  equipmentSlot === slot.id
-                    ? "bg-primary/10 border-primary"
-                    : "bg-bg-secondary/40 border-white/10 hover:border-white/20"
-                )}
-              >
-                <div className={cn(equipmentSlot === slot.id ? 'text-primary' : 'text-text-secondary')}>
-                                      <slot.icon size={20} />
-                </div>
-                <span className={cn("text-xs font-medium", equipmentSlot === slot.id ? 'text-primary' : 'text-text-primary')}>
-                  {slot.name}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            {EQUIPMENT_SLOTS.slice(3).map((slot) => (
+            {armorSlots.map((slot) => (
               <button
                 key={slot.id}
                 onClick={() => onEquipmentSlotChange(slot.id)}
@@ -163,13 +147,13 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
 
       {/* Fitting Method */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <Wand2 className="w-4 h-4" />
             Fitting Method
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent>
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(FITTING_METHODS).map(([key, method]) => (
               <button
@@ -203,13 +187,13 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
 
       {/* Fitting Parameters */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <Sliders className="w-4 h-4" />
             Parameters
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0 space-y-3">
+        <CardContent className="space-y-3">
           {/* Method-specific parameters */}
           {fittingConfig.method === 'hull' && (
             <>
@@ -291,30 +275,31 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
             />
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer py-1">
-            <input
-              type="checkbox"
-              checked={enableWeightTransfer}
-              onChange={(e) => onEnableWeightTransferChange(e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-border-primary text-primary focus:ring-primary"
-            />
-            <span className="text-xs font-medium">Enable Weight Transfer</span>
-            <Badge variant="secondary" className="text-[10px] px-1 py-0">
-              Beta
-            </Badge>
-          </label>
+          <Checkbox
+            checked={enableWeightTransfer}
+            onChange={(e) => onEnableWeightTransferChange(e.target.checked)}
+            size="sm"
+            label={
+              <div className="flex items-center gap-2">
+                <span>Enable Weight Transfer</span>
+                <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                  Beta
+                </Badge>
+              </div>
+            }
+          />
         </CardContent>
       </Card>
 
       {/* Transform Controls */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <Move className="w-4 h-4" />
             Manual Adjust
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-0 space-y-3">
+        <CardContent className="space-y-3">
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-medium">Scale</label>

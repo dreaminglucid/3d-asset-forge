@@ -19,7 +19,7 @@ const AssetFilters: React.FC<AssetFiltersProps> = ({
   totalAssets,
   filteredCount
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true)
+  const [isExpanded, setIsExpanded] = useState(false)
   const [materialPresets, setMaterialPresets] = useState<MaterialPreset[]>([])
   
   // Get filter state and actions from store

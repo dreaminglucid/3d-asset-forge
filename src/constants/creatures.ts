@@ -40,12 +40,12 @@ export const CREATURE_SIZE_CATEGORIES = {
 
 // Creature presets for quick selection
 export const CREATURE_PRESETS = [
-  { name: 'Fairy', height: 0.3, category: 'tiny' as const, icon: '🧚' },
-  { name: 'Gnome', height: 0.9, category: 'small' as const, icon: '🧙' },
-  { name: 'Human', height: 1.83, category: 'medium' as const, icon: '🧍' },
-  { name: 'Troll', height: 3.0, category: 'large' as const, icon: '👹' },
-  { name: 'Giant', height: 5.0, category: 'huge' as const, icon: '🗿' },
-  { name: 'Dragon', height: 8.0, category: 'gargantuan' as const, icon: '🐉' }
+  { name: 'Fairy', height: 0.3, category: 'tiny' as const },
+  { name: 'Gnome', height: 0.9, category: 'small' as const },
+  { name: 'Human', height: 1.83, category: 'medium' as const },
+  { name: 'Troll', height: 3.0, category: 'large' as const },
+  { name: 'Giant', height: 5.0, category: 'huge' as const },
+  { name: 'Dragon', height: 8.0, category: 'gargantuan' as const }
 ] as const
 
 // Get creature category based on height

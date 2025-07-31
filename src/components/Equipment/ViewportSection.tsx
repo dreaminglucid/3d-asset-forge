@@ -65,7 +65,7 @@ export const ViewportSection: React.FC<ViewportSectionProps> = ({
   
   return (
     <div className="flex-1 flex flex-col">
-      <div className="card overflow-hidden flex-1 relative">
+      <div className="overflow-hidden flex-1 relative bg-gradient-to-br from-bg-primary to-bg-secondary rounded-xl">
         {selectedAvatar || selectedEquipment ? (
           <>
             <EquipmentViewer
@@ -188,7 +188,7 @@ export const ViewportSection: React.FC<ViewportSectionProps> = ({
             )}
           </>
         ) : (
-          <div className="flex items-center justify-center h-full bg-gradient-to-br from-bg-primary to-bg-secondary">
+          <div className="flex items-center justify-center h-full">
             <EmptyState
               icon={Package}
               title="No Preview Available"

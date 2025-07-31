@@ -65,8 +65,6 @@ export interface ThreeViewerRef {
   refreshSkeleton: () => void
 }
 
-
-
 const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
   modelUrl,
   isWireframe = false,
@@ -93,7 +91,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
   const [loading, setLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [modelInfo, setModelInfo] = useState({ vertices: 0, faces: 0, materials: 0, fileSize: 0 })
-  const [showGrid, setShowGrid] = useState(true)
+  const [showGrid, setShowGrid] = useState(false)
   const [showBounds, setShowBounds] = useState(false)
   const [showStats, setShowStats] = useState(false)
   const [autoRotate, setAutoRotate] = useState(false)

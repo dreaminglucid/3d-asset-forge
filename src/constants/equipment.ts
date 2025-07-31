@@ -1,4 +1,4 @@
-import { Sword, Shield, HardHat, Box, LucideIcon } from 'lucide-react'
+import { Sword, Shield, HardHat, Box, Shirt, LucideIcon } from 'lucide-react'
 
 export interface EquipmentSlot {
   id: string
@@ -12,14 +12,14 @@ export const EQUIPMENT_SLOTS: EquipmentSlot[] = [
   { id: 'Hand_R', name: 'Right Hand', icon: Sword, bone: 'Hand_R', description: 'Weapons, tools, and held items' },
   { id: 'Hand_L', name: 'Left Hand', icon: Shield, bone: 'Hand_L', description: 'Shields and off-hand items' },
   { id: 'Head', name: 'Head', icon: HardHat, bone: 'Head', description: 'Helmets and headgear' },
-  { id: 'Spine2', name: 'Chest', icon: Box, bone: 'Spine2', description: 'Body armor and clothing' },
+  { id: 'Spine2', name: 'Chest', icon: Shirt, bone: 'Spine2', description: 'Body armor and clothing' },
   { id: 'Hips', name: 'Legs', icon: Box, bone: 'Hips', description: 'Leg armor and pants' },
 ] as const
 
 // Equipment types
 export const EQUIPMENT_TYPES = {
   weapon: 'weapon',
-  armor: 'armor', 
+  armor: 'armor',
   shield: 'shield',
 } as const
 
