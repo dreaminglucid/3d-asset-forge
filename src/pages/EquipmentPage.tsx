@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useAssets } from '../hooks/useAssets'
 import { Asset } from '../types'
+import { hasAnimations } from '../types/AssetMetadata'
 import EquipmentViewer, { EquipmentViewerRef } from '../components/Equipment/EquipmentViewer'
 import { WeaponHandleDetector } from '../services/processing/WeaponHandleDetector'
 import type { HandleDetectionResult } from '../services/processing/WeaponHandleDetector'
@@ -385,7 +386,7 @@ export const EquipmentPage: React.FC = () => {
                 ref={viewerRef}
                 avatarUrl={(() => {
                   if (!selectedAvatar) return undefined
-                  const animations = (selectedAvatar as any).metadata?.animations?.basic
+                  const animations = hasAnimations(selectedAvatar) ? selectedAvatar.metadata.animations?.basic : undefined
                   
                   // Use animation files when available
                   let url = `/api/assets/${selectedAvatar.id}/model`  // Default to base model
@@ -443,7 +444,7 @@ export const EquipmentPage: React.FC = () => {
               </div>
               
               {/* Animation Controls */}
-              {selectedAvatar && (selectedAvatar as any).metadata?.animations?.basic && (
+              {selectedAvatar && hasAnimations(selectedAvatar) && selectedAvatar.metadata.animations?.basic && (
                 <Card className="absolute bottom-4 left-4 right-4 bg-bg-tertiary/80 backdrop-blur-md border border-white/10">
                   <CardContent className="py-3">
                     <div className="flex items-center justify-between gap-4">

@@ -87,7 +87,7 @@ async function extractTPoseSimple(options: ExtractOptions): Promise<void> {
     if (verbose) {
       console.log(`\n🎬 Original animations: ${gltfJson.animations?.length || 0}`)
       if (gltfJson.animations) {
-        gltfJson.animations.forEach((anim: any, i: number) => {
+        gltfJson.animations.forEach((anim: { name?: string }, i: number) => {
           console.log(`  - Animation ${i}: ${anim.name || 'unnamed'}`)
         })
       }
@@ -186,8 +186,8 @@ export async function runCLI() {
   try {
     await extractTPoseSimple({ inputPath, outputPath })
     process.exit(0)
-  } catch (error: any) {
-    console.error('\n💥 Failed:', error.message)
+  } catch (error) {
+    console.error('\n💥 Failed:', error instanceof Error ? error.message : String(error))
     process.exit(1)
   }
 } 

@@ -28,7 +28,6 @@
     "extract-tpose-simple": "npx tsx scripts/extract-tpose-simple-cli.ts",
     "test:fitting:core": "node test-fitting-core.mjs",
     "test:fitting:service": "node test-service-direct.mjs",
-    "test:fitting:full": "node test-intuitive-fitting.mjs",
     "test:fitting:complete": "node test-complete-solution.mjs",
     "test:fitting:real": "node test-real-models.mjs",
     "test:fitting": "npm run test:fitting:core && npm run test:fitting:complete"

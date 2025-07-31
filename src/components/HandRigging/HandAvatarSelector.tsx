@@ -5,6 +5,7 @@ import { User, Search, ChevronRight, Box, Loader2, AlertCircle, Check } from 'lu
 import { useAssets } from '../../hooks/useAssets'
 import { useHandRiggingStore } from '../../store'
 import type { Asset } from '../../types'
+import { hasAnimations } from '../../types/AssetMetadata'
 
 export function HandAvatarSelector() {
   const { assets, loading } = useAssets()
@@ -27,7 +28,7 @@ export function HandAvatarSelector() {
     setSelectedAvatar(avatar)
     
     // Check if avatar has t-pose animation file
-    const animations = (avatar as any).metadata?.animations?.basic
+    const animations = hasAnimations(avatar) ? avatar.metadata.animations?.basic : undefined
     let modelUrl = `/api/assets/${avatar.id}/model`  // Default to base model
     
     if (animations?.tpose) {
@@ -111,12 +112,12 @@ export function HandAvatarSelector() {
                           3D
                         </Badge>
                       )}
-                      {avatar.metadata?.animations?.basic && (
+                      {hasAnimations(avatar) && avatar.metadata.animations?.basic && (
                         <Badge variant="secondary" size="sm" className="bg-purple-500/20 text-purple-400 border border-purple-500/30">
                           Animated
                         </Badge>
                       )}
-                      {(avatar as any).metadata?.animations?.basic?.tpose && (
+                      {hasAnimations(avatar) && avatar.metadata.animations?.basic?.tpose && (
                         <Badge variant="success" size="sm" className="bg-green-500/20 text-green-400 border border-green-500/30">
                           T-Pose
                         </Badge>
@@ -147,14 +148,14 @@ export function HandAvatarSelector() {
               <AlertCircle className="w-4 h-4 text-primary flex-shrink-0" />
               <span className="text-text-primary">
                 Selected: <strong>{selectedAvatar.name}</strong>
-                {(selectedAvatar as any).metadata?.animations?.basic?.tpose && (
+                {hasAnimations(selectedAvatar) && selectedAvatar.metadata.animations?.basic?.tpose && (
                   <Badge variant="success" size="sm" className="ml-2 text-white">
                     T-Pose Available
                   </Badge>
                 )}
               </span>
             </div>
-            {!(selectedAvatar as any).metadata?.animations?.basic?.tpose && (
+            {(!hasAnimations(selectedAvatar) || !selectedAvatar.metadata.animations?.basic?.tpose) && (
               <p className="text-xs text-text-secondary mt-2 ml-6">
                 No T-pose model found, using base model (results may vary)
               </p>

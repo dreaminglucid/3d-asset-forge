@@ -10,11 +10,13 @@ import chalk from 'chalk'
 import { AssetNormalizationService } from '../src/services/processing/AssetNormalizationService'
 import { WeaponHandleDetector } from '../src/services/processing/WeaponHandleDetector'
 
-async function getAllAssets(): Promise<Array<{ id: string; metadata: any }>> {
+import { AssetMetadata, ExtendedAssetMetadata } from '../src/types'
+
+async function getAllAssets(): Promise<Array<{ id: string; metadata: ExtendedAssetMetadata }>> {
   const assetsDir = join(process.cwd(), 'gdd-assets')
   const dirs = await fs.readdir(assetsDir)
   
-  const assets: Array<{ id: string; metadata: any }> = []
+  const assets: Array<{ id: string; metadata: ExtendedAssetMetadata }> = []
   
   for (const dir of dirs) {
     const metadataPath = join(assetsDir, dir, 'metadata.json')
@@ -193,7 +195,9 @@ async function main() {
       await normalizeWeapon(id)
       if (!metadata.normalized) weaponsNormalized++
     } else if (metadata.type === 'character') {
-      const height = metadata.characterHeight || metadata.riggingOptions?.heightMeters || 1.83
+      // riggingOptions might be stored as a custom property in some assets
+      const riggingOptions = (metadata as ExtendedAssetMetadata & { riggingOptions?: { heightMeters?: number } }).riggingOptions
+      const height = metadata.characterHeight || riggingOptions?.heightMeters || 1.83
       await normalizeCharacter(id, height)
       if (!metadata.normalized) charactersNormalized++
     } else if (metadata.type === 'armor') {

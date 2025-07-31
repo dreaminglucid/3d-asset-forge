@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, Save, Trash2, AlertTriangle } from 'lucide-react'
 import { Modal, Button, Input } from '../common'
-import type { Asset } from '../../types'
+import type { Asset, AssetMetadata } from '../../types'
 
 interface AssetEditModalProps {
   asset: Asset | null
@@ -20,7 +20,16 @@ export function AssetEditModal({
   onDelete,
   hasVariants = false
 }: AssetEditModalProps) {
-  const [editedData, setEditedData] = useState({
+  interface EditedAssetData {
+    name: string
+    type: string
+    metadata: {
+      tier: string
+      subtype: string
+    }
+  }
+  
+  const [editedData, setEditedData] = useState<EditedAssetData>({
     name: '',
     type: '',
     metadata: {
@@ -35,11 +44,12 @@ export function AssetEditModal({
 
   useEffect(() => {
     if (asset) {
+      const metadataWithTier = asset.metadata as AssetMetadata & { tier?: string }
       setEditedData({
         name: asset.name,
         type: asset.type,
         metadata: {
-          tier: asset.metadata.tier || '',
+          tier: metadataWithTier.tier || '',
           subtype: asset.metadata.subtype || ''
         }
       })
@@ -66,7 +76,7 @@ export function AssetEditModal({
         return {
           ...prev,
           [parent]: {
-            ...prev[parent as keyof typeof prev] as any,
+            ...(prev[parent as keyof typeof prev] as Record<string, string>),
             [child]: value
           }
         }

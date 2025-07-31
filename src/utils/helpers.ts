@@ -2,6 +2,8 @@
  * Utility helpers
  */
 
+import { AssetMetadata } from '../types'
+
 /**
  * Generate a unique ID
  */
@@ -252,7 +254,7 @@ export function generateTierBatch(
     type: string
     subtype?: string
     style?: string
-    metadata?: any
+    metadata?: Record<string, string | number | boolean>
   },
   materialTiers: (keyof typeof MATERIAL_TIERS)[],
   itemType: 'weapon' | 'armor' | 'tool'

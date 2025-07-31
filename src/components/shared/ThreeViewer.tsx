@@ -7,6 +7,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+import { ExtendedWindow } from '../../types'
 import { 
   Maximize2, 
   Grid3X3, 
@@ -611,7 +612,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
       const renderer = rendererRef.current
       const camera = cameraRef.current
       const model = modelRef.current
-      const captures: any = {}
+      const captures: Record<string, string> = {}
       
       // Find hand bones
       const handBones: { 
@@ -696,7 +697,10 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
       }
       
       // Capture individual hands if found
-      const handCaptures: any = {}
+      const handCaptures: {
+        leftHand?: HTMLCanvasElement
+        rightHand?: HTMLCanvasElement
+      } = {}
       
       if (handBones.left) {
         handCaptures.leftHand = captureHandRegion('left', handBones.left)
@@ -956,7 +960,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
         // Also check for animated models if we're in animation mode
         const animatedModel = sceneRef.current.getObjectByName('animatedModel')
         if (animatedModel && skinnedMeshes.length === 0) {
-          animatedModel.traverse((child: any) => {
+          animatedModel.traverse((child: THREE.Object3D) => {
             if (child instanceof THREE.SkinnedMesh && child.skeleton) {
               skinnedMeshes.push(child)
             }
@@ -1250,12 +1254,12 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
         
         // Debug rotation values every frame for now
         const currentRotation = handRotationsRef.current.leftPalm
-        if (currentRotation !== 0 && !(window as any)._rotationLogged) {
+        if (currentRotation !== 0 && !(window as ExtendedWindow)._rotationLogged) {
           console.log(`🎯 Non-zero rotation detected!`)
           console.log(`  Bone exists: ${!!handBonesRef.current.leftPalm}`)
           console.log(`  Rotation value: ${currentRotation}°`)
           console.log(`  Axis: ${rotationAxisRef.current}`);
-          (window as any)._rotationLogged = true
+          (window as ExtendedWindow)._rotationLogged = true
         }
         
         // Only log when rotation changes
@@ -1309,17 +1313,17 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
           
           // Debug current rotation (only once)
           const currentRot = handBonesRef.current.leftPalm.rotation
-          if (!(window as any)._lastLoggedRotation || (window as any)._lastLoggedRotation !== radians) {
+          if (!(window as ExtendedWindow)._lastLoggedRotation || (window as ExtendedWindow)._lastLoggedRotation !== radians) {
             if (radians !== 0) {
               console.log(`  💫 Rotation applied to leftPalm!`)
               console.log(`    Slider value: ${handRotationsRef.current.leftPalm}°`)
               console.log(`    Radians: ${radians.toFixed(3)}`)
               console.log(`    Axis: ${rotationAxisRef.current}`)
               console.log(`    Bone rotation: x=${currentRot.x.toFixed(3)}, y=${currentRot.y.toFixed(3)}, z=${currentRot.z.toFixed(3)}`);
-              (window as any)._lastLoggedRotation = radians
+              (window as ExtendedWindow)._lastLoggedRotation = radians
             } else {
               // Reset when at 0
-              (window as any)._lastLoggedRotation = 0
+              (window as ExtendedWindow)._lastLoggedRotation = 0
             }
           }
           
@@ -1357,10 +1361,10 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
           // Only log once per rotation change
           const currentRotationSum = handRotationsRef.current.leftPalm + handRotationsRef.current.leftFingers + 
                                    handRotationsRef.current.rightPalm + handRotationsRef.current.rightFingers
-          if (!(window as any)._skeletonUpdateLogged || (window as any)._lastSkeletonRotation !== currentRotationSum) {
+                      if (!(window as ExtendedWindow)._skeletonUpdateLogged || (window as ExtendedWindow)._lastSkeletonRotation !== currentRotationSum) {
             console.log('📐 Updating skeleton after rotation');
-            (window as any)._skeletonUpdateLogged = true;
-            (window as any)._lastSkeletonRotation = currentRotationSum
+            (window as ExtendedWindow)._skeletonUpdateLogged = true;
+            (window as ExtendedWindow)._lastSkeletonRotation = currentRotationSum
           }
           
           modelRef.current.traverse((child) => {
@@ -1617,7 +1621,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
     // Reset the logged flag when hand controls are re-enabled
     if (showHandControls) {
       handControlsLoggedRef.current = false;
-      (window as any)._rotationLogged = false
+      (window as ExtendedWindow)._rotationLogged = false
     }
   }, [showHandControls])
   

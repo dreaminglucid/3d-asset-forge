@@ -13,13 +13,14 @@ import {
 } from 'lucide-react'
 import ThreeViewer, { ThreeViewerRef } from '../components/shared/ThreeViewer'
 import { HandRiggingService, HandRiggingResult } from '../services/hand-rigging/HandRiggingService'
+import type { HandRiggingResultWithDebug } from '../types/hand-rigging'
 import { SimpleHandRiggingService, SimpleHandRiggingResult } from '../services/hand-rigging/SimpleHandRiggingService'
 import { useHandRiggingStore } from '../store'
 import type { ProcessingStage } from '../store'
 import { HandAvatarSelector, HandProcessingSteps, HandRiggingControls } from '../components/HandRigging'
 
 export function HandRiggingPage() {
-  const viewerRef = useRef<any>(null)
+  const viewerRef = useRef<ThreeViewerRef>(null)
   const handRiggingService = useRef<HandRiggingService | null>(null)
   const simpleHandRiggingService = useRef<SimpleHandRiggingService | null>(null)
   
@@ -174,8 +175,8 @@ export function HandRiggingPage() {
           viewerRef: viewerRef  // Pass the viewer reference for better captures
         })
         
-        if ((result as any).debugCaptures) {
-          setDebugImages((result as any).debugCaptures)
+        if ('debugCaptures' in result && result.debugCaptures) {
+          setDebugImages(result.debugCaptures as { left?: string; right?: string; [key: string]: string | undefined })
         }
         
         // Update hand data for complex mode

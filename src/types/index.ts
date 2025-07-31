@@ -2,6 +2,8 @@
  * Core types for the AI Creation System
  */
 
+import type { AssetMetadata } from './AssetMetadata'
+
 // Base types
 export interface Vector3 {
   x: number
@@ -41,7 +43,14 @@ export interface GenerationRequest {
   type: AssetType
   subtype?: WeaponType | ArmorSlot | BuildingType | ToolType | ResourceType | ConsumableType
   style?: 'realistic' | 'cartoon' | 'low-poly' | 'stylized'
-  metadata?: Record<string, any>
+  metadata?: {
+    creatureType?: string
+    armorSlot?: string  
+    weaponType?: string
+    buildingType?: string
+    materialType?: string
+    [key: string]: string | number | boolean | undefined
+  }
 }
 
 // GDD Asset specification
@@ -59,7 +68,7 @@ export interface GDDAsset {
     attackLevel?: number
     strengthLevel?: number
     defenseLevel?: number
-    [key: string]: any
+    [key: string]: string | number | boolean | undefined
   }
 }
 
@@ -76,7 +85,9 @@ export interface SimpleGenerationResult {
 export interface GenerationStage {
   stage: 'description' | 'image' | 'model' | 'remesh' | 'analysis' | 'final'
   status: 'pending' | 'processing' | 'completed' | 'failed'
-  output?: any
+  output?: ImageGenerationResult | ModelGenerationResult | RemeshResult | 
+    HardpointResult | ArmorPlacementResult | RiggingResult | BuildingAnalysisResult |
+    { modelUrl: string; metadata: AssetMetadata } | string
   error?: string
   timestamp: Date
 }
@@ -201,7 +212,11 @@ export interface GenerationResult {
   analysisResult?: HardpointResult | ArmorPlacementResult | RiggingResult | BuildingAnalysisResult
   finalAsset?: {
     modelUrl: string
-    metadata: Record<string, any>
+    metadata: GenerationRequest & {
+      analysisResult?: HardpointResult | ArmorPlacementResult | RiggingResult | BuildingAnalysisResult
+      generatedAt: Date
+      modelPath: string
+    }
   }
   createdAt: Date
   updatedAt: Date
@@ -245,25 +260,23 @@ export interface MaterialPreset {
   category: string
   tier: number
   color: string
-  stylePrompt: string
+  stylePrompt?: string
   description?: string
-  metalness?: number
-  roughness?: number
-  pattern?: string
-  intensity?: number
 }
 
-// Asset interface
-export interface Asset {
-  id: string
-  name: string
-  description: string
-  type: string
-  metadata: any
-  hasModel: boolean
-  modelFile?: string
-  generatedAt: string
-}
+// Note: Asset interface is now imported from AssetService.ts
+// to avoid circular dependencies
 
-// Export navigation types
-export * from './navigation' 
+// Navigation types
+export * from './navigation'
+
+// Export other type modules
+export * from './AssetMetadata'
+export * from './RiggingMetadata'
+export * from './three'
+export * from './common'
+export * from './generation'
+export * from './hand-rigging'
+
+// Re-export Asset from AssetService to maintain backward compatibility
+export type { Asset } from '../services/api/AssetService' 

@@ -35,6 +35,12 @@ export interface RiggingMetadata {
 }
 
 // Extended metadata that includes rigging
-export interface ExtendedAssetMetadata extends RiggingMetadata {
-  [key: string]: any  // Allow additional properties
-} 
+// Type for the animation property structure
+type AnimationProperty = {
+  basic?: AnimationSet
+  advanced?: AnimationSet
+}
+
+// ExtendedAssetMetadata is now simply AssetMetadata (which already includes RiggingMetadata)
+// This type alias is kept for backward compatibility
+export type ExtendedAssetMetadata = import('./AssetMetadata').AssetMetadata 

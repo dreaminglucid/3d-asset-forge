@@ -7,6 +7,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import { ModelGenerationResult, RemeshResult } from '../../types'
 import { retry, sleep } from '../../utils/helpers'
+import { MeshyTaskResult } from '../../types/service-types'
 
 export interface MeshyConfig {
   apiKey: string
@@ -53,7 +54,7 @@ export class MeshyService {
         textureUrls: this.extractTextureUrls(result),
         metadata: {
           meshyTaskId: taskId,
-          processingTime: result.finished_at ? result.finished_at - result.created_at : 0
+          processingTime: (result.finished_at && result.created_at) ? result.finished_at - result.created_at : 0
         }
       }
     } catch (error) {
@@ -89,7 +90,7 @@ export class MeshyService {
         textureUrls: this.extractTextureUrls(result),
         metadata: {
           meshyTaskId: taskId,
-          processingTime: result.finished_at ? result.finished_at - result.created_at : 0
+          processingTime: (result.finished_at && result.created_at) ? result.finished_at - result.created_at : 0
         }
       }
     } catch (error) {
@@ -126,7 +127,7 @@ export class MeshyService {
         textureUrls: this.extractTextureUrls(result),
         metadata: {
           meshyTaskId: taskId,
-          processingTime: result.finished_at ? result.finished_at - result.created_at : 0
+          processingTime: (result.finished_at && result.created_at) ? result.finished_at - result.created_at : 0
         }
       }
     } catch (error) {
@@ -149,7 +150,7 @@ export class MeshyService {
       texture_resolution?: number
       style_prompt?: string
     } = {}
-  ): Promise<any> {
+  ): Promise<MeshyTaskResult> {
     console.log(`🎯 Creating enhanced 3D model from image...`)
     
     try {
@@ -176,7 +177,7 @@ export class MeshyService {
       texture_resolution?: number
       style_prompt?: string
     } = {}
-  ): Promise<any> {
+  ): Promise<MeshyTaskResult> {
     console.log(`🎯 Creating enhanced 3D model from text: ${prompt}`)
     
     try {
@@ -243,7 +244,16 @@ export class MeshyService {
    */
   async startImageTo3D(
     imageUrl: string,
-    options: any
+    options: {
+      enable_pbr?: boolean
+      ai_model?: string
+      topology?: string
+      target_polycount?: number
+      targetPolycount?: number // legacy alias
+      texture_resolution?: number
+      negative_prompt?: string
+      style_prompt?: string
+    }
   ): Promise<string> {
     const response = await retry(
       async () => {
@@ -278,7 +288,7 @@ export class MeshyService {
     )
 
     console.log('🔍 Meshy API Response:', JSON.stringify(response, null, 2))
-    return (response as any).result || response
+    return (response as { result?: string }).result || response as string
   }
 
   /**
@@ -286,7 +296,16 @@ export class MeshyService {
    */
   private async startTextTo3D(
     prompt: string,
-    options: any
+    options: {
+      enable_pbr?: boolean
+      ai_model?: string
+      topology?: string
+      target_polycount?: number
+      targetPolycount?: number // legacy alias
+      texture_resolution?: number
+      negative_prompt?: string
+      style_prompt?: string
+    }
   ): Promise<string> {
     const response = await retry(
       async () => {
@@ -319,7 +338,7 @@ export class MeshyService {
     )
 
     console.log('🔍 Meshy Text-to-3D Response:', JSON.stringify(response, null, 2))
-    return (response as any).result || response
+    return (response as { result?: string }).result || response as string
   }
 
   /**
@@ -351,7 +370,15 @@ export class MeshyService {
     
     console.log(`🎨 Starting retexture task with ${style.textStylePrompt ? 'text' : 'image'} style`)
     
-    const body: any = {
+    const body: {
+      art_style: string
+      ai_model: string
+      enable_original_uv: boolean
+      input_task_id?: string
+      model_url?: string
+      text_style_prompt?: string
+      image_style_url?: string
+    } = {
       art_style: options.artStyle || 'realistic',
       ai_model: options.aiModel || 'meshy-5',
       enable_original_uv: options.enableOriginalUV ?? true
@@ -393,13 +420,13 @@ export class MeshyService {
     )
 
     console.log('🔍 Meshy Retexture Response:', JSON.stringify(response, null, 2))
-    return (response as any).result || response
+    return (response as { result?: string }).result || response as string
   }
 
   /**
    * Get retexture task status
    */
-  async getRetextureTaskStatus(taskId: string): Promise<any> {
+  async getRetextureTaskStatus(taskId: string): Promise<MeshyTaskResult> {
     const response = await retry(
       async () => {
         const res = await fetch(`${this.baseUrl}/openapi/v1/retexture/${taskId}`, {
@@ -425,7 +452,7 @@ export class MeshyService {
   /**
    * Wait for retexture task completion
    */
-  async waitForRetextureCompletion(taskId: string, timeoutMs: number = 300000): Promise<any> {
+  async waitForRetextureCompletion(taskId: string, timeoutMs: number = 300000): Promise<MeshyTaskResult | null> {
     const startTime = Date.now()
     const checkInterval = 10000 // Check every 10 seconds
     
@@ -437,7 +464,10 @@ export class MeshyService {
           console.log(`     ✅ Retexture completed (100%)`)
           return status
         } else if (status.status === 'FAILED') {
-          console.log(`     ❌ Retexture failed: ${status.task_error?.message}`)
+          const errorMessage = typeof status.task_error === 'string' 
+            ? status.task_error 
+            : status.task_error?.message
+          console.log(`     ❌ Retexture failed: ${errorMessage}`)
           return null
         } else {
           const elapsed = Math.round((Date.now() - startTime) / 1000)
@@ -461,7 +491,12 @@ export class MeshyService {
    */
   private async startRetexturing(
     modelUrl: string,
-    options: any
+    options: {
+      texturePrompt: string
+      enablePBR?: boolean
+      textureResolution?: number
+      stylePrompt?: string
+    }
   ): Promise<string> {
     const response = await retry(
       async () => {
@@ -491,13 +526,13 @@ export class MeshyService {
     )
 
     console.log('🔍 Meshy Retexturing Response:', JSON.stringify(response, null, 2))
-    return (response as any).result || response
+    return (response as { result?: string }).result || response as string
   }
 
   /**
    * Wait for task completion
    */
-  private async waitForCompletion(taskId: string, maxWaitTime: number = 300000): Promise<any> {
+  private async waitForCompletion(taskId: string, maxWaitTime: number = 300000): Promise<MeshyTaskResult> {
     const startTime = Date.now()
     
     while (Date.now() - startTime < maxWaitTime) {
@@ -507,7 +542,10 @@ export class MeshyService {
         case 'SUCCEEDED':
           return status
         case 'FAILED':
-          throw new Error(`Task failed: ${status.task_error?.message || 'Unknown error'}`)
+          const errorMessage = typeof status.task_error === 'string' 
+            ? status.task_error 
+            : status.task_error?.message || 'Unknown error'
+          throw new Error(`Task failed: ${errorMessage}`)
         case 'PENDING':
         case 'IN_PROGRESS':
           console.log(`⏳ Progress: ${status.progress || 0}%`)
@@ -524,7 +562,7 @@ export class MeshyService {
   /**
    * Get task status
    */
-  async getTaskStatus(taskId: string): Promise<any> {
+  async getTaskStatus(taskId: string): Promise<MeshyTaskResult> {
     // Try different endpoints based on task type
     const endpoints = [
       '/openapi/v1/image-to-3d/',
@@ -553,10 +591,15 @@ export class MeshyService {
             return res.json()
           },
           3
-        ) as { result: any }
+        )
 
         console.log('🔍 Meshy Status Response:', JSON.stringify(response, null, 2))
-        return response.result || response
+        
+        // Handle both wrapped and unwrapped responses
+        if ('result' in response) {
+          return response.result
+        }
+        return response
       } catch (error) {
         if (error instanceof Error && error.message === 'NOT_FOUND') {
           continue // Try next endpoint
@@ -571,7 +614,19 @@ export class MeshyService {
   /**
    * Extract texture URLs from Meshy response
    */
-  private extractTextureUrls(result: any): any {
+  private extractTextureUrls(result: {
+    texture_urls?: Array<{
+      base_color?: string
+      normal?: string
+      metallic?: string
+      roughness?: string
+    }>
+  }): {
+    diffuse?: string
+    normal?: string
+    metallic?: string
+    roughness?: string
+  } {
     if (!result.texture_urls || result.texture_urls.length === 0) {
       return {}
     }

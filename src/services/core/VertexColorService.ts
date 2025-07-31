@@ -71,8 +71,8 @@ export class VertexColorService {
           // Use material color
           colors.push(material.color)
         }
-      } else if ('color' in material) {
-        colors.push((material as any).color)
+      } else if ('color' in material && material.color instanceof THREE.Color) {
+        colors.push(material.color)
       }
       
       // Check for vertex colors
@@ -129,7 +129,7 @@ export class VertexColorService {
         path,
         (gltf: GLTF) => resolve(gltf),
         undefined,
-        (error: unknown) => reject(error)
+        (error) => reject(error instanceof Error ? error : new Error(String(error)))
       )
     })
   }

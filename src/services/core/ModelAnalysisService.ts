@@ -16,6 +16,7 @@ import {
   Quaternion,
   BoundingBox
 } from '../../types'
+import { ModelGeometry } from '../../types/service-types'
 
 export class ModelAnalysisService {
   /**
@@ -97,7 +98,7 @@ export class ModelAnalysisService {
   /**
    * Load geometry from model URL
    */
-  private async loadGeometry(modelUrl: string): Promise<any> {
+  private async loadGeometry(modelUrl: string): Promise<ModelGeometry> {
     // Placeholder - would load actual 3D model and extract vertices/faces
     return {
       vertices: [],
@@ -109,7 +110,7 @@ export class ModelAnalysisService {
   /**
    * Calculate bounding box
    */
-  private calculateBounds(geometry: any): BoundingBox {
+  private calculateBounds(geometry: ModelGeometry): BoundingBox {
     // Placeholder - would calculate actual bounds from vertices
     return {
       min: { x: -1, y: -1, z: -1 },
@@ -123,7 +124,7 @@ export class ModelAnalysisService {
    * Detect weapon hardpoints
    */
   private detectWeaponHardpoints(
-    geometry: any,
+    geometry: ModelGeometry,
     bounds: BoundingBox,
     weaponType: WeaponType
   ): HardpointResult {
@@ -194,7 +195,7 @@ export class ModelAnalysisService {
    * Determine armor placement
    */
   private determineArmorPlacement(
-    geometry: any,
+    geometry: ModelGeometry,
     bounds: BoundingBox,
     armorSlot: ArmorSlot
   ): ArmorPlacementResult {
@@ -231,7 +232,7 @@ export class ModelAnalysisService {
    * Generate rig for creature
    */
   private generateRig(
-    geometry: any,
+    geometry: ModelGeometry,
     bounds: BoundingBox,
     creatureType: CreatureType
   ): RiggingResult {
@@ -280,7 +281,7 @@ export class ModelAnalysisService {
    * Analyze building structure
    */
   private analyzeBuildingStructure(
-    geometry: any,
+    geometry: ModelGeometry,
     bounds: BoundingBox,
     buildingType: BuildingType
   ): BuildingAnalysisResult {

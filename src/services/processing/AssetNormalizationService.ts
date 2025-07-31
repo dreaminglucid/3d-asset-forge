@@ -4,7 +4,7 @@
  */
 
 import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { getConvention, NormalizationResult, AssetConvention } from '../../types/NormalizationConventions'
 import { promises as fs } from 'fs'
@@ -434,7 +434,7 @@ export class AssetNormalizationService {
   /**
    * Load a GLTF/GLB model
    */
-  private async loadModel(modelPath: string): Promise<any> {
+  private async loadModel(modelPath: string): Promise<GLTF> {
     // Handle file:// URLs
     const path = modelPath.replace('file://', '')
     

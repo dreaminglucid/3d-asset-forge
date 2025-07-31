@@ -6,50 +6,19 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
-import { HandPoseDetectionService, HandLandmarks, Point3D } from './HandPoseDetectionService'
+import { HandPoseDetectionService, HandLandmarks, Point3D, HandDetectionResult } from './HandPoseDetectionService'
 import { OrthographicHandRenderer, WristBoneInfo, HandCaptureResult } from './OrthographicHandRenderer'
 import { HandSegmentationService, FingerSegmentation, VertexSegmentation } from './HandSegmentationService'
+import { HandBoneStructure, HandRiggingResult, HandRiggingOptions, RequiredHandRiggingOptions, HandRiggingResultWithDebug } from '../../types'
 
-export interface HandBoneStructure {
-  wrist: THREE.Bone
-  palm?: THREE.Bone
-  fingers: {
-    thumb: THREE.Bone[]
-    index: THREE.Bone[]
-    middle: THREE.Bone[]
-    ring: THREE.Bone[]
-    pinky: THREE.Bone[]
-  }
-}
+// Re-export for backward compatibility
+export type { HandBoneStructure, HandRiggingResult, HandRiggingOptions }
 
 
 
-export interface HandRiggingResult {
-  leftHand?: {
-    bones: HandBoneStructure
-    detectionConfidence: number
-    vertexCount: number
-  }
-  rightHand?: {
-    bones: HandBoneStructure
-    detectionConfidence: number
-    vertexCount: number
-  }
-  riggedModel: ArrayBuffer // GLB data
-  metadata: {
-    originalBoneCount: number
-    addedBoneCount: number
-    processingTime: number
-  }
-}
 
-export interface HandRiggingOptions {
-  smoothingIterations?: number
-  minConfidence?: number
-  debugMode?: boolean
-  captureResolution?: number
-  viewerRef?: any // Reference to ThreeViewer for capturing views
-}
+
+
 
 export class HandRiggingService {
   private loader: GLTFLoader
@@ -104,7 +73,7 @@ export class HandRiggingService {
   async rigHands(
     modelFile: File | string,
     options: HandRiggingOptions = {}
-  ): Promise<HandRiggingResult> {
+  ): Promise<HandRiggingResult | HandRiggingResultWithDebug> {
     const startTime = Date.now()
     
     const {
@@ -184,9 +153,11 @@ export class HandRiggingService {
     
     // Include debug captures if available
     if (this.debugCaptures) {
-      (result as any).debugCaptures = this.debugCaptures
+      const resultWithDebug = result as HandRiggingResultWithDebug
+      resultWithDebug.debugCaptures = this.debugCaptures
       // Clear for next run
       this.debugCaptures = undefined
+      return resultWithDebug
     }
     
     // Cleanup
@@ -203,7 +174,7 @@ export class HandRiggingService {
   private async processHand(
     model: THREE.Object3D,
     wristInfo: WristBoneInfo,
-    options: Required<HandRiggingOptions>
+    options: RequiredHandRiggingOptions
   ): Promise<{
     bones: HandBoneStructure,
     detectionConfidence: number,
@@ -211,28 +182,41 @@ export class HandRiggingService {
   } | null> {
     console.log(`\n🤚 Processing ${wristInfo.side} hand...`)
     
-    let detection: any = null
-    let successfulCapture: any = null
+    let detection: HandDetectionResult | null = null
+    let successfulCapture: HandCaptureResult | null = null
+    
+    // Ensure detection object has proper type
+    const ensureDetection = (det: HandDetectionResult | null): det is HandDetectionResult => {
+      return det !== null && det.hands.length > 0
+    }
     
     // If we have a viewer reference, use it to capture from top view
     if (options.viewerRef?.current?.captureHandViews) {
       console.log('📸 Using 3D viewer to capture hand views (better for T-pose detection)...')
       
       try {
-        const captures = await options.viewerRef.current.captureHandViews()
+        const captures = await options.viewerRef!.current!.captureHandViews()
         
         // Try detection on hand closeups first
         if (wristInfo.side === 'left' && captures.leftHandCloseup) {
           console.log('🔍 Detecting left hand in closeup view...')
           detection = await this.handDetector.detectHands(captures.leftHandCloseup)
-          if (detection.hands.length > 0) {
+          if (ensureDetection(detection)) {
             console.log(`✅ Detected ${detection.hands.length} hand(s) in left hand closeup`)
             successfulCapture = {
               canvas: captures.leftHandCloseup,
               imageData: captures.leftHandCloseup.getContext('2d')!.getImageData(
                 0, 0, captures.leftHandCloseup.width, captures.leftHandCloseup.height
               ),
-              handPositions: captures.handPositions
+              cameraMatrix: new THREE.Matrix4(),
+              projectionMatrix: new THREE.Matrix4(),
+              worldBounds: {
+                min: new THREE.Vector3(-0.1, -0.1, -0.1),
+                max: new THREE.Vector3(0.1, 0.1, 0.1)
+              },
+              wristPosition: new THREE.Vector3(0, 0, 0),
+              handNormal: new THREE.Vector3(0, 0, 1),
+              side: wristInfo.side
             }
             
             if (options.debugMode) {
@@ -246,14 +230,22 @@ export class HandRiggingService {
         } else if (wristInfo.side === 'right' && captures.rightHandCloseup) {
           console.log('🔍 Detecting right hand in closeup view...')
           detection = await this.handDetector.detectHands(captures.rightHandCloseup)
-          if (detection.hands.length > 0) {
+          if (ensureDetection(detection)) {
             console.log(`✅ Detected ${detection.hands.length} hand(s) in right hand closeup`)
             successfulCapture = {
               canvas: captures.rightHandCloseup,
               imageData: captures.rightHandCloseup.getContext('2d')!.getImageData(
                 0, 0, captures.rightHandCloseup.width, captures.rightHandCloseup.height
               ),
-              handPositions: captures.handPositions
+              cameraMatrix: new THREE.Matrix4(),
+              projectionMatrix: new THREE.Matrix4(),
+              worldBounds: {
+                min: new THREE.Vector3(-0.1, -0.1, -0.1),
+                max: new THREE.Vector3(0.1, 0.1, 0.1)
+              },
+              wristPosition: new THREE.Vector3(0, 0, 0),
+              handNormal: new THREE.Vector3(0, 0, 1),
+              side: wristInfo.side
             }
             
             if (options.debugMode) {
@@ -277,42 +269,64 @@ export class HandRiggingService {
         // If closeup didn't work, try top view
         if (!detection || detection.hands.length === 0) {
           console.log('🔍 Trying top view...')
-          detection = await this.handDetector.detectHands(captures.topView)
+          if (captures.topView) {
+            detection = await this.handDetector.detectHands(captures.topView)
           
-          if (detection.hands.length > 0) {
-            console.log(`✅ Detected ${detection.hands.length} hand(s) in top view`)
-            
-            // Create a capture result compatible with existing code
-            successfulCapture = {
-              canvas: captures.topView,
-              imageData: captures.topView.getContext('2d')!.getImageData(
-                0, 0, captures.topView.width, captures.topView.height
-              ),
-              handPositions: captures.handPositions
-            }
-            
-            if (options.debugMode) {
-              this.saveCanvas(captures.topView, `${wristInfo.side}-hand-top-view.png`)
+            if (ensureDetection(detection)) {
+              console.log(`✅ Detected ${detection.hands.length} hand(s) in top view`)
               
-              // Store for UI display
-              if (!this.debugCaptures) {
-                this.debugCaptures = {}
+              // Create a capture result compatible with existing code
+              successfulCapture = {
+                canvas: captures.topView,
+                imageData: captures.topView.getContext('2d')!.getImageData(
+                  0, 0, captures.topView.width, captures.topView.height
+                ),
+                cameraMatrix: new THREE.Matrix4(),
+                projectionMatrix: new THREE.Matrix4(),
+                worldBounds: {
+                  min: new THREE.Vector3(-0.1, -0.1, -0.1),
+                  max: new THREE.Vector3(0.1, 0.1, 0.1)
+                },
+                wristPosition: new THREE.Vector3(0, 0, 0),
+                handNormal: new THREE.Vector3(0, 0, 1),
+                side: wristInfo.side
               }
-              this.debugCaptures[`${wristInfo.side}_top`] = captures.topView.toDataURL()
+              
+              if (options.debugMode) {
+                this.saveCanvas(captures.topView, `${wristInfo.side}-hand-top-view.png`)
+                
+                // Store for UI display
+                if (!this.debugCaptures) {
+                  this.debugCaptures = {}
+                }
+                this.debugCaptures[`${wristInfo.side}_top`] = captures.topView.toDataURL()
+              }
             }
-          } else {
-            // Try front view as fallback
-            console.log('🔍 Trying front view...')
+          }
+        }
+        
+        // If still no detection, try front view as fallback
+        if (!detection || detection.hands.length === 0) {
+          console.log('🔍 Trying front view...')
+          if (captures.frontView) {
             detection = await this.handDetector.detectHands(captures.frontView)
             
-            if (detection.hands.length > 0) {
+            if (ensureDetection(detection)) {
               console.log(`✅ Detected ${detection.hands.length} hand(s) in front view`)
               successfulCapture = {
                 canvas: captures.frontView,
                 imageData: captures.frontView.getContext('2d')!.getImageData(
                   0, 0, captures.frontView.width, captures.frontView.height
                 ),
-                handPositions: captures.handPositions
+                cameraMatrix: new THREE.Matrix4(),
+                projectionMatrix: new THREE.Matrix4(),
+                worldBounds: {
+                  min: new THREE.Vector3(-0.1, -0.1, -0.1),
+                  max: new THREE.Vector3(0.1, 0.1, 0.1)
+                },
+                wristPosition: new THREE.Vector3(0, 0, 0),
+                handNormal: new THREE.Vector3(0, 0, 1),
+                side: wristInfo.side
               }
               
               if (options.debugMode) {
@@ -369,7 +383,7 @@ export class HandRiggingService {
       // Step 2: Detect hand pose
       detection = await this.handDetector.detectHands(capture.canvas)
       
-      if (detection.hands.length > 0) {
+      if (ensureDetection(detection)) {
         console.log(`✅ Hand detected on attempt ${i + 1}`)
         successfulCapture = capture
         break
@@ -395,6 +409,12 @@ export class HandRiggingService {
     const validation = this.handDetector.validateHandDetection(hand)
     if (!validation.isValid || hand.confidence < options.minConfidence) {
       console.warn(`Low quality detection for ${wristInfo.side} hand:`, validation.issues)
+      return null
+    }
+    
+    // Ensure we have a successful capture
+    if (!successfulCapture) {
+      console.warn(`No successful capture for ${wristInfo.side} hand despite detection`)
       return null
     }
     

@@ -1,6 +1,7 @@
 import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
+import type { GLTFExportJSON } from '../../types/service-types'
 
 export interface SimpleHandRiggingOptions {
   palmBoneLength?: number  // Length from wrist to palm center (default: 0.08)
@@ -1493,18 +1494,20 @@ export class SimpleHandRiggingService {
       
       this.loader.load(
         url,
-        (gltf: any) => {
+        (gltf: GLTF) => {
           if (typeof modelFile !== 'string') {
             URL.revokeObjectURL(url)
           }
           resolve(gltf.scene)
         },
         undefined,
-        (error: any) => {
+        (error) => {
           if (typeof modelFile !== 'string') {
             URL.revokeObjectURL(url)
           }
-          reject(error)
+          // Type assertion for known error types
+          const typedError = error as ErrorEvent | Error | string
+          reject(typedError)
         }
       )
     })
@@ -1950,25 +1953,34 @@ export class SimpleHandRiggingService {
       console.log('  🐛 DEBUG MODE: Exporting as JSON to inspect structure...')
       this.exporter.parse(
         model,
-        (result: any) => {
+        (result) => {
           console.log('  GLTF JSON structure:', result)
-          if (result.nodes) {
-            console.log(`  Nodes: ${result.nodes.length}`)
-            result.nodes.forEach((node: any, i: number) => {
-              console.log(`    Node ${i}: ${node.name || 'unnamed'}, skin: ${node.skin}, mesh: ${node.mesh}`)
-            })
-          }
-          if (result.skins) {
-            console.log(`  Skins: ${result.skins.length}`)
-            result.skins.forEach((skin: any, i: number) => {
-              console.log(`    Skin ${i}: joints: ${skin.joints?.length}, skeleton: ${skin.skeleton}`)
-              if (skin.joints) {
-                console.log(`      Joint indices: ${skin.joints.join(', ')}`)
-              }
-            })
+          if (!(result instanceof ArrayBuffer)) {
+            const gltfResult = result as {
+              nodes?: Array<{ name?: string; skin?: number; mesh?: number }>
+              skins?: Array<{ joints?: number[]; skeleton?: number }>
+            }
+            if (gltfResult.nodes) {
+              console.log(`  Nodes: ${gltfResult.nodes.length}`)
+              gltfResult.nodes.forEach((node, i: number) => {
+                console.log(`    Node ${i}: ${node.name || 'unnamed'}, skin: ${node.skin}, mesh: ${node.mesh}`)
+              })
+            }
+            if (gltfResult.skins) {
+              console.log(`  Skins: ${gltfResult.skins.length}`)
+              gltfResult.skins.forEach((skin, i: number) => {
+                console.log(`    Skin ${i}: joints: ${skin.joints?.length}, skeleton: ${skin.skeleton}`)
+                if (skin.joints) {
+                  console.log(`      Joint indices: ${skin.joints.join(', ')}`)
+                }
+              })
+            }
           }
         },
-        (error: any) => console.error('Debug export error:', error),
+        (error) => {
+          const typedError = error as ErrorEvent | Error | string
+          console.error('Debug export error:', typedError)
+        },
         { binary: false }
       )
     }
@@ -1976,14 +1988,14 @@ export class SimpleHandRiggingService {
     return new Promise((resolve, reject) => {
       this.exporter.parse(
         model,
-        (result: any) => {
+        (result) => {
           if (result instanceof ArrayBuffer) {
             resolve(result)
           } else {
             reject(new Error('Export failed: result is not ArrayBuffer'))
           }
         },
-        (error: any) => reject(error),
+        (error) => reject(error instanceof Error ? error : new Error(String(error))),
         { 
           binary: true,
           animations: [],  // No animations needed

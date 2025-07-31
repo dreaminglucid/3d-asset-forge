@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { MeshBVH, StaticGeometryGenerator, SAH } from 'three-mesh-bvh'
-import { GenericMeshFittingService } from './GenericMeshFittingService'
+import { GenericMeshFittingService, GenericFittingParameters } from './GenericMeshFittingService'
 
 interface BVHCacheEntry {
   geometry: THREE.BufferGeometry
@@ -28,7 +28,7 @@ export class BVHAcceleratedMeshFittingService extends GenericMeshFittingService 
   fitMeshToTarget(
     sourceMesh: THREE.Mesh,
     targetMesh: THREE.Mesh | THREE.SkinnedMesh,
-    params: any = {}
+    params: GenericFittingParameters
   ): void {
     const startTime = performance.now()
     this.raycastCount = 0
@@ -54,7 +54,7 @@ export class BVHAcceleratedMeshFittingService extends GenericMeshFittingService 
     
     // Temporarily override the mesh's raycast method to use BVH
     const originalRaycast = targetMesh.raycast
-    targetMesh.raycast = (raycaster: THREE.Raycaster, intersects: any[]) => {
+    targetMesh.raycast = (raycaster: THREE.Raycaster, intersects: THREE.Intersection[]) => {
       this.bvhRaycast(targetMesh, raycaster, intersects)
     }
     
@@ -87,7 +87,7 @@ export class BVHAcceleratedMeshFittingService extends GenericMeshFittingService 
   /**
    * Custom raycast method that uses BVH
    */
-  private bvhRaycast(mesh: THREE.Mesh | THREE.SkinnedMesh, raycaster: THREE.Raycaster, intersects: any[]): void {
+  private bvhRaycast(mesh: THREE.Mesh | THREE.SkinnedMesh, raycaster: THREE.Raycaster, intersects: THREE.Intersection[]): void {
     const startTime = performance.now()
     this.raycastCount++
     

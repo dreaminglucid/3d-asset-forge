@@ -9,6 +9,7 @@ import { X, Play, Grid3x3, Link, Activity, RotateCcw, Pause, Box, Sliders } from
 import { useDebuggerStore } from '../../store/useDebuggerStore'
 // import DebugArrows from '../shared/DebugArrows' // Comment out if this component doesn't exist yet
 import { useAssets } from '../../hooks/useAssets'
+import { ExtendedMesh } from '../../types'
 
 // Available avatars and armors from gdd-assets
 const AVAILABLE_AVATARS = [
@@ -191,8 +192,9 @@ function Scene({
   // Update render helper if it exists
   useFrame(() => {
     // Update helmet render helper position if it exists
-    if ((helmetMeshRef as any).updateHelper && (helmetMeshRef as any).renderHelper) {
-      (helmetMeshRef as any).updateHelper()
+    const helmet = helmetMeshRef.current as ExtendedMesh | null
+    if (helmet?.updateHelper && helmet?.renderHelper) {
+      helmet.updateHelper()
     }
   })
   
@@ -1138,8 +1140,8 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
   const armorFittingService = useRef(new ArmorFittingService())
   const sceneRef = useRef<THREE.Scene | null>(null)
   const avatarMeshRef = useRef<THREE.SkinnedMesh | null>(null)
-  const armorMeshRef = useRef<THREE.Mesh | null>(null)
-  const helmetMeshRef = useRef<THREE.Mesh | null>(null)
+  const armorMeshRef = useRef<ExtendedMesh | null>(null)
+  const helmetMeshRef = useRef<ExtendedMesh | null>(null)
   const originalArmorGeometryRef = useRef<THREE.BufferGeometry | null>(null)
   const originalHelmetTransformRef = useRef<{ 
     position: THREE.Vector3, 
@@ -2401,7 +2403,7 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
       
       // Update references
       setSkinnedArmorMesh(skinnedArmor)
-      armorMeshRef.current = skinnedArmor as any
+      armorMeshRef.current = skinnedArmor as ExtendedMesh
       
       // Also update the armor mesh in the scene to ensure it's the only armor
       let armorCount = 0
@@ -2673,7 +2675,9 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
       }
       
       // Store reference for cleanup
-      (helmetMeshRef as any).renderHelper = helmetHelper
+                if (helmetMeshRef.current) {
+            helmetMeshRef.current.renderHelper = helmetHelper
+          }
       
       // Make helper follow the original helmet's world position
       const updateHelper = () => {
@@ -2686,7 +2690,9 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
       }
       
       // Store update function for animation frame
-      (helmetMeshRef as any).updateHelper = updateHelper
+                if (helmetMeshRef.current) {
+            helmetMeshRef.current.updateHelper = updateHelper
+          }
       
       console.log('Created render helper with normal scale')
       console.log('Helper will follow head bone animations')
@@ -2695,23 +2701,29 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
       console.log('Using standard attachment')
       
       // Clean up any existing render helper first
-      const existingHelper = (helmetMeshRef as any).renderHelper
+              const existingHelper = helmetMeshRef.current?.renderHelper
       if (existingHelper && existingHelper.parent) {
         existingHelper.parent.remove(existingHelper)
-        existingHelper.geometry?.dispose()
-        if (existingHelper.material) {
+        if ('geometry' in existingHelper && existingHelper.geometry) {
+          existingHelper.geometry.dispose()
+        }
+        if ('material' in existingHelper && existingHelper.material) {
           if (Array.isArray(existingHelper.material)) {
             existingHelper.material.forEach((mat: THREE.Material) => mat.dispose())
           } else {
             existingHelper.material.dispose()
           }
         }
-        delete (helmetMeshRef as any).renderHelper
-        delete (helmetMeshRef as any).updateHelper
+        if (helmetMeshRef.current) {
+          delete helmetMeshRef.current.renderHelper
+          delete helmetMeshRef.current.updateHelper
+        }
       }
       
       // Make sure original helmet is visible
-      helmetMeshRef.current.visible = true
+      if (helmetMeshRef.current) {
+        helmetMeshRef.current.visible = true
+      }
       helmetMeshRef.current.traverse((child) => {
         child.visible = true
       })
@@ -2883,12 +2895,14 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
     }
     
     // Clean up render helper if it exists
-    const renderHelper = (helmetMeshRef as any).renderHelper
+          const renderHelper = helmetMeshRef.current?.renderHelper
     if (renderHelper && renderHelper.parent) {
       // Remove helper from scene
       renderHelper.parent.remove(renderHelper)
-      renderHelper.geometry?.dispose()
-      if (renderHelper.material) {
+      if ('geometry' in renderHelper && renderHelper.geometry) {
+        renderHelper.geometry.dispose()
+      }
+      if ('material' in renderHelper && renderHelper.material) {
         if (Array.isArray(renderHelper.material)) {
           renderHelper.material.forEach((mat: THREE.Material) => mat.dispose())
         } else {
@@ -2897,8 +2911,10 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
       }
       
       // Clean up references
-      delete (helmetMeshRef as any).renderHelper
-      delete (helmetMeshRef as any).updateHelper
+      if (helmetMeshRef.current) {
+        delete helmetMeshRef.current.renderHelper
+        delete helmetMeshRef.current.updateHelper
+      }
     }
     
     // Make original helmet visible again
@@ -2955,14 +2971,13 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
     )
     debugGroups.forEach(group => {
       scene.remove(group)
-      group.traverse((child: any) => {
-        if (child.geometry) child.geometry.dispose()
-        if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach((m: any) => m.dispose())
-          } else {
-            child.material.dispose()
-          }
+      group.traverse((child: THREE.Object3D) => {
+        if ('geometry' in child && child.geometry) {
+          (child.geometry as THREE.BufferGeometry).dispose()
+        }
+        if ('material' in child && child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material]
+          materials.forEach((m: THREE.Material) => m.dispose())
         }
       })
     })
@@ -2972,8 +2987,12 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
       while (debugArrowGroupRef.current.children.length > 0) {
         const child = debugArrowGroupRef.current.children[0]
         debugArrowGroupRef.current.remove(child)
-        if ((child as any).geometry) (child as any).geometry.dispose()
-        if ((child as any).material) (child as any).material.dispose()
+        if ('geometry' in child && child.geometry) {
+          (child.geometry as THREE.BufferGeometry).dispose()
+        }
+        if ('material' in child && child.material) {
+          (child.material as THREE.Material).dispose()
+        }
       }
     }
     

@@ -158,7 +158,7 @@ export class SpriteGenerationService {
         path,
         (gltf: GLTF) => resolve(gltf),
         undefined,
-        (error: unknown) => reject(error)
+        (error) => reject(error instanceof Error ? error : new Error(String(error)))
       )
     })
   }

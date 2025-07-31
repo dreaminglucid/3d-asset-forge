@@ -1,13 +1,14 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
+import { GripBounds, GripCoordinates, GripDetectionData } from '../../types'
 
 interface HandleDetectionResult {
   gripPoint: THREE.Vector3
   vertices: THREE.Vector3[]
   confidence: number
   annotatedImage: string
-  redBoxBounds?: any
+  redBoxBounds?: GripBounds
   orientationFlipped?: boolean
 }
 
@@ -61,7 +62,7 @@ export class WeaponHandleDetector {
     // 2. Setup orthographic camera to frame weapon
     const orientationFlipped = await this.setupOrthographicCamera(model)
     
-    let gripData: any
+    let gripData: GripDetectionData | null = null
     let annotatedImage: string
     
     if (useConsensus) {
@@ -71,6 +72,10 @@ export class WeaponHandleDetector {
       // Get consensus from multiple AI detections
       gripData = await this.getConsensusGripCoordinates(multiAngleCanvases)
       
+      if (!gripData) {
+        throw new Error('Failed to detect grip coordinates')
+      }
+      
       // Use the side view for annotation (first canvas)
       const sideCanvas = multiAngleCanvases[0].canvas
       const annotatedCanvas = this.drawGripArea(sideCanvas, gripData.gripBounds)
@@ -78,7 +83,19 @@ export class WeaponHandleDetector {
     } else {
       // Single view approach (original)
       const canvas = this.renderToCanvas(model)
-      gripData = await this.getGripCoordinates(canvas)
+      const coordinates = await this.getGripCoordinates(canvas)
+      
+      if (!coordinates) {
+        throw new Error('Failed to detect grip coordinates')
+      }
+      
+      // Convert GripCoordinates to GripDetectionData
+      gripData = {
+        gripBounds: coordinates.gripBounds || coordinates.bounds,
+        confidence: coordinates.confidence || 0.8,
+        weaponType: 'sword', // Default for single view
+        gripDescription: 'Single view detection'
+      }
       
       const annotatedCanvas = this.drawGripArea(canvas, gripData.gripBounds)
       annotatedImage = annotatedCanvas.toDataURL('image/png')
@@ -545,7 +562,7 @@ export class WeaponHandleDetector {
     return processedCanvas
   }
   
-  private async getGripCoordinates(canvas: HTMLCanvasElement): Promise<any> {
+  private async getGripCoordinates(canvas: HTMLCanvasElement): Promise<GripCoordinates> {
     // Preprocess the canvas to highlight handle region
     const processedCanvas = this.preprocessCanvas(canvas)
     const base64Image = processedCanvas.toDataURL('image/png')
@@ -629,10 +646,10 @@ export class WeaponHandleDetector {
     }
   }
   
-  private async getConsensusGripCoordinates(canvases: { angle: string, canvas: HTMLCanvasElement }[]): Promise<any> {
+  private async getConsensusGripCoordinates(canvases: { angle: string, canvas: HTMLCanvasElement }[]): Promise<GripDetectionData | null> {
     console.log('🤖 Running multi-AI consensus detection...')
     
-    const allDetections: any[] = []
+    const allDetections: GripDetectionData[] = []
     
     // Different prompting strategies for variety
     const promptVariations = [
@@ -694,7 +711,16 @@ export class WeaponHandleDetector {
       // Fallback: use a reasonable default for sword handle
       console.warn('No valid detections, using fallback position')
       return {
-        gripBounds: { minX: 230, minY: 360, maxX: 280, maxY: 440 },
+        gripBounds: { 
+          minX: 230, 
+          minY: 360, 
+          maxX: 280, 
+          maxY: 440,
+          x: 230,
+          y: 360,
+          width: 50,
+          height: 80
+        },
         confidence: 0.3,
         weaponType: "sword",
         gripDescription: "Fallback handle position"
@@ -706,8 +732,9 @@ export class WeaponHandleDetector {
     const detectionsToUse = highConfidenceDetections.length >= 2 ? highConfidenceDetections : allDetections
     
     // Calculate average bounds
-    const avgBounds = {
-      minX: 0, minY: 0, maxX: 0, maxY: 0
+    const avgBounds: GripBounds = {
+      minX: 0, minY: 0, maxX: 0, maxY: 0,
+      x: 0, y: 0, width: 0, height: 0
     }
     
     for (const detection of detectionsToUse) {
@@ -730,6 +757,12 @@ export class WeaponHandleDetector {
       avgBounds.minY = 350
       avgBounds.maxY = avgBounds.minY + height
     }
+    
+    // Calculate x, y, width, height from min/max values
+    avgBounds.x = avgBounds.minX
+    avgBounds.y = avgBounds.minY
+    avgBounds.width = avgBounds.maxX - avgBounds.minX
+    avgBounds.height = avgBounds.maxY - avgBounds.minY
     
     // Calculate average confidence
     const avgConfidence = detectionsToUse.reduce((sum, d) => sum + d.confidence, 0) / count
@@ -755,7 +788,7 @@ export class WeaponHandleDetector {
     }
   }
   
-  private drawGripArea(canvas: HTMLCanvasElement, gripBounds: any): HTMLCanvasElement {
+  private drawGripArea(canvas: HTMLCanvasElement, gripBounds: GripBounds): HTMLCanvasElement {
     // Create a copy of the canvas
     const annotatedCanvas = document.createElement('canvas')
     annotatedCanvas.width = canvas.width

@@ -1,6 +1,7 @@
 // Design System Utilities
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { CSSTokens, GenericFunction } from '../types'
 
 /**
  * Merge class names with tailwind-merge to avoid conflicts
@@ -21,7 +22,7 @@ export function createVariants<T extends Record<string, Record<string, string>>>
 /**
  * Convert design tokens to CSS variables
  */
-export function tokensToCSS(tokens: Record<string, any>, prefix = ''): Record<string, string> {
+export function tokensToCSS(tokens: CSSTokens, prefix = ''): Record<string, string> {
   const cssVars: Record<string, string> = {}
   
   for (const [key, value] of Object.entries(tokens)) {
@@ -40,7 +41,7 @@ export function tokensToCSS(tokens: Record<string, any>, prefix = ''): Record<st
 /**
  * Debounce function for performance optimization
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends GenericFunction>(
   fn: T,
   delay: number
 ): (...args: Parameters<T>) => void {

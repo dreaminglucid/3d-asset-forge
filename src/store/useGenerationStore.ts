@@ -1,7 +1,18 @@
 import { create } from 'zustand'
 import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
-import { MaterialPreset } from '../types'
+import { 
+  MaterialPreset, 
+  ImageGenerationResult, 
+  ModelGenerationResult, 
+  RemeshResult,
+  HardpointResult, 
+  ArmorPlacementResult, 
+  RiggingResult, 
+  BuildingAnalysisResult,
+  AssetMetadata
+} from '../types'
+import { Asset } from '../services/api/AssetService'
 
 export interface PipelineStage {
   id: string
@@ -23,17 +34,17 @@ export interface CustomAssetType {
   prompt: string
 }
 
-export interface GeneratedAsset {
-  id: string
-  name: string
-  type: string
+export interface GeneratedAsset extends Asset {
   status: string
-  hasModel: boolean
+  pipelineId?: string
   modelUrl?: string
   conceptArtUrl?: string
-  variants?: any[]
-  metadata?: any
+  variants?: Asset[] | Array<{ name: string; modelUrl: string; id?: string }>
+  hasSpriteMetadata?: boolean
+  hasSprites?: boolean
+  sprites?: Array<{ angle: number; imageUrl: string }> | null
   createdAt?: string
+  modelFile?: string
 }
 
 interface GenerationState {
@@ -90,8 +101,13 @@ interface GenerationState {
   
   // Results State
   generatedAssets: GeneratedAsset[]
-  selectedAsset: any
-  selectedStageResult: { stage: string; result: any } | null
+  selectedAsset: GeneratedAsset | null
+  selectedStageResult: { 
+    stage: 'description' | 'image' | 'model' | 'remesh' | 'analysis' | 'final'
+    result: ImageGenerationResult | ModelGenerationResult | RemeshResult | 
+      HardpointResult | ArmorPlacementResult | RiggingResult | BuildingAnalysisResult | 
+      { modelUrl: string; metadata: AssetMetadata } | string
+  } | null
   
   // Actions
   setGenerationType: (type: 'item' | 'avatar' | undefined) => void
@@ -152,8 +168,13 @@ interface GenerationState {
   
   // Results Actions
   setGeneratedAssets: (assets: GeneratedAsset[]) => void
-  setSelectedAsset: (asset: any) => void
-  setSelectedStageResult: (result: { stage: string; result: any } | null) => void
+  setSelectedAsset: (asset: GeneratedAsset | null) => void
+  setSelectedStageResult: (result: { 
+    stage: 'description' | 'image' | 'model' | 'remesh' | 'analysis' | 'final'
+    result: ImageGenerationResult | ModelGenerationResult | RemeshResult | 
+      HardpointResult | ArmorPlacementResult | RiggingResult | BuildingAnalysisResult | 
+      { modelUrl: string; metadata: AssetMetadata } | string
+  } | null) => void
   addGeneratedAsset: (asset: GeneratedAsset) => void
   updateGeneratedAsset: (id: string, updates: Partial<GeneratedAsset>) => void
   

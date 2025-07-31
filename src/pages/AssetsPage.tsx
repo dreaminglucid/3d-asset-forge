@@ -99,8 +99,9 @@ export const AssetsPage: React.FC = () => {
       deletionSuccessful = true
       
       // If deleting a variant and we had cleared the selection, select the base model
-      if (!includeVariants && !selectedAsset && asset.metadata.parentBaseModel) {
-        const baseAsset = assets.find(a => a.id === asset.metadata.parentBaseModel)
+      if (!includeVariants && !selectedAsset && asset.metadata.isVariant) {
+        const variantMetadata = asset.metadata as import('../types').VariantAssetMetadata
+        const baseAsset = assets.find(a => a.id === variantMetadata.parentBaseModel)
         if (baseAsset) {
           setSelectedAsset(baseAsset)
         }
@@ -347,7 +348,7 @@ export const AssetsPage: React.FC = () => {
           onClose={() => setShowEditModal(false)}
           onSave={handleSaveAsset}
           onDelete={handleDeleteAsset}
-          hasVariants={assets.some(a => a.metadata.parentBaseModel === selectedAsset.id)}
+          hasVariants={assets.some(a => a.metadata.isVariant && a.metadata.parentBaseModel === selectedAsset.id)}
         />
       )}
     </div>

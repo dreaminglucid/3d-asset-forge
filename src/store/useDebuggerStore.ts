@@ -3,6 +3,7 @@ import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import * as THREE from 'three'
 import { GenericFittingParameters } from '../types/fitting'
+import { DebugConfiguration } from '../types/service-types'
 
 // Types for available models
 interface ModelOption {
@@ -133,7 +134,7 @@ interface DebuggerActions {
   // Complex Actions
   resetDebugger: () => void
   saveDebugConfiguration: () => void
-  loadDebugConfiguration: (config: any) => void
+  loadDebugConfiguration: (config: DebugConfiguration) => void
 }
 
 // Selectors

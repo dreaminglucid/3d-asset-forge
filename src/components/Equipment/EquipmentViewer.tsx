@@ -594,15 +594,10 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
           
           // Dispose of geometry and materials
           equipmentRef.current.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-              child.geometry?.dispose()
-              if (child.material) {
-                if (Array.isArray(child.material)) {
-                  child.material.forEach(mat => mat.dispose())
-                } else {
-                  child.material.dispose()
-                }
-              }
+            if ('geometry' in child && child.geometry) (child.geometry as THREE.BufferGeometry).dispose()
+            if ('material' in child && child.material) {
+              const materials = Array.isArray(child.material) ? child.material : [child.material]
+              materials.forEach((mat: THREE.Material) => mat.dispose())
             }
           })
         }
@@ -1421,20 +1416,20 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
         debugSpheres.gripSphere.geometry.dispose()
         ;(debugSpheres.gripSphere.material as THREE.Material).dispose()
       }
-      if ((debugSpheres as any).centerSphere) {
-        sceneRef.current?.remove((debugSpheres as any).centerSphere)
-        ;((debugSpheres as any).centerSphere.geometry).dispose()
-        ;((debugSpheres as any).centerSphere.material as THREE.Material).dispose()
+      if (debugSpheres.centerSphere) {
+        sceneRef.current?.remove(debugSpheres.centerSphere)
+        debugSpheres.centerSphere.geometry.dispose()
+        ;(debugSpheres.centerSphere.material as THREE.Material).dispose()
       }
-      if ((debugSpheres as any).line) {
-        sceneRef.current?.remove((debugSpheres as any).line)
-        ;((debugSpheres as any).line.geometry).dispose()
-        ;((debugSpheres as any).line.material as THREE.Material).dispose()
+      if (debugSpheres.line) {
+        sceneRef.current?.remove(debugSpheres.line)
+        debugSpheres.line.geometry.dispose()
+        ;(debugSpheres.line.material as THREE.Material).dispose()
       }
-      if ((debugSpheres as any).wristSphere) {
-        sceneRef.current?.remove((debugSpheres as any).wristSphere)
-        ;((debugSpheres as any).wristSphere.geometry).dispose()
-        ;((debugSpheres as any).wristSphere.material as THREE.Material).dispose()
+      if (debugSpheres.wristSphere) {
+        sceneRef.current?.remove(debugSpheres.wristSphere)
+        debugSpheres.wristSphere.geometry.dispose()
+        ;(debugSpheres.wristSphere.material as THREE.Material).dispose()
       }
       setDebugSpheres({})
       
@@ -1783,14 +1778,11 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
     
     if (avatarRef.current) {
       sceneRef.current?.remove(avatarRef.current)
-      avatarRef.current.traverse((child: any) => {
-        if (child.geometry) child.geometry.dispose()
-        if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach((mat: any) => mat.dispose())
-          } else {
-            child.material.dispose()
-          }
+      avatarRef.current.traverse((child: THREE.Object3D) => {
+        if ('geometry' in child && child.geometry) (child.geometry as THREE.BufferGeometry).dispose()
+        if ('material' in child && child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material]
+          materials.forEach((mat: THREE.Material) => mat.dispose())
         }
       })
       avatarRef.current = null
@@ -1800,14 +1792,11 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
       if (equipmentRef.current.parent) {
         equipmentRef.current.parent.remove(equipmentRef.current)
       }
-      equipmentRef.current.traverse((child: any) => {
-        if (child.geometry) child.geometry.dispose()
-        if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach((mat: any) => mat.dispose())
-          } else {
-            child.material.dispose()
-          }
+      equipmentRef.current.traverse((child: THREE.Object3D) => {
+        if ('geometry' in child && child.geometry) (child.geometry as THREE.BufferGeometry).dispose()
+        if ('material' in child && child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material]
+          materials.forEach((mat: THREE.Material) => mat.dispose())
         }
       })
       equipmentRef.current = null
@@ -1824,20 +1813,20 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
       debugSpheres.gripSphere.geometry.dispose()
       ;(debugSpheres.gripSphere.material as THREE.Material).dispose()
     }
-    if ((debugSpheres as any).centerSphere) {
-      sceneRef.current?.remove((debugSpheres as any).centerSphere)
-      ;((debugSpheres as any).centerSphere.geometry).dispose()
-      ;((debugSpheres as any).centerSphere.material as THREE.Material).dispose()
+    if (debugSpheres.centerSphere) {
+      sceneRef.current?.remove(debugSpheres.centerSphere)
+      debugSpheres.centerSphere.geometry.dispose()
+      ;(debugSpheres.centerSphere.material as THREE.Material).dispose()
     }
-    if ((debugSpheres as any).line) {
-      sceneRef.current?.remove((debugSpheres as any).line)
-      ;((debugSpheres as any).line.geometry).dispose()
-      ;((debugSpheres as any).line.material as THREE.Material).dispose()
+    if (debugSpheres.line) {
+      sceneRef.current?.remove(debugSpheres.line)
+      debugSpheres.line.geometry.dispose()
+      ;(debugSpheres.line.material as THREE.Material).dispose()
     }
-    if ((debugSpheres as any).wristSphere) {
-      sceneRef.current?.remove((debugSpheres as any).wristSphere)
-      ;((debugSpheres as any).wristSphere.geometry).dispose()
-      ;((debugSpheres as any).wristSphere.material as THREE.Material).dispose()
+    if (debugSpheres.wristSphere) {
+      sceneRef.current?.remove(debugSpheres.wristSphere)
+      debugSpheres.wristSphere.geometry.dispose()
+      ;(debugSpheres.wristSphere.material as THREE.Material).dispose()
     }
     setDebugSpheres({})
   }
@@ -1855,20 +1844,20 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
       debugSpheres.gripSphere.geometry.dispose()
       ;(debugSpheres.gripSphere.material as THREE.Material).dispose()
     }
-    if ((debugSpheres as any).centerSphere) {
-      sceneRef.current?.remove((debugSpheres as any).centerSphere)
-      ;((debugSpheres as any).centerSphere.geometry).dispose()
-      ;((debugSpheres as any).centerSphere.material as THREE.Material).dispose()
+    if (debugSpheres.centerSphere) {
+      sceneRef.current?.remove(debugSpheres.centerSphere)
+      debugSpheres.centerSphere.geometry.dispose()
+      ;(debugSpheres.centerSphere.material as THREE.Material).dispose()
     }
-    if ((debugSpheres as any).line) {
-      sceneRef.current?.remove((debugSpheres as any).line)
-      ;((debugSpheres as any).line.geometry).dispose()
-      ;((debugSpheres as any).line.material as THREE.Material).dispose()
+    if (debugSpheres.line) {
+      sceneRef.current?.remove(debugSpheres.line)
+      debugSpheres.line.geometry.dispose()
+      ;(debugSpheres.line.material as THREE.Material).dispose()
     }
-    if ((debugSpheres as any).wristSphere) {
-      sceneRef.current?.remove((debugSpheres as any).wristSphere)
-      ;((debugSpheres as any).wristSphere.geometry).dispose()
-      ;((debugSpheres as any).wristSphere.material as THREE.Material).dispose()
+    if (debugSpheres.wristSphere) {
+      sceneRef.current?.remove(debugSpheres.wristSphere)
+      debugSpheres.wristSphere.geometry.dispose()
+      ;(debugSpheres.wristSphere.material as THREE.Material).dispose()
     }
     
     // Calculate sphere size based on avatar height
@@ -1923,7 +1912,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
       
       console.log(`🟣 Wrist bone position (purple): (${wristSphere.position.x.toFixed(3)}, ${wristSphere.position.y.toFixed(3)}, ${wristSphere.position.z.toFixed(3)})`)
       
-      setDebugSpheres({ handSphere, gripSphere, centerSphere, line, wristSphere } as any)
+      setDebugSpheres({ handSphere, gripSphere, centerSphere, line, wristSphere })
     } else {
       setDebugSpheres({ handSphere, gripSphere })
     }

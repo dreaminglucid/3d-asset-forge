@@ -68,13 +68,13 @@ export class RetextureService {
       }
       
       return await response.json()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Retexture failed:', error)
       return {
         success: false,
         assetId: options.baseAssetId,
         message: 'Retexturing failed',
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       }
     }
   }
@@ -95,7 +95,12 @@ export class RetextureService {
     for (const assetId of options.assets) {
       const assetResult = {
         assetId,
-        variants: [] as any[]
+        variants: [] as Array<{
+          materialId: string
+          success: boolean
+          variantId?: string
+          error?: string
+        }>
       }
       
       // Process each material preset

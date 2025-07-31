@@ -72,11 +72,23 @@ export class WeightTransferService {
     
     // Replace original mesh with skinned version
     if (armorMesh !== armorSkinned) {
-      armorMesh.geometry = armorGeometry
-      ;(armorMesh as any).isSkinnedMesh = true
-      ;(armorMesh as any).skeleton = skeleton
-      ;(armorMesh as any).bindMatrix = new Matrix4()
-      ;(armorMesh as any).bindMatrixInverse = new Matrix4()
+      // Create a new SkinnedMesh to replace the regular Mesh
+      const newSkinnedMesh = new SkinnedMesh(armorGeometry, armorMesh.material)
+      newSkinnedMesh.skeleton = skeleton
+      newSkinnedMesh.bindMatrix.copy(new Matrix4())
+      newSkinnedMesh.bindMatrixInverse.copy(new Matrix4())
+      
+      // Copy transform from original mesh
+      newSkinnedMesh.position.copy(armorMesh.position)
+      newSkinnedMesh.rotation.copy(armorMesh.rotation)
+      newSkinnedMesh.scale.copy(armorMesh.scale)
+      
+      // Replace in parent
+      if (armorMesh.parent) {
+        const parent = armorMesh.parent
+        parent.remove(armorMesh)
+        parent.add(newSkinnedMesh)
+      }
     }
     
     return result
@@ -86,8 +98,8 @@ export class WeightTransferService {
    * Convert regular mesh to skinned mesh
    */
   private convertToSkinnedMesh(mesh: Mesh, skeleton: Skeleton): SkinnedMesh {
-    if ((mesh as any).isSkinnedMesh) {
-      return mesh as SkinnedMesh
+    if (mesh instanceof SkinnedMesh) {
+      return mesh
     }
     
     const geometry = mesh.geometry.clone()

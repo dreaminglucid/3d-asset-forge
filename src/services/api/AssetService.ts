@@ -3,7 +3,7 @@
  * Clean API interface for asset operations
  */
 
-import { MaterialPreset } from '../../types'
+import { MaterialPreset, AssetMetadata } from '../../types'
 
 export type { MaterialPreset }
 
@@ -12,7 +12,7 @@ export interface Asset {
   name: string
   description: string
   type: string
-  metadata: any
+  metadata: AssetMetadata
   hasModel: boolean
   modelFile?: string
   generatedAt: string

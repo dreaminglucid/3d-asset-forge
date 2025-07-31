@@ -16,7 +16,7 @@ export function useApi() {
   const [loading, setLoading] = useState(false)
   const { showNotification } = useApp()
 
-  const apiCall = useCallback(async <T = any>(
+  const apiCall = useCallback(async <T>(
     url: string,
     options: ApiOptions = {}
   ): Promise<T | null> => {

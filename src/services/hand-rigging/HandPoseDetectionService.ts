@@ -8,6 +8,7 @@ import * as handPoseDetection from '@tensorflow-models/hand-pose-detection'
 import '@tensorflow/tfjs-backend-webgl'
 import '@mediapipe/hands'
 import * as THREE from 'three'
+import { TensorFlowHand, TensorFlowKeypoint } from '../../types/service-types'
 
 // MediaPipe Hand landmark indices
 export const HAND_LANDMARKS = {
@@ -142,22 +143,23 @@ export class HandPoseDetectionService {
       
       // Convert to our format
       const result: HandDetectionResult = {
-        hands: hands.map((hand: any) => {
-          const keypoints = hand.keypoints
-          const keypoints3D = hand.keypoints3D
+        hands: hands.map((hand) => {
+          const tfHand = hand as TensorFlowHand
+          const keypoints = tfHand.keypoints
+          const keypoints3D = tfHand.keypoints3D
           
           return {
-            landmarks: keypoints.map((kp: any, i: number) => ({
+            landmarks: keypoints.map((kp: TensorFlowKeypoint, i: number) => ({
               x: kp.x,
               y: kp.y,
-              z: keypoints3D ? keypoints3D[i].z : 0
+              z: keypoints3D ? keypoints3D[i].z || 0 : 0
             })),
-            worldLandmarks: keypoints3D ? keypoints3D.map((kp: any) => ({
+            worldLandmarks: keypoints3D ? keypoints3D.map((kp: TensorFlowKeypoint) => ({
               x: kp.x,
               y: kp.y,
               z: kp.z || 0
             })) : undefined,
-            handedness: hand.handedness as 'Left' | 'Right',
+            handedness: tfHand.handedness,
             confidence: hand.score || 0
           }
         }),

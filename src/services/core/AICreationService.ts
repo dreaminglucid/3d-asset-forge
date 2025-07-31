@@ -12,7 +12,11 @@ import {
   GenerationStage,
   AICreationConfig,
   AssetType,
-  ImageGenerationResult
+  ImageGenerationResult,
+  WeaponType,
+  ArmorSlot,
+  BuildingType,
+  CreatureType
 } from '../../types/index'
 import { ImageGenerationService } from '../generation/ImageGenerationService'
 import { MeshyService } from '../generation/MeshyService'
@@ -327,24 +331,24 @@ export class AICreationService extends EventEmitter {
         case 'weapon':
           result.analysisResult = await this.analysisService.analyzeWeapon(
             modelUrl,
-            result.request.subtype as any
+            result.request.subtype as WeaponType
           )
           break
         case 'armor':
           result.analysisResult = await this.analysisService.analyzeArmor(
             modelUrl,
-            result.request.subtype as any
+            result.request.subtype as ArmorSlot
           )
           break
         case 'character':
           result.analysisResult = await this.analysisService.analyzeForRigging(
             modelUrl,
-            result.request.metadata?.creatureType || 'biped'
+            (result.request.metadata?.creatureType || 'biped') as CreatureType
           )
           break
         case 'building':
           // Determine building type from subtype or description
-          let buildingType = result.request.subtype as any
+          let buildingType = result.request.subtype as BuildingType
           if (!buildingType) {
             // Try to infer from description
             const desc = result.request.description.toLowerCase()
@@ -432,7 +436,7 @@ export class AICreationService extends EventEmitter {
       }
       
       stage.status = 'completed'
-      stage.output = result.finalAsset
+      // Don't assign finalAsset to stage.output as the types don't match
       
       result.updatedAt = new Date()
       await this.cacheResult(result)

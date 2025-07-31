@@ -386,12 +386,12 @@ export class MeshDeformationService {
     // Compute current volume
     const currentVolume = this.computeMeshVolume(geometry)
     
-    // Store original volume (assuming first call)
-    if (!(geometry as any).originalVolume) {
-      (geometry as any).originalVolume = currentVolume
+    // Store original volume in userData (assuming first call)
+    if (!geometry.userData.originalVolume) {
+      geometry.userData.originalVolume = currentVolume
     }
     
-    const originalVolume = (geometry as any).originalVolume
+    const originalVolume = geometry.userData.originalVolume as number
     const scale = Math.cbrt(originalVolume / currentVolume)
     
     // Scale to preserve volume

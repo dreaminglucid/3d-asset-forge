@@ -109,11 +109,12 @@ async function auditAssets(): Promise<AuditReport> {
         report.issues.missingFiles.push(`${assetId}: Missing model file ${modelFile}`)
       }
       
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
+    } catch (error) {
+      const isNodeError = error instanceof Error && 'code' in error
+      if (isNodeError && (error as NodeJS.ErrnoException).code === 'ENOENT') {
         report.issues.missingMetadata.push(assetId)
       } else {
-        report.issues.invalidMetadata.push(`${assetId}: ${error.message}`)
+        report.issues.invalidMetadata.push(`${assetId}: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
   }

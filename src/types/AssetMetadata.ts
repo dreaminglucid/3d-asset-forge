@@ -3,6 +3,8 @@
  * Defines the structure for all asset metadata stored in gdd-assets/{id}/metadata.json
  */
 
+import type { ExtendedAssetMetadata, RiggingMetadata } from './RiggingMetadata'
+
 export type AssetType = 'weapon' | 'armor' | 'tool' | 'resource' | 'ammunition' | 'character' | 'misc'
 
 export interface MaterialPresetInfo {
@@ -18,7 +20,7 @@ export interface MaterialPresetInfo {
  * Base Asset Metadata
  * For original base models that can be retextured
  */
-export interface BaseAssetMetadata {
+export interface BaseAssetMetadata extends RiggingMetadata {
   // Identity
   id: string
   gameId: string
@@ -63,13 +65,19 @@ export interface BaseAssetMetadata {
   updatedAt: string
   generatedAt?: string
   completedAt?: string
+  
+  // Additional properties used in UI
+  tier?: string
+  format?: string
+  gripDetected?: boolean  // For weapons
+  requiresAnimationStrip?: boolean
 }
 
 /**
  * Variant Asset Metadata
  * For retextured variants of base models
  */
-export interface VariantAssetMetadata {
+export interface VariantAssetMetadata extends RiggingMetadata {
   // Identity
   id: string
   gameId: string
@@ -120,12 +128,48 @@ export interface VariantAssetMetadata {
   completedAt?: string
   createdAt?: string
   updatedAt?: string
+  
+  // Additional properties used in UI
+  tier?: string
+  format?: string
+  gripDetected?: boolean  // For weapons
+  requiresAnimationStrip?: boolean
 }
 
 /**
  * Combined type for any asset metadata
  */
 export type AssetMetadata = BaseAssetMetadata | VariantAssetMetadata
+
+/**
+ * Type for assets with animation metadata
+ */
+export type AssetWithAnimations = {
+  id: string
+  name: string
+  description: string
+  type: string
+  metadata: ExtendedAssetMetadata
+  hasModel: boolean
+  modelFile?: string
+  generatedAt: string
+}
+
+/**
+ * Type guard to check if asset metadata has animations
+ */
+export function hasAnimations(asset: { 
+  id: string
+  name: string
+  description: string
+  type: string
+  metadata: AssetMetadata | ExtendedAssetMetadata
+  hasModel: boolean
+  modelFile?: string
+  generatedAt: string
+}): asset is AssetWithAnimations {
+  return 'animations' in asset.metadata
+}
 
 /**
  * Type guards
@@ -141,13 +185,16 @@ export function isVariantAsset(metadata: AssetMetadata): metadata is VariantAsse
 /**
  * Validation helpers
  */
-export function validateBaseAsset(metadata: any): metadata is BaseAssetMetadata {
+export function validateBaseAsset(metadata: unknown): metadata is BaseAssetMetadata {
   return (
-    metadata &&
+    metadata !== null &&
     typeof metadata === 'object' &&
+    'isBaseModel' in metadata &&
     metadata.isBaseModel === true &&
+    'meshyTaskId' in metadata &&
     typeof metadata.meshyTaskId === 'string' &&
     metadata.meshyTaskId.length > 0 &&
+    'variants' in metadata &&
     Array.isArray(metadata.variants)
   )
 }

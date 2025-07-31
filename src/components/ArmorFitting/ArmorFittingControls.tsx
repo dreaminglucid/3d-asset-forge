@@ -180,7 +180,7 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
             {Object.entries(FITTING_METHODS).map(([key, method]) => (
               <button
                 key={key}
-                onClick={() => onFittingConfigChange({ method: key as any })}
+                onClick={() => onFittingConfigChange({ method: key as 'boundingBox' | 'collision' | 'smooth' | 'iterative' | 'hull' })}
                 className={cn(
                   "p-2.5 rounded-lg border transition-all text-left",
                   fittingConfig.method === key
@@ -396,7 +396,7 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
             ].filter(({ mode }) => mode === 'none' || mode !== 'hull').map(({ mode, label, icon }) => (
               <button
                 key={mode}
-                onClick={() => onVisualizationModeChange(mode as any)}
+                onClick={() => onVisualizationModeChange(mode as 'none' | 'regions' | 'collisions' | 'weights' | 'hull')}
                 className={cn(
                   "px-2 py-1.5 text-[11px] rounded-md transition-colors flex items-center gap-1.5 justify-center",
                   visualizationMode === mode

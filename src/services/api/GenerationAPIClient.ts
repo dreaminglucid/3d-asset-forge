@@ -4,7 +4,8 @@
  */
 
 import { EventEmitter } from 'events'
-import { GenerationConfig } from './../generation/GenerationPipelineService'
+import { GenerationConfig } from '../../types/generation'
+import { ExtendedImportMeta } from '../../types'
 
 // Define pipeline types matching backend
 export interface PipelineStage {
@@ -19,13 +20,31 @@ export interface PipelineStages {
   vertexColors: PipelineStage
 }
 
+export interface PipelineResults {
+  image3D?: {
+    localPath?: string
+    modelUrl?: string
+  }
+  rigging?: {
+    localPath?: string
+    modelUrl?: string
+  }
+  textureGeneration?: {
+    variants?: Array<{ name: string; modelUrl: string }>
+  }
+  spriteGeneration?: {
+    status?: string
+    sprites?: Array<{ angle: number; imageUrl: string }>
+  }
+}
+
 export interface PipelineResult {
   id: string
   status: 'initializing' | 'processing' | 'completed' | 'failed'
   progress: number
   stages: PipelineStages
   config: GenerationConfig
-  results: any
+  results: PipelineResults
   error?: string
   baseAsset?: {
     id: string
@@ -42,6 +61,20 @@ export interface PipelineResult {
   }
 }
 
+// Event map for type-safe event handling
+export interface GenerationAPIEvents {
+  'pipeline:started': { pipelineId: string }
+  'progress': { pipelineId: string; progress: number }
+  'statusChange': { pipelineId: string; status: string }
+  'update': PipelineResult
+  'pipeline:completed': PipelineResult
+  'pipeline:failed': { pipelineId: string; error?: string }
+  'error': { pipelineId: string; error: Error | string | { message: string; code?: string } }
+}
+
+// Type helper to extract event arguments
+type EventArgs<T extends keyof GenerationAPIEvents> = GenerationAPIEvents[T]
+
 export class GenerationAPIClient extends EventEmitter {
   private apiUrl: string
   private pollInterval: number = 2000 // Poll every 2 seconds
@@ -51,7 +84,7 @@ export class GenerationAPIClient extends EventEmitter {
   constructor(apiUrl?: string) {
     super()
     // Use environment variable if available, otherwise default to localhost
-    const envApiUrl = (import.meta as any).env?.VITE_GENERATION_API_URL
+    const envApiUrl = (import.meta as ExtendedImportMeta).env?.VITE_GENERATION_API_URL
     this.apiUrl = apiUrl || envApiUrl || 'http://localhost:3001/api'
   }
   
@@ -223,7 +256,10 @@ export class GenerationAPIClient extends EventEmitter {
   /**
    * Remove event listener (alias for removeListener)
    */
-  off(event: string, listener: (...args: any[]) => void): this {
+  off<K extends keyof GenerationAPIEvents>(
+    event: K, 
+    listener: (data: EventArgs<K>) => void
+  ): this {
     return this.removeListener(event, listener)
   }
 } 

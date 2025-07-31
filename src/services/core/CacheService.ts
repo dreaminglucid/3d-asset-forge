@@ -4,7 +4,7 @@
  */
 
 import NodeCache from 'node-cache'
-import { CacheEntry } from '../../types'
+import { CacheEntry, CacheableValue } from '../../types'
 
 export interface CacheConfig {
   enabled: boolean
@@ -27,12 +27,12 @@ export class CacheService {
     })
 
     // Monitor cache size
-    this.cache.on('set', (key: string, value: any) => {
+    this.cache.on('set', (key: string, value: CacheableValue) => {
       this.currentSize += this.estimateSize(value)
       this.enforceMaxSize()
     })
 
-    this.cache.on('del', (key: string, value: any) => {
+    this.cache.on('del', (key: string, value: CacheableValue) => {
       this.currentSize -= this.estimateSize(value)
     })
   }
@@ -117,7 +117,7 @@ export class CacheService {
   /**
    * Estimate size of value in bytes
    */
-  private estimateSize(value: any): number {
+  private estimateSize(value: CacheableValue): number {
     if (typeof value === 'string') {
       return value.length * 2 // Unicode chars
     }

@@ -12,9 +12,10 @@ import {
   Package, X, Zap, FileImage, Layout, ChevronDown, Info, XCircle, 
   Sword, Play, Pause, RefreshCw, Check, Clock, Loader2, Edit2, User
 } from 'lucide-react'
-import { GenerationConfig } from '../../services/generation/GenerationPipelineService'
-import { MaterialPreset } from '../../types'
+import { GenerationConfig } from '../../types/generation'
+import { MaterialPreset, GeneratedAsset, GenerationAssetMetadata, PipelineStage as IPipelineStage, BaseAssetMetadata, hasAnimations, AssetType } from '../../types'
 import { GenerationAPIClient } from '../../services/api/GenerationAPIClient'
+import { Asset } from '../../services/api/AssetService'
 import ThreeViewer, { ThreeViewerRef } from '../shared/ThreeViewer'
 import { spriteGeneratorClient } from '../../utils/sprite-generator-client'
 import { GenerationTypeSelector } from './GenerationTypeSelector'
@@ -222,7 +223,7 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
           const assets = await response.json()
           
           // Transform API assets to match the expected format
-          const transformedAssets = assets.map((asset: any) => ({
+          const transformedAssets = assets.map((asset: Asset) => ({
             id: asset.id,
             name: asset.name,
             type: asset.type,
@@ -230,7 +231,7 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
             hasModel: asset.hasModel,
             modelUrl: asset.hasModel ? `/api/assets/${asset.id}/model` : undefined,
             conceptArtUrl: `/api/assets/${asset.id}/concept-art.png`,
-            variants: asset.metadata?.variants || [],
+            variants: ('variants' in asset.metadata && asset.metadata.variants) ? asset.metadata.variants : [],
             metadata: asset.metadata || {},
             createdAt: asset.generatedAt || asset.metadata?.generatedAt
           }))
@@ -274,7 +275,7 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
         
         if (status) {
           // Update pipeline stages
-          Object.entries(status.stages || {}).forEach(([stageName, stageData]: [string, any]) => {
+          Object.entries(status.stages || {}).forEach(([stageName, stageData]) => {
             console.log('Processing stage:', stageName, stageData)
             const uiStageId = stageMapping[stageName]
             if (uiStageId) {
@@ -301,30 +302,51 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
             console.log('Pipeline completed with results:', results)
             console.log('Rigging results:', results.rigging)
             
-            const finalAsset = {
+            const finalAsset: GeneratedAsset = {
               id: baseAssetId,
               name: config.name || assetName,
+              description: config.description || `${config.type || assetType} asset`,
               type: config.type || assetType,
-                pipelineId: currentPipelineId,
+              pipelineId: currentPipelineId,
               status: 'completed',
               modelUrl: (results.image3D?.localPath || results.rigging?.localPath) ? `/api/assets/${baseAssetId}/model` : undefined,
               conceptArtUrl: `/api/assets/${baseAssetId}/concept-art.png`,
               variants: results.textureGeneration?.variants || [],
               hasSpriteMetadata: results.spriteGeneration?.status === 'metadata_created' || 
-                                 (config.enableSprites && results.image3D?.localPath),
+                                 Boolean(config.enableSprites && results.image3D?.localPath),
               hasSprites: false,
               sprites: null,
               hasModel: !!(results.image3D?.localPath || results.rigging?.localPath),
+              modelFile: results.rigging?.localPath || results.image3D?.localPath,
               createdAt: new Date().toISOString(),
+              generatedAt: new Date().toISOString(),
               metadata: {
-                type: config.type,
-                isRigged: !!results.rigging && !!results.rigging.animations,
-                animations: results.rigging?.animations || undefined,
+                id: baseAssetId,
+                gameId: baseAssetId,
+                name: config.name,
+                description: config.description,
+                type: config.type as AssetType,
+                subtype: config.subtype || '',
+                isBaseModel: true,
+                meshyTaskId: '', // Not available from pipeline results
+                generationMethod: 'gpt-image-meshy' as const,
+                variants: [],
+                variantCount: 0,
+                modelPath: results.rigging?.localPath || results.image3D?.localPath || '',
                 hasModel: !!(results.image3D?.localPath || results.rigging?.localPath),
-                modelPath: results.rigging?.localPath || results.image3D?.localPath,
+                hasConceptArt: true,
+                workflow: 'ai-generation',
+                gddCompliant: true,
+                isPlaceholder: false,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                generatedAt: new Date().toISOString(),
+                // Extended properties
+                isRigged: !!results.rigging && !!results.rigging?.localPath,
+                animations: results.rigging?.localPath ? {} : undefined,
                 riggedModelPath: results.rigging?.localPath,
                 characterHeight: generationType === 'avatar' ? characterHeight : undefined
-              }
+              } as BaseAssetMetadata & GenerationAssetMetadata
             }
             
 
@@ -382,7 +404,7 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
       setGeneratedAssets(updatedAssets)
       
       if (selectedAsset?.id === assetId) {
-        setSelectedAsset((prev: any) => ({ ...prev, sprites, hasSprites: true }))
+        setSelectedAsset({ ...selectedAsset, sprites, hasSprites: true })
       }
       
     } catch (error) {
@@ -550,33 +572,9 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
       generationType: generationType,
       metadata: {
         gameStyle,
-        useGPT4Enhancement,
-        enableRetexturing,
-        enableSprites,
-        enableVertexColors,
-        enableRigging,
-        characterHeight,
-        materialPresets: materialVariants.map(mat => ({
-          id: mat.id,
-          name: mat.name,
-          displayName: mat.displayName,
-          category: mat.category,
-          tier: mat.tier,
-          color: mat.color,
-          stylePrompt: mat.stylePrompt
-        })),
         customGamePrompt: gameStyle === 'custom' ? customGamePrompt : undefined,
-        customAssetTypePrompt: currentAssetTypePrompt,
-        assetTypePrompts,
-        customAssetTypes
+        customAssetTypePrompt: currentAssetTypePrompt
       },
-      enableGeneration: true,
-      enableRetexturing: generationType === 'item' ? enableRetexturing : false,
-      enableSprites,
-      enableRigging: generationType === 'avatar' ? enableRigging : false,
-      riggingOptions: generationType === 'avatar' && enableRigging ? {
-        heightMeters: characterHeight
-      } : undefined,
       materialPresets: generationType === 'item' ? materialVariants.map(mat => ({
         id: mat.id,
         name: mat.name,
@@ -586,6 +584,13 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
         color: mat.color,
         stylePrompt: mat.stylePrompt
       })) : [],
+      enableGeneration: true,
+      enableRetexturing: generationType === 'item' ? enableRetexturing : false,
+      enableSprites,
+      enableRigging: generationType === 'avatar' ? enableRigging : false,
+      riggingOptions: generationType === 'avatar' && enableRigging ? {
+        heightMeters: characterHeight
+      } : undefined,
       spriteConfig: enableSprites ? {
         angles: 8,
         resolution: 512,
@@ -668,7 +673,7 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveView(tab.id as any)}
+                    onClick={() => setActiveView(tab.id as 'config' | 'progress' | 'results')}
                     className={cn(
                       "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200",
                       activeView === tab.id
@@ -1659,12 +1664,14 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
                           <div className="aspect-video bg-gradient-to-br from-bg-secondary to-bg-tertiary relative">
                             {(selectedAsset.hasModel || selectedAsset.modelUrl) ? (
                               <>
-                                {(generationType === 'avatar' && selectedAsset.metadata?.isRigged && selectedAsset.metadata?.animations) ? (
+                                {(generationType === 'avatar' && selectedAsset && 
+                                  'isRigged' in selectedAsset.metadata && selectedAsset.metadata.isRigged && 
+                                  'animations' in selectedAsset.metadata && selectedAsset.metadata.animations) ? (
                                   <AnimationPlayer
                                     modelUrl={selectedAsset.modelUrl || `/api/assets/${selectedAsset.id}/model`}
-                                    animations={{
-                                      basic: selectedAsset.metadata.animations
-                                    }}
+                                    animations={
+                                      hasAnimations(selectedAsset) ? selectedAsset.metadata.animations : { basic: {} }
+                                    }
                                     assetId={selectedAsset.id}
                                     className="w-full h-full"
                                   />
@@ -1709,13 +1716,13 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
                           <CardHeader>
                             <CardTitle>Material Variants</CardTitle>
                             <CardDescription>
-                              {selectedAsset.variants.length} variants generated
+                              {selectedAsset.variants?.length || 0} variants generated
                             </CardDescription>
                           </CardHeader>
                           <CardContent>
                             <div className="grid grid-cols-3 gap-4">
-                              {selectedAsset.variants.map((variant: any, i: number) => {
-                                const materialName = variant.id ? variant.id.split('-').pop() : variant.name || `Variant ${i + 1}`
+                              {selectedAsset.variants?.map((variant, i) => {
+                                const materialName = ('id' in variant && variant.id ? variant.id.split('-').pop() : 'name' in variant ? variant.name : undefined) || `Variant ${i + 1}`
                                 const materialColors: Record<string, string> = {
                                   bronze: '#CD7F32',
                                   steel: '#C0C0C0',
@@ -1737,7 +1744,7 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
                                         style={{ backgroundColor: color }}
                                       />
                                       <Box className="w-full h-full text-text-tertiary relative z-10" />
-                                      {variant.success && (
+                                      {'success' in variant && (variant as { success?: boolean }).success && (
                                         <CheckCircle className="absolute top-3 right-3 w-5 h-5 text-success" />
                               )}
                             </div>
@@ -1764,7 +1771,7 @@ const GenerationDashboard: React.FC<GenerationDashboardProps> = ({ onClose }) =>
                           <CardContent>
                             {selectedAsset.sprites ? (
                               <div className="grid grid-cols-4 gap-3">
-                                {selectedAsset.sprites.map((sprite: any, i: number) => (
+                                {selectedAsset.sprites.map((sprite: { angle: number; imageUrl: string }, i: number) => (
                                   <div key={i} className="group relative aspect-square">
                                     <div className="w-full h-full bg-bg-tertiary rounded-lg p-2 overflow-hidden hover:shadow-lg transition-all hover:scale-105">
                                       <img 
