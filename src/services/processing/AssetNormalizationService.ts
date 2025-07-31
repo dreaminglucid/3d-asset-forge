@@ -490,7 +490,4 @@ export class AssetNormalizationService {
     model.scale.set(1, 1, 1)
     model.updateMatrixWorld(true)
   }
-}
-
-// Export singleton instance
-export const assetNormalizationService = new AssetNormalizationService() 
+} 

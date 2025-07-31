@@ -75,10 +75,11 @@ VITE_MESHY_API_KEY=your-meshy-api-key
 Start both frontend and backend services:
 ```bash
 # Terminal 1: Start the React app
-bun run dev
+bun run dev:all
 
-# Terminal 2: Start the backend services
-bun run start:backend
+# Or run separately:
+bun run dev           # Terminal 1: Frontend only
+bun run dev:backend   # Terminal 2: Backend services
 ```
 
 The app will be available at `http://localhost:3003`
@@ -147,11 +148,14 @@ generation/
 
 ## Scripts
 
-- `bun run dev` - Start development server
+- `bun run dev` - Start frontend development server
+- `bun run dev:all` - Start both frontend and backend development servers
+- `bun run dev:backend` - Start backend services only
 - `bun run build` - Build for production
-- `bun run start:backend` - Start backend services
-- `bun run audit:assets` - Audit asset library
-- `bun run extract-tpose` - Extract T-poses from models
+- `bun run start` - Start production backend services
+- `bun run assets:audit` - Audit asset library
+- `bun run assets:normalize` - Normalize 3D models
+- `bun run assets:extract-tpose` - Extract T-poses from models
 
 ## Configuration
 

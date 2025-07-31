@@ -17,15 +17,6 @@ export type JSONValue =
   | { [key: string]: JSONValue }
 
 /**
- * Model geometry for analysis service
- */
-export interface ModelGeometry {
-  vertices: Array<{ x: number; y: number; z: number }>
-  faces: Array<{ a: number; b: number; c: number }>
-  bounds: BoundingBox | null
-}
-
-/**
  * Debug configuration for debugger store
  */
 export interface DebugConfiguration {

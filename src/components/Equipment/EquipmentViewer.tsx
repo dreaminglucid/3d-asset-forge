@@ -5,7 +5,6 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
 import { SkeletonHelper } from 'three'
-import { CreatureScalingService } from '../../services/processing/CreatureScalingService'
 
 export interface Transform {
   position: { x: number; y: number; z: number }

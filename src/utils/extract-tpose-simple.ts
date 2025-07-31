@@ -170,8 +170,8 @@ export async function runCLI() {
   const args = process.argv.slice(2)
   
   if (args.length < 2) {
-    console.log('Usage: npm run extract-tpose-simple <input.glb> <output.glb>')
-    console.log('Example: npm run extract-tpose-simple gdd-assets/goblin/animations/walking.glb gdd-assets/goblin/t-pose.glb')
+    console.log('Usage: npm run assets:extract-tpose <input.glb> <output.glb>')
+    console.log('Example: npm run assets:extract-tpose gdd-assets/goblin/animations/walking.glb gdd-assets/goblin/t-pose.glb')
     process.exit(1)
   }
   

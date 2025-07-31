@@ -296,7 +296,4 @@ export class CreatureScalingService {
         return 1.0
     }
   }
-}
-
-// Export singleton instance
-export const creatureScalingService = new CreatureScalingService() 
+} 

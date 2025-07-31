@@ -278,7 +278,7 @@ export class GenerationService extends EventEmitter {
           // Normalize character height
           console.log('🔧 Normalizing character model...')
           try {
-            const { AssetNormalizationService } = await import('../../src/services/AssetNormalizationService.js')
+            const { AssetNormalizationService } = await import('../../dist/services/processing/AssetNormalizationService.js')
             const normalizer = new AssetNormalizationService()
             
             const targetHeight = pipeline.config.metadata?.characterHeight || 
@@ -301,7 +301,7 @@ export class GenerationService extends EventEmitter {
           // Normalize weapon with grip at origin
           console.log('🔧 Normalizing weapon model...')
           try {
-            const { WeaponHandleDetector } = await import('../../src/services/WeaponHandleDetector.js')
+            const { WeaponHandleDetector } = await import('../../dist/services/processing/WeaponHandleDetector.js')
             const detector = new WeaponHandleDetector()
             
             const result = await detector.exportNormalizedWeapon(rawModelPath, normalizedModelPath)
