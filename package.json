@@ -24,7 +24,8 @@
     "assets:normalize": "npx tsx scripts/normalize-all-assets.ts",
     "assets:extract-tpose": "npx tsx scripts/extract-tpose-simple-cli.ts",
     "check:deps": "depcheck",
-    "check:all": "knip"
+    "check:all": "knip",
+    "count:lines": "node scripts/count-lines.mjs"
   },
   "keywords": [
     "ai",

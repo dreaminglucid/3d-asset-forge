@@ -2667,9 +2667,9 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
         )}
       </div>
       
-      {/* Debug info for rigged model - only show in asset browser */}
+      {/* Debug info for rigged model - positioned below top-right buttons */}
       {hasRiggedModel && !isAnimationPlayer && (
-        <div className="absolute top-4 right-4 px-3 py-1.5 bg-green-600 bg-opacity-20 text-green-400 rounded-md text-xs font-medium backdrop-blur-sm animate-fade-in">
+        <div className="absolute top-20 right-4 px-3 py-1.5 bg-green-600 bg-opacity-20 text-green-400 rounded-md text-xs font-medium backdrop-blur-sm animate-fade-in">
           Rigged Model Detected
         </div>
       )}
@@ -2742,30 +2742,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
             </select>
           </div>
           
-          {/* Animation controls */}
-          {animations.length > 0 && (
-            <>
-              <select
-                value={currentAnimation}
-                onChange={(e) => playAnimation(Number(e.target.value))}
-                className="px-3 py-1.5 bg-bg-secondary bg-opacity-90 backdrop-blur-sm rounded-md text-xs border border-border-primary text-text-primary"
-              >
-                {animations.map((clip, index) => (
-                  <option key={index} value={index}>
-                    {clip.name || `Animation ${index + 1}`}
-                  </option>
-                ))}
-              </select>
-              
-              <button
-                onClick={togglePlayPause}
-                className="p-1.5 bg-bg-secondary bg-opacity-90 backdrop-blur-sm rounded-md text-text-primary hover:bg-bg-hover transition-colors"
-                title={isPlaying ? "Pause" : "Play"}
-              >
-                {isPlaying ? <Pause size={14} /> : <Play size={14} />}
-              </button>
-            </>
-          )}
+          {/* Animation controls removed - animations should only be played through the animation player view */}
         </div>
       )}
       
