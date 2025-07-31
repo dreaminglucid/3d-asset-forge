@@ -387,54 +387,21 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-bg-primary bg-opacity-95 backdrop-blur-xl z-50 overflow-y-auto animate-fade-in scrollbar-hide">
+    <div className="fixed inset-0 pt-[60px] bg-bg-primary bg-opacity-95 backdrop-blur-xl z-40 overflow-y-auto animate-fade-in scrollbar-hide">
       {/* Main container with hidden scrollbar for clean appearance while maintaining scroll functionality */}
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-50 bg-bg-primary backdrop-blur-xl bg-opacity-95">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-3 sm:py-4 flex items-center justify-between gap-4">
+      
+      {/* Main Content Area */}
+      <div className="bg-bg-primary">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
+          {/* Header with tabs */}
+          <div className="mb-6">
             {/* Tab Navigation */}
             <TabNavigation
               activeView={activeView}
               generatedAssetsCount={generatedAssets.length}
               onTabChange={setActiveView}
             />
-
-            {/* Action buttons */}
-            <div className="flex items-center gap-2">
-              {/* Back to type selection */}
-              {generationType && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setGenerationType(undefined)
-                    setActiveView('config')
-                    resetForm()
-                    resetPipeline()
-                  }}
-                  className="text-text-secondary hover:text-text-primary"
-                  title="Back to generation type selection"
-                >
-                  <ChevronRight className="w-4 h-4 rotate-180 mr-1" />
-                  Back
-                </Button>
-              )}
-
-              {/* Close button only if provided */}
-              {onClose && (
-                <Button variant="ghost" size="sm" onClick={onClose}>
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="bg-bg-primary">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
           {/* Configuration Form View */}
           {activeView === 'config' && (
             <div className="animate-fade-in space-y-8">

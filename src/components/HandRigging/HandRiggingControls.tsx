@@ -1,4 +1,4 @@
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Badge } from '../common'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Badge, Checkbox } from '../common'
 import { cn } from '../../styles'
 import { 
   Settings, Wand2, Brain, Check, CheckCircle, 
@@ -197,15 +197,12 @@ export function HandRiggingControls({ onStartProcessing }: HandRiggingControlsPr
           {/* Debug Options */}
           {!useSimpleMode && (
             <div className="pt-4 border-t border-border-primary">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showDebugImages}
-                  onChange={toggleDebugImages}
-                  className="w-4 h-4 rounded border-border-primary text-primary focus:ring-primary"
-                />
-                <span className="text-sm text-text-secondary">Show debug captures</span>
-              </label>
+                          <Checkbox
+              checked={showDebugImages}
+              onChange={toggleDebugImages}
+              label="Show debug captures"
+              size="sm"
+            />
             </div>
           )}
         </CardContent>

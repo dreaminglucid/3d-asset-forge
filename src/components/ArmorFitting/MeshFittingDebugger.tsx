@@ -9,6 +9,7 @@ import { X, Play, Grid3x3, Link, Activity, RotateCcw, Pause, Box, Sliders } from
 import { useDebuggerStore } from '../../store/useDebuggerStore'
 import { useAssets } from '../../hooks/useAssets'
 import { ExtendedMesh } from '../../types'
+import { Checkbox } from '../common'
 
 // Styled range input component matching the app's design system
 const RangeInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => {
@@ -3805,25 +3806,19 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
 
                     {/* Debug Options */}
                     <div className="space-y-3 pt-4 border-t border-white/10">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showHeadBounds}
-                          onChange={(e) => setShowHeadBounds(e.target.checked)}
-                          className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary"
-                        />
-                        <span className="text-sm text-text-primary">Show Head Bounds</span>
-                      </label>
+                      <Checkbox
+                        checked={showHeadBounds}
+                        onChange={(e) => setShowHeadBounds(e.target.checked)}
+                        label="Show Head Bounds"
+                        size="sm"
+                      />
 
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showCollisionDebug}
-                          onChange={(e) => setShowCollisionDebug(e.target.checked)}
-                          className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary"
-                        />
-                        <span className="text-sm text-text-primary">Show Collision Debug</span>
-                      </label>
+                      <Checkbox
+                        checked={showCollisionDebug}
+                        onChange={(e) => setShowCollisionDebug(e.target.checked)}
+                        label="Show Collision Debug"
+                        size="sm"
+                      />
 
                       <button
                         onClick={() => {
@@ -3968,115 +3963,66 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
                       <p className="text-xs text-text-tertiary">Vertices processed per iteration</p>
                     </div>
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <label className="text-sm font-medium text-text-primary">Preserve Features</label>
-                        <input
-                          type="checkbox"
-                          checked={fittingParameters.preserveFeatures}
-                          onChange={(e) => updateFittingParameters({ ...fittingParameters, preserveFeatures: e.target.checked })}
-                          className="w-4 h-4 text-primary focus:ring-primary border-white/10 rounded-sm cursor-pointer"
-                        />
-                      </div>
-                      <p className="text-xs text-text-tertiary">
-                        Preserve sharp edges and flat surfaces during smoothing
-                      </p>
-                    </div>
+                    <Checkbox
+                      checked={fittingParameters.preserveFeatures}
+                      onChange={(e) => updateFittingParameters({ ...fittingParameters, preserveFeatures: e.target.checked })}
+                      label="Preserve Features"
+                      description="Preserve sharp edges and flat surfaces during smoothing"
+                      size="sm"
+                    />
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <label className="text-sm font-medium text-text-primary">Improved Shrinkwrap</label>
-                        <input
-                          type="checkbox"
-                          checked={fittingParameters.useImprovedShrinkwrap}
-                          onChange={(e) => updateFittingParameters({ ...fittingParameters, useImprovedShrinkwrap: e.target.checked })}
-                          className="w-4 h-4 text-primary focus:ring-primary border-white/10 rounded-sm cursor-pointer"
-                        />
-                      </div>
-                      <p className="text-xs text-text-tertiary">
-                        Use improved shrinkwrap algorithm with surface relaxation
-                      </p>
-                    </div>
+                    <Checkbox
+                      checked={fittingParameters.useImprovedShrinkwrap}
+                      onChange={(e) => updateFittingParameters({ ...fittingParameters, useImprovedShrinkwrap: e.target.checked })}
+                      label="Improved Shrinkwrap"
+                      description="Use improved shrinkwrap algorithm with surface relaxation"
+                      size="sm"
+                    />
 
                     {viewMode === 'avatarArmor' && (
                       <>
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <label className="text-sm font-medium text-text-primary">Show Body Hull</label>
-                            <input
-                              type="checkbox"
-                              checked={showHull}
-                              onChange={(e) => setShowHull(e.target.checked)}
-                              className="w-4 h-4 text-primary focus:ring-primary border-white/10 rounded-sm cursor-pointer"
-                            />
-                          </div>
-                          <p className="text-xs text-text-tertiary">
-                            Display the extracted body hull during armor fitting
-                          </p>
-                        </div>
+                        <Checkbox
+                          checked={showHull}
+                          onChange={(e) => setShowHull(e.target.checked)}
+                          label="Show Body Hull"
+                          description="Display the extracted body hull during armor fitting"
+                          size="sm"
+                        />
 
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <label className="text-sm font-medium text-text-primary">Armor Wireframe</label>
-                            <input
-                              type="checkbox"
-                              checked={showWireframe}
-                              onChange={(e) => setShowWireframe(e.target.checked)}
-                              className="w-4 h-4 text-primary focus:ring-primary border-white/10 rounded-sm cursor-pointer"
-                            />
-                          </div>
-                          <p className="text-xs text-text-tertiary">
-                            Toggle wireframe display for armor mesh
-                          </p>
-                        </div>
+                        <Checkbox
+                          checked={showWireframe}
+                          onChange={(e) => setShowWireframe(e.target.checked)}
+                          label="Armor Wireframe"
+                          description="Toggle wireframe display for armor mesh"
+                          size="sm"
+                        />
 
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <label className="text-sm font-medium text-text-primary">Preserve Openings</label>
-                            <input
-                              type="checkbox"
-                              checked={fittingParameters.preserveOpenings}
-                              onChange={(e) => updateFittingParameters({ ...fittingParameters, preserveOpenings: e.target.checked })}
-                              className="w-4 h-4 text-primary focus:ring-primary border-white/10 rounded-sm cursor-pointer"
-                            />
-                          </div>
-                          <p className="text-xs text-text-tertiary">
-                            Lock vertices around neck and arm regions to preserve armor openings
-                          </p>
-                        </div>
+                        <Checkbox
+                          checked={fittingParameters.preserveOpenings}
+                          onChange={(e) => updateFittingParameters({ ...fittingParameters, preserveOpenings: e.target.checked })}
+                          label="Preserve Openings"
+                          description="Lock vertices around neck and arm regions to preserve armor openings"
+                          size="sm"
+                        />
 
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <label className="text-sm font-medium text-text-primary">Push Interior Vertices</label>
-                            <input
-                              type="checkbox"
-                              checked={fittingParameters.pushInteriorVertices}
-                              onChange={(e) => updateFittingParameters({ ...fittingParameters, pushInteriorVertices: e.target.checked })}
-                              className="w-4 h-4 text-primary focus:ring-primary border-white/10 rounded-sm cursor-pointer"
-                            />
-                          </div>
-                          <p className="text-xs text-text-tertiary">
-                            Restore vertices that end up inside the avatar back to their pre-shrinkwrap positions
-                          </p>
-                        </div>
+                        <Checkbox
+                          checked={fittingParameters.pushInteriorVertices}
+                          onChange={(e) => updateFittingParameters({ ...fittingParameters, pushInteriorVertices: e.target.checked })}
+                          label="Push Interior Vertices"
+                          description="Restore vertices that end up inside the avatar back to their pre-shrinkwrap positions"
+                          size="sm"
+                        />
 
                         <div className="space-y-2 border-t border-white/10 pt-4 mt-4">
                           <h4 className="text-sm font-semibold text-primary">Debug Visualization</h4>
 
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <label className="text-sm font-medium text-text-primary">Show Debug Arrows</label>
-                              <input
-                                type="checkbox"
-                                checked={fittingParameters.showDebugArrows}
-                                onChange={(e) => updateFittingParameters({ ...fittingParameters, showDebugArrows: e.target.checked })}
-                                className="w-4 h-4 text-primary focus:ring-primary border-white/10 rounded-sm cursor-pointer"
-                              />
-                            </div>
-                            <p className="text-xs text-text-tertiary">
-                              Display arrows showing vertex movement direction and magnitude
-                            </p>
-                          </div>
+                          <Checkbox
+                            checked={fittingParameters.showDebugArrows}
+                            onChange={(e) => updateFittingParameters({ ...fittingParameters, showDebugArrows: e.target.checked })}
+                            label="Show Debug Arrows"
+                            description="Display arrows showing vertex movement direction and magnitude"
+                            size="sm"
+                          />
 
                           <div className="space-y-2">
                             <label className="text-sm font-medium text-text-primary">Arrow Density</label>

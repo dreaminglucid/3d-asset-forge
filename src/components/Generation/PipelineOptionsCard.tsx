@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../common'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Checkbox } from '../common'
 import { Zap, Brain, User, Palette, Grid3x3 } from 'lucide-react'
 
 interface PipelineOption {
@@ -84,26 +84,24 @@ export const PipelineOptionsCard: React.FC<PipelineOptionsCardProps> = ({
         {options.map((option) => {
           const Icon = option.icon
           return (
-            <label 
+            <div 
               key={option.id}
-              className="flex items-start gap-3 cursor-pointer group p-3 rounded-lg hover:bg-bg-secondary transition-colors"
+              className="p-3 rounded-lg hover:bg-bg-secondary transition-colors"
             >
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={option.checked}
                 onChange={(e) => option.onChange(e.target.checked)}
-                className="mt-1 w-4 h-4 rounded border-border-primary text-primary focus:ring-primary focus:ring-offset-0"
+                label={
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 text-primary" />
+                    <span className="font-medium">
+                      {option.label}
+                    </span>
+                  </div>
+                }
+                description={option.description}
               />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <Icon className="w-4 h-4 text-primary" />
-                  <span className="font-medium text-text-primary group-hover:text-primary transition-colors">
-                    {option.label}
-                  </span>
-                </div>
-                <p className="text-xs text-text-tertiary mt-0.5">{option.description}</p>
-              </div>
-            </label>
+            </div>
           )
         })}
       </CardContent>

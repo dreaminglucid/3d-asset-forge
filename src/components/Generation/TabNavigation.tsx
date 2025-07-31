@@ -36,10 +36,10 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200",
+              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 border",
               activeView === tab.id
-                ? "bg-bg-secondary text-text-primary"
-                : "text-text-secondary hover:text-text-primary hover:bg-bg-secondary hover:bg-opacity-50"
+                ? "bg-primary/10 text-primary border-primary/30"
+                : "text-text-secondary hover:text-text-primary border-border-primary hover:bg-bg-secondary/50 hover:border-border-secondary"
             )}
           >
             <Icon className="w-4 h-4" />

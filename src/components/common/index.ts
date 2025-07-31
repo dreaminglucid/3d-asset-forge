@@ -37,6 +37,10 @@ export type { ModalProps, ModalBodyProps, ModalSectionProps, ModalHeaderProps, M
 export { Badge } from './Badge'
 export type { BadgeProps } from './Badge'
 
+// Checkbox
+export { Checkbox } from './Checkbox'
+export type { CheckboxProps } from './Checkbox'
+
 // Progress
 export { 
   Progress, 
