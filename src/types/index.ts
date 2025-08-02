@@ -278,5 +278,12 @@ export * from './common'
 export * from './generation'
 export * from './hand-rigging'
 
+// Explicitly re-export GLTFAnimation, GLTFNode, and GLTFSkin as types for isolatedModules compatibility
+export type {
+  GLTFAnimation,
+  GLTFNode,
+  GLTFSkin,
+} from './gltf'
+
 // Re-export Asset from AssetService to maintain backward compatibility
 export type { Asset } from '../services/api/AssetService' 

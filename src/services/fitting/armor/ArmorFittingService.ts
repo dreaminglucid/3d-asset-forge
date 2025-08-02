@@ -1322,4 +1322,1169 @@ export class ArmorFittingService {
     
     return false
   }
+
+  /**
+   * Export armor with fitted shape preserved (pose-corrected)
+   * This ensures the armor maintains its fitted shape in external viewers
+   */
+  async exportFittedArmor(
+    skinnedArmorMesh: THREE.SkinnedMesh,
+    options: {
+      method?: 'minimal' | 'full' | 'static'
+    } = {}
+  ): Promise<ArrayBuffer> {
+    const { method = 'minimal' } = options
+    
+    console.log(`=== EXPORTING FITTED ARMOR (${method.toUpperCase()}) ===`)
+    
+    if (!skinnedArmorMesh.skeleton) {
+      throw new Error('Armor has no skeleton!')
+    }
+    
+    // Check if any bones have non-unit scale
+    const hasScaledBones = skinnedArmorMesh.skeleton.bones.some(bone => 
+      Math.abs(bone.scale.x - 1) > 0.001 || 
+      Math.abs(bone.scale.y - 1) > 0.001 || 
+      Math.abs(bone.scale.z - 1) > 0.001
+    )
+    if (hasScaledBones) {
+      console.log('Note: Source skeleton has scaled bones, normalizing for export...')
+    }
+    
+    // Update skeleton to ensure we have current transforms
+    skinnedArmorMesh.skeleton.update()
+    skinnedArmorMesh.updateMatrixWorld(true)
+    
+    // For static export, bake the deformation and export as regular mesh
+    if (method === 'static') {
+      return this.exportArmorAsStaticMesh(skinnedArmorMesh)
+    }
+    
+    // Create export scene
+    const exportScene = new THREE.Scene()
+    
+    // Clone the mesh and its geometry
+    const exportGeometry = skinnedArmorMesh.geometry.clone()
+    const exportMaterial = Array.isArray(skinnedArmorMesh.material)
+      ? skinnedArmorMesh.material.map(m => m.clone())
+      : skinnedArmorMesh.material.clone()
+    
+    // For all methods, we only export bones that the armor actually uses
+    const skeleton = skinnedArmorMesh.skeleton
+    const usedBoneIndices = this.getUsedBones(exportGeometry)
+    
+    console.log(`Armor uses ${usedBoneIndices.size} bones out of ${skeleton.bones.length} total bones`)
+    
+    // Get all required bones (including ancestors for hierarchy)
+    const requiredBoneIndices = new Set<number>()
+    usedBoneIndices.forEach(boneIndex => {
+      let currentIndex = boneIndex
+      while (currentIndex >= 0) {
+        requiredBoneIndices.add(currentIndex)
+        const bone = skeleton.bones[currentIndex]
+        if (bone.parent && bone.parent instanceof THREE.Bone) {
+          currentIndex = skeleton.bones.indexOf(bone.parent)
+        } else {
+          break
+        }
+      }
+    })
+    
+    console.log(`With ancestors, need ${requiredBoneIndices.size} bones total`)
+    
+    // Log which bones are being exported
+    const boneNames = Array.from(requiredBoneIndices).map(idx => skeleton.bones[idx].name)
+    console.log('Exporting bones:', boneNames.join(', '))
+    
+    // Check for unit scale issues
+    const avgBoneDistance = this.calculateAverageBoneDistance(skeleton)
+    console.log(`Average bone distance: ${avgBoneDistance.toFixed(3)} units`)
+    if (avgBoneDistance > 10) {
+      console.warn('WARNING: Bones seem very far apart. Possible unit mismatch (cm vs m)?')
+    } else if (avgBoneDistance < 0.01) {
+      console.warn('WARNING: Bones seem very close. Possible unit mismatch (m vs cm)?')
+    }
+    
+    // Define scale factor for all export methods
+    const CM_TO_METERS = 0.01
+    
+    if (method === 'full') {
+      // "Full" means we keep the original bone names and hierarchy, but still only export used bones
+      const sortedIndices = Array.from(requiredBoneIndices).sort((a, b) => a - b)
+      const newBones: THREE.Bone[] = []
+      const oldToNew = new Map<number, number>()
+      const oldToNewBone = new Map<THREE.Bone, THREE.Bone>()
+      
+      // First pass: Create all bones without hierarchy
+      sortedIndices.forEach((oldIndex, newIndex) => {
+        const oldBone = skeleton.bones[oldIndex]
+        const newBone = new THREE.Bone()
+        newBone.name = oldBone.name
+        
+        // Don't set any transforms yet
+        newBones.push(newBone)
+        oldToNew.set(oldIndex, newIndex)
+        oldToNewBone.set(oldBone, newBone)
+      })
+      
+      // Second pass: Setup hierarchy
+      sortedIndices.forEach(oldIndex => {
+        const oldBone = skeleton.bones[oldIndex]
+        const newBone = oldToNewBone.get(oldBone)!
+        
+        if (oldBone.parent && oldBone.parent instanceof THREE.Bone) {
+          const parentNewBone = oldToNewBone.get(oldBone.parent)
+          if (parentNewBone) {
+            parentNewBone.add(newBone)
+          }
+        }
+      })
+      
+      // Third pass: Set transforms with scaling
+      sortedIndices.forEach((oldIndex, newIndex) => {
+        const oldBone = skeleton.bones[oldIndex]
+        const newBone = newBones[newIndex]
+        
+        // Get world position of old bone
+        const worldPos = new THREE.Vector3()
+        const worldQuat = new THREE.Quaternion()
+        const worldScale = new THREE.Vector3()
+        oldBone.matrixWorld.decompose(worldPos, worldQuat, worldScale)
+        
+        // Scale world position
+        worldPos.multiplyScalar(CM_TO_METERS)
+        
+        // If bone has parent, convert to local space
+        if (newBone.parent && newBone.parent instanceof THREE.Bone) {
+          // Get parent world matrix
+          const parentWorldMatrix = new THREE.Matrix4()
+          newBone.parent.updateMatrixWorld()
+          parentWorldMatrix.copy(newBone.parent.matrixWorld)
+          
+          // Convert world position to local
+          const parentInverse = parentWorldMatrix.invert()
+          worldPos.applyMatrix4(parentInverse)
+          
+          // Apply rotation relative to parent
+          const parentWorldQuat = new THREE.Quaternion()
+          newBone.parent.getWorldQuaternion(parentWorldQuat)
+          const localQuat = parentWorldQuat.conjugate().multiply(worldQuat)
+          
+          newBone.position.copy(worldPos)
+          newBone.quaternion.copy(localQuat)
+        } else {
+          // Root bone - use world position directly
+          newBone.position.copy(worldPos)
+          newBone.quaternion.copy(worldQuat)
+        }
+        
+        // Always set scale to 1
+        newBone.scale.set(1, 1, 1)
+        newBone.updateMatrix()
+      })
+      
+      // Find root bones and add to scene
+      const rootBones = newBones.filter(b => !b.parent)
+      rootBones.forEach(root => exportScene.add(root))
+      
+      // Update all bone transforms
+      rootBones.forEach(root => root.updateMatrixWorld(true))
+      
+      // Create skeleton with pre-scaled bones
+      const newSkeleton = new THREE.Skeleton(newBones)
+      
+      // Update skin indices
+      const skinIndices = exportGeometry.attributes.skinIndex
+      const newSkinIndices = new Float32Array(skinIndices.array.length)
+      
+      for (let i = 0; i < skinIndices.count; i++) {
+        for (let j = 0; j < 4; j++) {
+          const oldIndex = skinIndices.getComponent(i, j)
+          const newIndex = oldToNew.get(oldIndex)
+          newSkinIndices[i * 4 + j] = newIndex !== undefined ? newIndex : 0
+        }
+      }
+      
+      exportGeometry.setAttribute('skinIndex', new THREE.BufferAttribute(newSkinIndices, 4))
+      
+      // Scale the geometry vertices to match bone scale
+      const positions = exportGeometry.attributes.position
+      for (let i = 0; i < positions.count; i++) {
+        positions.setXYZ(
+          i,
+          positions.getX(i) * CM_TO_METERS,
+          positions.getY(i) * CM_TO_METERS,
+          positions.getZ(i) * CM_TO_METERS
+        )
+      }
+      positions.needsUpdate = true
+      
+      // Update geometry bounds
+      exportGeometry.computeBoundingBox()
+      exportGeometry.computeBoundingSphere()
+      
+      // Create and bind mesh
+      const exportMesh = new THREE.SkinnedMesh(exportGeometry, exportMaterial)
+      exportMesh.name = skinnedArmorMesh.name || 'Armor'
+      
+      // Calculate proper bind matrix for the scaled skeleton
+      // The bind matrix should transform from mesh space to skeleton space
+      const bindMatrix = new THREE.Matrix4()
+      bindMatrix.copy(skinnedArmorMesh.bindMatrix)
+      
+      // Apply scaling to the bind matrix
+      const scaleMatrix = new THREE.Matrix4().makeScale(CM_TO_METERS, CM_TO_METERS, CM_TO_METERS)
+      bindMatrix.premultiply(scaleMatrix)
+      
+      // Bind the mesh to the skeleton
+      exportMesh.bind(newSkeleton, bindMatrix)
+      
+      // Add mesh to scene
+      exportScene.add(exportMesh)
+      
+      // Force update all world matrices before export
+      exportScene.updateMatrixWorld(true)
+      
+      // Log final bone world positions
+      console.log('Final bone world positions:')
+      newBones.forEach((bone, idx) => {
+        const worldPos = new THREE.Vector3()
+        bone.getWorldPosition(worldPos)
+        console.log(`  ${bone.name}: world=${worldPos.toArray().map(v => v.toFixed(3))}`)
+      })
+      
+      // Add debug info
+      console.log('Export bone details (full method):')
+      newBones.forEach((bone, idx) => {
+        console.log(`  ${bone.name}: pos=${bone.position.toArray().map(v => v.toFixed(3))}, scale=${bone.scale.toArray()}`)
+      })
+      
+      // Verify scale is correct
+      const scaledAvgDistance = this.calculateAverageBoneDistance(newSkeleton)
+      console.log(`Average bone distance after scaling: ${scaledAvgDistance.toFixed(3)} units (should be ~0.1-0.5 for human scale in meters)`)
+      
+    } else if (method === 'minimal') {
+      // Minimal skeleton export with pose preservation
+      // (We already have requiredBoneIndices calculated above)
+      
+      // Create pose-corrected skeleton
+      const sortedIndices = Array.from(requiredBoneIndices).sort((a, b) => a - b)
+      const newBones: THREE.Bone[] = []
+      const oldToNew = new Map<number, number>()
+      
+      // Create bones with scaled transforms from the start
+      sortedIndices.forEach((oldIndex, newIndex) => {
+        const oldBone = skeleton.bones[oldIndex]
+        const newBone = new THREE.Bone()
+        newBone.name = oldBone.name
+        
+        // Scale position to meters from the start
+        const scaledPos = oldBone.position.clone().multiplyScalar(CM_TO_METERS)
+        newBone.position.copy(scaledPos)
+        newBone.quaternion.copy(oldBone.quaternion)
+        
+        // IMPORTANT: Set scale to 1,1,1 to avoid huge bones in external viewers
+        // The scale is often used for bone visualization, not actual deformation
+        newBone.scale.set(1, 1, 1)
+        
+        // Update matrix
+        newBone.updateMatrix()
+        
+        newBones.push(newBone)
+        oldToNew.set(oldIndex, newIndex)
+      })
+      
+      // Setup hierarchy
+      sortedIndices.forEach((oldIndex, i) => {
+        const oldBone = skeleton.bones[oldIndex]
+        const newBone = newBones[i]
+        
+        if (oldBone.parent && oldBone.parent instanceof THREE.Bone) {
+          const parentOldIndex = skeleton.bones.indexOf(oldBone.parent)
+          const parentNewIndex = oldToNew.get(parentOldIndex)
+          if (parentNewIndex !== undefined) {
+            newBones[parentNewIndex].add(newBone)
+          }
+        }
+      })
+      
+      // Find root bones
+      const rootBones = newBones.filter(b => !b.parent)
+      
+      // Add bones to scene
+      rootBones.forEach(root => exportScene.add(root))
+      
+      // Update all transforms
+      rootBones.forEach(root => root.updateMatrixWorld(true))
+      
+      // Create skeleton with pre-scaled bones
+      const newSkeleton = new THREE.Skeleton(newBones)
+      
+      // Update skin indices
+      const skinIndices = exportGeometry.attributes.skinIndex
+      const newSkinIndices = new Float32Array(skinIndices.array.length)
+      
+      for (let i = 0; i < skinIndices.count; i++) {
+        for (let j = 0; j < 4; j++) {
+          const oldIndex = skinIndices.getComponent(i, j)
+          const newIndex = oldToNew.get(oldIndex)
+          newSkinIndices[i * 4 + j] = newIndex !== undefined ? newIndex : 0
+        }
+      }
+      
+      exportGeometry.setAttribute('skinIndex', new THREE.BufferAttribute(newSkinIndices, 4))
+      
+      // Scale the geometry vertices to match bone scale
+      const positions = exportGeometry.attributes.position
+      for (let i = 0; i < positions.count; i++) {
+        positions.setXYZ(
+          i,
+          positions.getX(i) * CM_TO_METERS,
+          positions.getY(i) * CM_TO_METERS,
+          positions.getZ(i) * CM_TO_METERS
+        )
+      }
+      positions.needsUpdate = true
+      
+      // Update geometry bounds
+      exportGeometry.computeBoundingBox()
+      exportGeometry.computeBoundingSphere()
+      
+      // Create and bind mesh
+      const exportMesh = new THREE.SkinnedMesh(exportGeometry, exportMaterial)
+      exportMesh.name = skinnedArmorMesh.name || 'Armor'
+      
+      // Calculate proper bind matrix for the scaled skeleton
+      const bindMatrix = new THREE.Matrix4()
+      bindMatrix.copy(skinnedArmorMesh.bindMatrix)
+      
+      // Apply scaling to the bind matrix
+      const scaleMatrix = new THREE.Matrix4().makeScale(CM_TO_METERS, CM_TO_METERS, CM_TO_METERS)
+      bindMatrix.premultiply(scaleMatrix)
+      
+      // Bind the mesh to the skeleton
+      exportMesh.bind(newSkeleton, bindMatrix)
+      
+      // CRITICAL: Recalculate inverse bind matrices for the scaled skeleton
+      newSkeleton.calculateInverses()
+      
+      // Log inverse bind matrix info
+      console.log('Recalculated inverse bind matrices for scaled skeleton')
+      
+      exportScene.add(exportMesh)
+      
+      // Add debug info for minimal export
+      console.log('Export bone details (minimal method):')
+      newBones.forEach((bone, idx) => {
+        console.log(`  ${bone.name}: pos=${bone.position.toArray().map(v => v.toFixed(3))}, scale=${bone.scale.toArray()}`)
+      })
+      
+      // Verify scale is correct
+      const scaledAvgDistance = this.calculateAverageBoneDistance(newSkeleton)
+      console.log(`Average bone distance after scaling: ${scaledAvgDistance.toFixed(3)} units (should be ~0.1-0.5 for human scale in meters)`)
+    }
+    
+    // Create a wrapper scene with uniform scaling
+    const wrapperScene = new THREE.Scene()
+    wrapperScene.name = 'Scene'
+    
+    // Create a root group that scales everything
+    const scaleGroup = new THREE.Group()
+    scaleGroup.name = 'ScaleWrapper'
+    
+    // Move everything from exportScene to scaleGroup
+    while (exportScene.children.length > 0) {
+      scaleGroup.add(exportScene.children[0])
+    }
+    
+    // Apply uniform scale to the entire group
+    scaleGroup.scale.set(1, 1, 1) // Keep at 1:1 since we already scaled bones and vertices
+    
+    // Add scaled group to wrapper scene
+    wrapperScene.add(scaleGroup)
+    
+    // Force update all transforms
+    wrapperScene.updateMatrixWorld(true)
+    
+    // Final validation before export
+    let nodeCount = 0
+    wrapperScene.traverse((node) => {
+      nodeCount++
+      // Ensure all nodes have names
+      if (!node.name || node.name.trim() === '') {
+        if (node instanceof THREE.Bone) {
+          node.name = `Bone_${nodeCount}`
+        } else if (node instanceof THREE.Mesh) {
+          node.name = `Mesh_${nodeCount}`
+        } else if (node instanceof THREE.Group) {
+          node.name = `Group_${nodeCount}`
+        } else {
+          node.name = `Node_${nodeCount}`
+        }
+      }
+    })
+    
+    console.log(`Export scene contains ${nodeCount} nodes`)
+    
+    // Export with specific options
+    const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
+    const exporter = new GLTFExporter()
+    
+    try {
+      const gltf = await exporter.parseAsync(wrapperScene, {
+        binary: true,
+        embedImages: true,
+        truncateDrawRange: false,
+        forceIndices: true,
+        // Add animation options
+        animations: [],
+        // Ensure proper node export
+        onlyVisible: false
+      })
+      
+      console.log('Export complete')
+      return gltf as ArrayBuffer
+    } catch (error) {
+      console.error('GLTFExporter error:', error)
+      
+      // Log scene structure for debugging
+      console.log('Scene structure:')
+      exportScene.traverse((node) => {
+        const type = node.constructor.name
+        const parent = node.parent ? node.parent.name : 'null'
+        console.log(`  ${type} "${node.name}" (parent: ${parent})`)
+      })
+      
+      throw error
+    }
+  }
+
+  /**
+   * Export skinned armor in a simple format for external viewers
+   * This version prioritizes compatibility over optimization
+   */
+  async exportSkinnedArmorSimple(
+    skinnedArmorMesh: THREE.SkinnedMesh,
+    options: {
+      includeFullSkeleton?: boolean
+    } = {}
+  ): Promise<ArrayBuffer> {
+    const { includeFullSkeleton = false } = options
+
+    console.log('=== SIMPLE ARMOR EXPORT ===')
+    
+    // Create export scene
+    const exportScene = new THREE.Scene()
+    
+    // Clone the entire setup
+    const clonedMesh = skinnedArmorMesh.clone()
+    clonedMesh.name = skinnedArmorMesh.name || 'Armor'
+    
+    if (includeFullSkeleton && skinnedArmorMesh.skeleton) {
+      // Export with full skeleton for maximum compatibility
+      const bones = skinnedArmorMesh.skeleton.bones
+      const rootBone = bones.find(b => !b.parent || !(b.parent instanceof THREE.Bone))
+      
+      if (rootBone) {
+        const clonedRoot = rootBone.clone(true)
+        exportScene.add(clonedRoot)
+        
+        // Recreate skeleton from cloned bones
+        const clonedBones: THREE.Bone[] = []
+        clonedRoot.traverse((node) => {
+          if (node instanceof THREE.Bone) {
+            clonedBones.push(node)
+          }
+        })
+        
+        const newSkeleton = new THREE.Skeleton(clonedBones)
+        clonedMesh.bind(newSkeleton, skinnedArmorMesh.bindMatrix)
+      }
+    }
+    
+    // Add mesh to scene
+    exportScene.add(clonedMesh)
+    
+    // Ensure mesh is at origin
+    clonedMesh.position.set(0, 0, 0)
+    clonedMesh.rotation.set(0, 0, 0)
+    clonedMesh.scale.set(1, 1, 1)
+    
+    // Export
+    const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
+    const exporter = new GLTFExporter()
+    
+    const gltf = await exporter.parseAsync(exportScene, {
+      binary: true,
+      embedImages: true
+    })
+    
+    console.log('Simple export complete')
+    return gltf as ArrayBuffer
+  }
+
+  /**
+   * Export armor as static mesh (no skinning) for debugging
+   */
+  async exportArmorAsStaticMesh(
+    skinnedArmorMesh: THREE.SkinnedMesh
+  ): Promise<ArrayBuffer> {
+    console.log('=== STATIC MESH EXPORT (DEBUG) ===')
+    
+    // Create export scene
+    const exportScene = new THREE.Scene()
+    
+    // Create static mesh from skinned mesh
+    const geometry = skinnedArmorMesh.geometry.clone()
+    
+    // Apply current pose to geometry if needed
+    if (skinnedArmorMesh.skeleton) {
+      const positionAttribute = geometry.attributes.position
+      const skinIndexAttribute = geometry.attributes.skinIndex
+      const skinWeightAttribute = geometry.attributes.skinWeight
+      
+      if (skinIndexAttribute && skinWeightAttribute) {
+        // Create a buffer for transformed positions
+        const transformedPositions = new Float32Array(positionAttribute.array.length)
+        
+        // Get bone matrices
+        skinnedArmorMesh.skeleton.update()
+        const boneMatrices = skinnedArmorMesh.skeleton.boneMatrices
+        
+        // Transform each vertex
+        for (let i = 0; i < positionAttribute.count; i++) {
+          const vertex = new THREE.Vector3(
+            positionAttribute.getX(i),
+            positionAttribute.getY(i),
+            positionAttribute.getZ(i)
+          )
+          
+          const transformed = new THREE.Vector3(0, 0, 0)
+          
+          for (let j = 0; j < 4; j++) {
+            const boneIndex = skinIndexAttribute.getComponent(i, j)
+            const weight = skinWeightAttribute.getComponent(i, j)
+            
+            if (weight > 0) {
+              const matrix = new THREE.Matrix4()
+              matrix.fromArray(boneMatrices, boneIndex * 16)
+              
+              const tempVertex = vertex.clone()
+              tempVertex.applyMatrix4(matrix)
+              tempVertex.multiplyScalar(weight)
+              
+              transformed.add(tempVertex)
+            }
+          }
+          
+          transformedPositions[i * 3] = transformed.x
+          transformedPositions[i * 3 + 1] = transformed.y
+          transformedPositions[i * 3 + 2] = transformed.z
+        }
+        
+        // Update geometry with transformed positions
+        geometry.setAttribute('position', new THREE.BufferAttribute(transformedPositions, 3))
+      }
+    }
+    
+    // Remove skinning attributes for static export
+    geometry.deleteAttribute('skinIndex')
+    geometry.deleteAttribute('skinWeight')
+    
+    // Ensure normals exist
+    if (!geometry.attributes.normal) {
+      geometry.computeVertexNormals()
+    }
+    
+    // Create static mesh
+    const material = Array.isArray(skinnedArmorMesh.material) 
+      ? skinnedArmorMesh.material[0].clone() 
+      : skinnedArmorMesh.material.clone()
+    
+    const staticMesh = new THREE.Mesh(geometry, material)
+    staticMesh.name = (skinnedArmorMesh.name || 'Armor') + '_static'
+    
+    // Position at origin
+    staticMesh.position.set(0, 0, 0)
+    staticMesh.rotation.set(0, 0, 0)
+    staticMesh.scale.set(1, 1, 1)
+    
+    exportScene.add(staticMesh)
+    
+    // Add a light to ensure visibility
+    const light = new THREE.DirectionalLight(0xffffff, 1)
+    light.position.set(5, 5, 5)
+    exportScene.add(light)
+    exportScene.add(new THREE.AmbientLight(0x404040))
+    
+    // Export
+    const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
+    const exporter = new GLTFExporter()
+    
+    const gltf = await exporter.parseAsync(exportScene, {
+      binary: true,
+      embedImages: true
+    })
+    
+    console.log('Static mesh export complete')
+    console.log(`- Vertices: ${geometry.attributes.position.count}`)
+    console.log(`- Has normals: ${!!geometry.attributes.normal}`)
+    console.log(`- Has UVs: ${!!(geometry.attributes.uv || geometry.attributes.uv2)}`)
+    
+    return gltf as ArrayBuffer
+  }
+
+  /**
+   * Export skinned armor for use in game environments (RuneScape-style)
+   * The armor will work with any character that has the same bone structure
+   * 
+   * @example
+   * // In your game, after loading the exported armor:
+   * const loader = new GLTFLoader()
+   * const armor = await loader.loadAsync('dragon-chainbody.glb')
+   * const equipped = armorService.equipArmorToCharacter(armor.scene, playerCharacter)
+   * 
+   * @param skinnedArmorMesh - The skinned armor mesh (result of bindArmorToSkeleton)
+   * @param options - Export options
+   * @returns Promise<ArrayBuffer> - The exported GLB data
+   */
+  async exportSkinnedArmorForGame(
+    skinnedArmorMesh: THREE.SkinnedMesh,
+    options: {
+      includeNormals?: boolean
+      includeTangents?: boolean
+      boneNameMapping?: Record<string, string> // Map bone names if target environment uses different naming
+    } = {}
+  ): Promise<ArrayBuffer> {
+    const {
+      includeNormals = true,
+      includeTangents = false,
+      boneNameMapping = {}
+    } = options
+
+    console.log('=== EXPORTING SKINNED ARMOR FOR GAME USE ===')
+    
+    // Verify the mesh has skinning data
+    const geometry = skinnedArmorMesh.geometry
+    if (!geometry.attributes.skinIndex || !geometry.attributes.skinWeight) {
+      throw new Error('Mesh does not have skinning data!')
+    }
+
+    const skeleton = skinnedArmorMesh.skeleton
+    if (!skeleton) {
+      throw new Error('Armor mesh has no skeleton!')
+    }
+
+    // Find which bones are actually used by the armor
+    const usedBoneIndices = this.getUsedBones(geometry)
+    console.log(`Armor uses ${usedBoneIndices.size} bones out of ${skeleton.bones.length}`)
+
+    // Create a minimal skeleton with only the bones needed for this armor
+    const usedBones: THREE.Bone[] = []
+    const boneMapping = new Map<number, number>() // oldIndex -> newIndex
+    const newBones: THREE.Bone[] = []
+    
+    // First, collect all used bones and their ancestors (to maintain hierarchy)
+    const requiredBoneIndices = new Set<number>()
+    usedBoneIndices.forEach(boneIndex => {
+      requiredBoneIndices.add(boneIndex)
+      
+      // Add all ancestors to maintain proper hierarchy
+      let bone = skeleton.bones[boneIndex]
+      while (bone.parent && bone.parent instanceof THREE.Bone) {
+        const parentIndex = skeleton.bones.indexOf(bone.parent)
+        if (parentIndex !== -1) {
+          requiredBoneIndices.add(parentIndex)
+          bone = bone.parent
+        } else {
+          break
+        }
+      }
+    })
+
+    console.log(`With ancestors, need ${requiredBoneIndices.size} bones total`)
+
+    // CRITICAL: Update skeleton to current pose before export
+    skeleton.update()
+    
+    // Create new bones preserving hierarchy AND world transforms
+    const sortedIndices = Array.from(requiredBoneIndices).sort((a, b) => a - b)
+    const oldToNewBone = new Map<THREE.Bone, THREE.Bone>()
+    const oldBoneWorldMatrices = new Map<THREE.Bone, THREE.Matrix4>()
+    
+    // First pass: store world matrices of old bones
+    sortedIndices.forEach(oldIndex => {
+      const oldBone = skeleton.bones[oldIndex]
+      oldBone.updateWorldMatrix(true, false)
+      oldBoneWorldMatrices.set(oldBone, oldBone.matrixWorld.clone())
+    })
+    
+    sortedIndices.forEach((oldIndex, newIndex) => {
+      const oldBone = skeleton.bones[oldIndex]
+      const newBone = new THREE.Bone()
+      newBone.name = boneNameMapping[oldBone.name] || oldBone.name
+      
+      // Copy local transforms initially
+      newBone.position.copy(oldBone.position)
+      newBone.quaternion.copy(oldBone.quaternion)
+      // Normalize scale to avoid huge bones in external viewers
+      newBone.scale.set(1, 1, 1)
+      
+      newBones.push(newBone)
+      boneMapping.set(oldIndex, newIndex)
+      oldToNewBone.set(oldBone, newBone)
+    })
+
+    // Set up parent-child relationships
+    sortedIndices.forEach(oldIndex => {
+      const oldBone = skeleton.bones[oldIndex]
+      const newBone = oldToNewBone.get(oldBone)!
+      
+      if (oldBone.parent && oldBone.parent instanceof THREE.Bone) {
+        const parentNewBone = oldToNewBone.get(oldBone.parent)
+        if (parentNewBone) {
+          parentNewBone.add(newBone)
+        }
+      }
+    })
+
+    // Find root bones (bones without parents in our subset)
+    const rootBones = newBones.filter(bone => !bone.parent || !(bone.parent instanceof THREE.Bone))
+    
+    // Update world matrices for new bones
+    rootBones.forEach(root => root.updateMatrixWorld(true))
+    
+    // Create inverse bind matrices that preserve the fitted shape
+    const boneInverses: THREE.Matrix4[] = []
+    sortedIndices.forEach((oldIndex, i) => {
+      const oldBoneWorldMatrix = oldBoneWorldMatrices.get(skeleton.bones[oldIndex])!
+      const newBone = newBones[i]
+      
+      // The inverse bind matrix should transform from the bone's current world space to local space
+      const inverseBindMatrix = new THREE.Matrix4()
+      inverseBindMatrix.copy(oldBoneWorldMatrix).invert()
+      boneInverses.push(inverseBindMatrix)
+    })
+    
+    // Create minimal skeleton with custom bind matrices
+    const minimalSkeleton = new THREE.Skeleton(newBones, boneInverses)
+    
+    // Clone geometry and update skin indices
+    const exportGeometry = geometry.clone()
+    const skinIndices = exportGeometry.attributes.skinIndex
+    const newSkinIndices = new Float32Array(skinIndices.array.length)
+    
+    // Remap bone indices
+    for (let i = 0; i < skinIndices.count; i++) {
+      for (let j = 0; j < 4; j++) {
+        const oldIndex = skinIndices.getComponent(i, j)
+        const newIndex = boneMapping.get(oldIndex)
+        newSkinIndices[i * 4 + j] = newIndex !== undefined ? newIndex : 0
+      }
+    }
+    
+    exportGeometry.setAttribute('skinIndex', new THREE.BufferAttribute(newSkinIndices, 4))
+
+    // Create the export scene with a root node
+    const exportScene = new THREE.Scene()
+    const rootNode = new THREE.Group()
+    rootNode.name = 'ArmatureRoot'
+    exportScene.add(rootNode)
+    
+    // Add root bones to the root node
+    rootBones.forEach(bone => rootNode.add(bone))
+    
+    // Clone materials to ensure they export properly
+    let exportMaterial = skinnedArmorMesh.material
+    if (Array.isArray(exportMaterial)) {
+      exportMaterial = exportMaterial.map(m => m.clone())
+    } else {
+      exportMaterial = exportMaterial.clone()
+    }
+    
+    // Create skinned mesh for export
+    const exportMesh = new THREE.SkinnedMesh(exportGeometry, exportMaterial)
+    exportMesh.name = skinnedArmorMesh.name || 'Armor'
+    
+    // Set mesh transform to match the original
+    skinnedArmorMesh.updateMatrixWorld(true)
+    exportMesh.position.copy(skinnedArmorMesh.position)
+    exportMesh.quaternion.copy(skinnedArmorMesh.quaternion)
+    exportMesh.scale.copy(skinnedArmorMesh.scale)
+    
+    // IMPORTANT: Use identity bind matrix since our skeleton is already in the fitted pose
+    const bindMatrix = new THREE.Matrix4()
+    bindMatrix.identity()
+    
+    // Bind to the minimal skeleton with identity bind matrix
+    exportMesh.bind(minimalSkeleton, bindMatrix)
+    
+    // Add mesh to scene root
+    exportScene.add(exportMesh)
+    
+    // Update matrices
+    exportMesh.updateMatrixWorld(true)
+    minimalSkeleton.update()
+    
+    // Ensure geometry has all required attributes
+    if (!exportGeometry.attributes.normal) {
+      exportGeometry.computeVertexNormals()
+    }
+    if (!exportGeometry.attributes.uv && !exportGeometry.attributes.uv2) {
+      console.warn('Armor geometry has no UV coordinates!')
+    }
+    
+    // Store metadata about bone mapping
+    exportMesh.userData = {
+      ...skinnedArmorMesh.userData,
+      armorMetadata: {
+        originalBoneCount: skeleton.bones.length,
+        exportedBoneCount: newBones.length,
+        boneNames: newBones.map(b => b.name),
+        gameCompatible: true,
+        exportVersion: '2.0',
+        exportDate: new Date().toISOString()
+      }
+    }
+
+    // Use GLTFExporter to export
+    const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
+    const exporter = new GLTFExporter()
+    
+    // Log debug info
+    console.log('Export mesh details:')
+    console.log(`- Position: ${exportMesh.position.toArray()}`)
+    console.log(`- Scale: ${exportMesh.scale.toArray()}`)
+    console.log(`- Has normals: ${!!exportGeometry.attributes.normal}`)
+    console.log(`- Has UVs: ${!!(exportGeometry.attributes.uv || exportGeometry.attributes.uv2)}`)
+    console.log(`- Material type: ${Array.isArray(exportMaterial) ? 'Multi-material' : exportMaterial.type}`)
+    console.log(`- Visible: ${exportMesh.visible}`)
+    console.log(`- Frustum culled: ${exportMesh.frustumCulled}`)
+    
+    const exportOptions = {
+      binary: true,
+      includeCustomExtensions: false, // Change to false for better compatibility
+      // Don't include animations
+      animations: [],
+      // Optimize the export
+      truncateDrawRange: false, // Change to false to export full geometry
+      // Include vertex colors if present
+      vertexColors: geometry.attributes.color !== undefined,
+      // Embed images for materials
+      embedImages: true, // Change to true to embed textures
+      forceIndices: true,
+      // Export at higher precision
+      maxTextureSize: 4096
+    }
+
+    const gltf = await exporter.parseAsync(exportScene, exportOptions)
+    
+    console.log('Export complete:')
+    console.log(`- Vertices: ${geometry.attributes.position.count}`)
+    console.log(`- Bones exported: ${newBones.length}`)
+    console.log(`- Used bones: ${this.getUsedBones(geometry).size}`)
+    
+    return gltf as ArrayBuffer
+  }
+
+  /**
+   * Calculate average distance between bones to detect unit scale issues
+   * @private
+   */
+  private calculateAverageBoneDistance(skeleton: THREE.Skeleton): number {
+    let totalDistance = 0
+    let count = 0
+    
+    skeleton.bones.forEach(bone => {
+      if (bone.parent && bone.parent instanceof THREE.Bone) {
+        const distance = bone.position.length()
+        totalDistance += distance
+        count++
+      }
+    })
+    
+    return count > 0 ? totalDistance / count : 0
+  }
+
+  /**
+   * Get which bones are actually used by the mesh
+   * @private
+   */
+  private getUsedBones(geometry: THREE.BufferGeometry): Set<number> {
+    const usedBones = new Set<number>()
+    const skinIndices = geometry.attributes.skinIndex
+    const skinWeights = geometry.attributes.skinWeight
+    
+    if (!skinIndices || !skinWeights) return usedBones
+    
+    for (let i = 0; i < skinIndices.count; i++) {
+      for (let j = 0; j < 4; j++) {
+        const boneIndex = skinIndices.getComponent(i, j)
+        const weight = skinWeights.getComponent(i, j)
+        
+        if (weight > 0.001) { // Only count bones with meaningful weights
+          usedBones.add(boneIndex)
+        }
+      }
+    }
+    
+    return usedBones
+  }
+
+  /**
+   * Equip game-ready armor to a character (RuneScape-style)
+   * The armor already has bones and just needs to be synchronized with the character's skeleton
+   * @param loadedArmor - The loaded armor group/scene from GLTFLoader
+   * @param characterMesh - The character's skinned mesh to equip armor on
+   * @param options - Equip options
+   */
+  equipArmorToCharacter(
+    loadedArmor: THREE.Group | THREE.Scene,
+    characterMesh: THREE.SkinnedMesh,
+    options: {
+      autoMatch?: boolean // Automatically match bones by name
+      boneNameMapping?: Record<string, string> // Manual bone name mapping
+      parentToCharacter?: boolean // Parent armor to character's root
+    } = {}
+  ): THREE.SkinnedMesh | null {
+    const {
+      autoMatch = true,
+      boneNameMapping = {},
+      parentToCharacter = true
+    } = options
+
+    console.log('=== EQUIPPING ARMOR TO CHARACTER ===')
+
+    // Find the armor mesh in the loaded group
+    let armorMesh: THREE.SkinnedMesh | null = null
+    loadedArmor.traverse((child) => {
+      if (child instanceof THREE.SkinnedMesh && !armorMesh) {
+        armorMesh = child as THREE.SkinnedMesh
+      }
+    })
+
+    if (!armorMesh) {
+      console.error('No skinned mesh found in loaded armor!')
+      return null
+    }
+    
+    // TypeScript type guard
+    const armor = armorMesh as THREE.SkinnedMesh
+
+    const characterSkeleton = characterMesh.skeleton
+    if (!characterSkeleton) {
+      console.error('Character has no skeleton!')
+      return null
+    }
+
+    console.log(`Armor has ${armor.skeleton.bones.length} bones`)
+    console.log(`Character has ${characterSkeleton.bones.length} bones`)
+
+    // Create bone mapping from armor bones to character bones
+    const armorToCharacterBoneMap = new Map<THREE.Bone, THREE.Bone>()
+    
+    armor.skeleton.bones.forEach(armorBone => {
+      // Try exact name match first
+      let matchedBone = characterSkeleton.bones.find(b => b.name === armorBone.name)
+      
+      // Try mapped name
+      if (!matchedBone && boneNameMapping[armorBone.name]) {
+        const mappedName = boneNameMapping[armorBone.name]
+        matchedBone = characterSkeleton.bones.find(b => b.name === mappedName)
+      }
+      
+      // Try auto-matching with variations
+      if (!matchedBone && autoMatch) {
+        const variations = [
+          armorBone.name.toLowerCase(),
+          armorBone.name.replace(/[._]/g, '_'),
+          armorBone.name.replace(/[._]/g, '.'),
+          armorBone.name.replace(/^mixamorig[:_]/i, ''),
+          armorBone.name.replace(/^Bip01[_\s]/i, '')
+        ]
+        
+        matchedBone = characterSkeleton.bones.find(charBone => 
+          variations.some(v => charBone.name.toLowerCase() === v)
+        )
+      }
+      
+      if (matchedBone) {
+        armorToCharacterBoneMap.set(armorBone, matchedBone)
+        console.log(`Matched armor bone "${armorBone.name}" to character bone "${matchedBone.name}"`)
+      } else {
+        console.warn(`Could not find match for armor bone "${armorBone.name}"`)
+      }
+    })
+
+    console.log(`Successfully matched ${armorToCharacterBoneMap.size}/${armor.skeleton.bones.length} bones`)
+
+    // Update armor skeleton to use character's bones
+    const newBones: THREE.Bone[] = []
+    const newInverses: THREE.Matrix4[] = []
+    const boneIndexMap = new Map<number, number>()
+    
+    armor.skeleton.bones.forEach((armorBone, armorIndex) => {
+      const characterBone = armorToCharacterBoneMap.get(armorBone)
+      if (characterBone) {
+        const charIndex = characterSkeleton.bones.indexOf(characterBone)
+        if (charIndex !== -1) {
+          boneIndexMap.set(armorIndex, charIndex)
+          newBones.push(characterBone)
+          newInverses.push(characterSkeleton.boneInverses[charIndex])
+        }
+      }
+    })
+
+    // Update skin indices to use character bone indices
+    const geometry = armor.geometry
+    const skinIndices = geometry.attributes.skinIndex
+    const newSkinIndices = new Float32Array(skinIndices.array.length)
+    
+    for (let i = 0; i < skinIndices.count; i++) {
+      for (let j = 0; j < 4; j++) {
+        const armorBoneIndex = skinIndices.getComponent(i, j)
+        const charBoneIndex = boneIndexMap.get(armorBoneIndex)
+        newSkinIndices[i * 4 + j] = charBoneIndex !== undefined ? charBoneIndex : 0
+      }
+    }
+    
+    geometry.setAttribute('skinIndex', new THREE.BufferAttribute(newSkinIndices, 4))
+
+    // Bind armor to character's skeleton
+    armor.bind(characterSkeleton, armor.bindMatrix)
+    
+    // Parent to character if requested
+    if (parentToCharacter && characterMesh.parent) {
+      characterMesh.parent.add(armor)
+      
+      // Reset transform since we're now in character space
+      armor.position.set(0, 0, 0)
+      armor.rotation.set(0, 0, 0)
+      armor.scale.set(1, 1, 1)
+    }
+
+    console.log('✅ Armor successfully equipped!')
+    
+    return armor
+  }
+
+  /**
+   * Legacy method for binding armor without skeleton (kept for compatibility)
+   * Use equipArmorToCharacter for game-style equipment systems
+   */
+  bindImportedArmorToSkeleton(
+    armorMesh: THREE.Mesh,
+    targetSkeleton: THREE.Skeleton,
+    options: {
+      boneNameMapping?: Record<string, string> // Map from armor bone names to target skeleton bone names
+      autoDetectMapping?: boolean // Try to automatically match bone names
+    } = {}
+  ): THREE.SkinnedMesh {
+    const {
+      boneNameMapping = {},
+      autoDetectMapping = true
+    } = options
+
+    console.log('=== BINDING IMPORTED ARMOR TO NEW SKELETON ===')
+
+    // Get metadata from userData
+    const metadata = armorMesh.userData?.skinnedMeshMetadata
+    if (!metadata) {
+      throw new Error('Armor mesh does not have skinning metadata!')
+    }
+
+    const { boneNames, bindMatrixInverse, boneCount } = metadata
+    
+    // Verify the mesh has skinning attributes
+    const geometry = armorMesh.geometry
+    if (!geometry.attributes.skinIndex || !geometry.attributes.skinWeight) {
+      throw new Error('Armor geometry does not have skinning attributes!')
+    }
+
+    // Create bone index mapping from armor bones to target skeleton bones
+    const boneIndexMapping = new Map<number, number>()
+    
+    boneNames.forEach((armorBoneName: string, armorBoneIndex: number) => {
+      // Check explicit mapping first
+      const mappedName = boneNameMapping[armorBoneName] || armorBoneName
+      
+      // Find corresponding bone in target skeleton
+      const targetBoneIndex = targetSkeleton.bones.findIndex(bone => {
+        if (bone.name === mappedName) return true
+        
+        if (autoDetectMapping) {
+          // Try case-insensitive match
+          if (bone.name.toLowerCase() === mappedName.toLowerCase()) return true
+          
+          // Try common naming variations
+          const variations = [
+            mappedName.replace(/\./g, '_'),
+            mappedName.replace(/_/g, '.'),
+            mappedName.replace(/^mixamorig[:_]/i, ''),
+            mappedName.replace(/^Bip01[_\s]/i, ''),
+            mappedName.replace(/[_\s]L$/, '_L'),
+            mappedName.replace(/[_\s]R$/, '_R')
+          ]
+          
+          return variations.some(v => bone.name.toLowerCase() === v.toLowerCase())
+        }
+        
+        return false
+      })
+      
+      if (targetBoneIndex !== -1) {
+        boneIndexMapping.set(armorBoneIndex, targetBoneIndex)
+        console.log(`Mapped armor bone "${armorBoneName}" (${armorBoneIndex}) to target bone "${targetSkeleton.bones[targetBoneIndex].name}" (${targetBoneIndex})`)
+      } else {
+        console.warn(`Could not find matching bone for "${armorBoneName}"`)
+      }
+    })
+
+    console.log(`Successfully mapped ${boneIndexMapping.size}/${boneCount} bones`)
+
+    // Update skin indices to use target skeleton bone indices
+    const skinIndices = geometry.attributes.skinIndex
+    const newSkinIndices = new Float32Array(skinIndices.array.length)
+    
+    for (let i = 0; i < skinIndices.count; i++) {
+      for (let j = 0; j < 4; j++) {
+        const armorBoneIndex = skinIndices.getComponent(i, j)
+        const targetBoneIndex = boneIndexMapping.get(armorBoneIndex)
+        
+        if (targetBoneIndex !== undefined) {
+          newSkinIndices[i * 4 + j] = targetBoneIndex
+        } else {
+          // Fallback to root bone (0) if mapping not found
+          newSkinIndices[i * 4 + j] = 0
+        }
+      }
+    }
+    
+    // Create new skinned mesh
+    const skinnedMesh = new THREE.SkinnedMesh(geometry.clone(), armorMesh.material)
+    
+    // Update skin indices
+    skinnedMesh.geometry.setAttribute(
+      'skinIndex',
+      new THREE.BufferAttribute(newSkinIndices, 4)
+    )
+    
+    // Restore bind matrix inverse
+    if (bindMatrixInverse) {
+      skinnedMesh.bindMatrixInverse.fromArray(bindMatrixInverse)
+    }
+    
+    // Bind to target skeleton
+    skinnedMesh.bind(targetSkeleton, skinnedMesh.bindMatrix)
+    
+    // Copy transform from original mesh
+    skinnedMesh.position.copy(armorMesh.position)
+    skinnedMesh.quaternion.copy(armorMesh.quaternion)
+    skinnedMesh.scale.copy(armorMesh.scale)
+    
+    console.log('Successfully bound imported armor to new skeleton')
+    
+    return skinnedMesh
+  }
 } 
+
