@@ -34,7 +34,7 @@ const AssetFilters: React.FC<AssetFiltersProps> = ({
   
   // Load material presets
   useEffect(() => {
-    fetch('/material-presets.json')
+    fetch('/prompts/material-presets.json')
       .then(res => res.json())
       .then(data => {
         // Sort by tier to display in logical order

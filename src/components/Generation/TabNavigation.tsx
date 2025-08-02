@@ -1,5 +1,5 @@
 import React from 'react'
-import { Settings, Zap, Package } from 'lucide-react'
+import { Settings, Zap, Package, Sparkles } from 'lucide-react'
 import { cn } from '../../styles'
 
 interface Tab {
@@ -26,7 +26,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   ]
 
   return (
-    <div className="flex-1 flex gap-2">
+    <div className="flex gap-3 p-1.5 bg-bg-secondary/50 rounded-xl border border-border-primary">
       {tabs.map((tab) => {
         const Icon = tab.icon
         const count = tab.id === 'results' ? generatedAssetsCount : 0
@@ -36,16 +36,26 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 border",
+              "flex-1 flex items-center justify-center gap-2.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 relative group",
               activeView === tab.id
-                ? "bg-primary/10 text-primary border-primary/30"
-                : "text-text-secondary hover:text-text-primary border-border-primary hover:bg-bg-secondary/50 hover:border-border-secondary"
+                ? "bg-gradient-to-r from-primary to-primary/90 text-white shadow-lg"
+                : "text-text-secondary hover:text-text-primary hover:bg-bg-primary/50"
             )}
           >
-            <Icon className="w-4 h-4" />
+            <div className={cn(
+              "transition-transform duration-200",
+              activeView === tab.id && "scale-110"
+            )}>
+              <Icon className="w-4 h-4" />
+            </div>
             <span className="hidden sm:inline">{tab.label}</span>
             {count > 0 && (
-              <span className="ml-1.5 px-2 py-0.5 bg-primary bg-opacity-20 text-primary text-xs rounded-full font-semibold">
+              <span className={cn(
+                "ml-1.5 px-2 py-0.5 text-xs rounded-full font-semibold transition-all",
+                activeView === tab.id
+                  ? "bg-white/20 text-white"
+                  : "bg-primary/10 text-primary"
+              )}>
                 {count}
               </span>
             )}

@@ -17,6 +17,16 @@ interface BuildConfigOptions {
   selectedMaterials: string[]
   materialPresets: MaterialPreset[]
   materialPromptOverrides: Record<string, string>
+  materialPromptTemplates?: {
+    runescape: string
+    generic: string
+  }
+  gameStyleConfig?: {
+    name: string
+    base: string
+    generation?: string
+    enhanced?: string
+  }
 }
 
 export function buildGenerationConfig(options: BuildConfigOptions): GenerationConfig {
@@ -35,7 +45,9 @@ export function buildGenerationConfig(options: BuildConfigOptions): GenerationCo
     characterHeight,
     selectedMaterials,
     materialPresets,
-    materialPromptOverrides
+    materialPromptOverrides,
+    materialPromptTemplates,
+    gameStyleConfig
   } = options
 
   // Prepare material variants
@@ -54,7 +66,8 @@ export function buildGenerationConfig(options: BuildConfigOptions): GenerationCo
                 'metal'),
         tier: index + 1,
         color: preset?.color || '#888888',
-        stylePrompt: materialPromptOverrides[materialId] || preset?.stylePrompt || `${materialId} texture, low-poly RuneScape style`
+        stylePrompt: materialPromptOverrides[materialId] || preset?.stylePrompt || 
+          (materialPromptTemplates?.runescape || '${materialId} texture, low-poly RuneScape style').replace('${materialId}', materialId)
       }
     })
   } else {
@@ -68,7 +81,8 @@ export function buildGenerationConfig(options: BuildConfigOptions): GenerationCo
         category: preset?.category || 'custom',
         tier: index + 1,
         color: preset?.color || '#888888',
-        stylePrompt: materialPromptOverrides[materialId] || preset?.stylePrompt || `${materialId} texture`
+        stylePrompt: materialPromptOverrides[materialId] || preset?.stylePrompt || 
+          (materialPromptTemplates?.generic || '${materialId} texture').replace('${materialId}', materialId)
       }
     })
   }
@@ -78,7 +92,7 @@ export function buildGenerationConfig(options: BuildConfigOptions): GenerationCo
     type: generationType === 'avatar' ? 'character' : assetType,
     subtype: generationType === 'avatar' ? 'humanoid' : assetType,
     description,
-    style: gameStyle === 'runescape' ? 'runescape2007' : customStyle,
+    style: gameStyleConfig?.generation || (gameStyle === 'runescape' ? 'runescape2007' : customStyle),
     assetId: assetName.toLowerCase().replace(/\s+/g, '-'),
     generationType: generationType,
     metadata: {
@@ -108,7 +122,7 @@ export function buildGenerationConfig(options: BuildConfigOptions): GenerationCo
       backgroundColor: 'transparent'
     } : undefined,
     customPrompts: {
-      gameStyle: gameStyle === 'custom' ? customGamePrompt : undefined,
+      gameStyle: customGamePrompt || gameStyleConfig?.base,
       assetType: customAssetTypePrompt
     }
   }

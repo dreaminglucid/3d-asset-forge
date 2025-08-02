@@ -23,7 +23,6 @@ export { EditMaterialPresetModal } from './EditMaterialPresetModal'
 export { DeleteConfirmationModal } from './DeleteConfirmationModal'
 
 // Additional components
-export { GenerationInfoCard } from './GenerationInfoCard'
 export { GenerationTimeline } from './GenerationTimeline'
 export { AssetActionsCard } from './AssetActionsCard'
 export { NoAssetSelected } from './NoAssetSelected' 

@@ -13,6 +13,8 @@ import { errorHandler } from './middleware/errorHandler.mjs'
 import { AssetService } from './services/AssetService.mjs'
 import { RetextureService } from './services/RetextureService.mjs'
 import { GenerationService } from './services/GenerationService.mjs'
+import { getWeaponDetectionPrompts } from './utils/promptLoader.mjs'
+import promptRoutes from './routes/promptRoutes.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -61,6 +63,9 @@ const retextureService = new RetextureService({
   imageServerBaseUrl: process.env.IMAGE_SERVER_URL || 'http://localhost:8080'
 })
 const generationService = new GenerationService()
+
+// Use prompt routes
+app.use('/api', promptRoutes)
 
 // Routes
 app.get('/api/health', (req, res) => {
@@ -224,7 +229,7 @@ app.patch('/api/assets/:id', async (req, res, next) => {
 
 app.get('/api/material-presets', async (req, res, next) => {
   try {
-    const presetsPath = path.join(ROOT_DIR, 'public/material-presets.json')
+    const presetsPath = path.join(ROOT_DIR, 'public/prompts/material-presets.json')
     const presets = JSON.parse(await fs.promises.readFile(presetsPath, 'utf-8'))
     res.json(presets)
   } catch (error) {
@@ -249,7 +254,7 @@ app.post('/api/material-presets', async (req, res, next) => {
     }
     
     // Save to file
-    const presetsPath = path.join(ROOT_DIR, 'public/material-presets.json')
+    const presetsPath = path.join(ROOT_DIR, 'public/prompts/material-presets.json')
     await fs.promises.writeFile(presetsPath, JSON.stringify(presets, null, 2), 'utf-8')
     
     res.json({ success: true, message: 'Material presets saved successfully' })
@@ -343,8 +348,12 @@ app.post('/api/weapon-handle-detect', async (req, res) => {
       throw new Error('No image provided')
     }
 
+    // Load weapon detection prompts
+    const weaponPrompts = await getWeaponDetectionPrompts()
+    
     // Build the prompt with optional hint
-    let promptText = `You are analyzing a 3D weapon rendered from the ${angle || 'side'} in a 512x512 pixel image.
+    const basePromptTemplate = weaponPrompts?.basePrompt || 
+      `You are analyzing a 3D weapon rendered from the \${angle || 'side'} in a 512x512 pixel image.
 The weapon is oriented vertically with the blade/head pointing UP and handle pointing DOWN.
 
 YOUR TASK: Identify ONLY the HANDLE/GRIP area where a human hand would hold this weapon.
@@ -368,20 +377,30 @@ VISUAL CUES for the handle:
 3. Look for the crossguard/guard that separates blade from handle
 4. The handle is typically in the LOWER portion of the weapon
 5. If you see a wide, flat, metallic surface - that's the BLADE, not the handle!`
+    
+    // Replace template variables
+    let promptText = basePromptTemplate.replace('${angle || \'side\'}', angle || 'side')
 
     if (promptHint) {
-      promptText += `\n\nAdditional guidance: ${promptHint}`
+      const additionalGuidance = weaponPrompts?.additionalGuidance || '\n\nAdditional guidance: ${promptHint}'
+      promptText += additionalGuidance.replace('${promptHint}', promptHint)
     }
 
-    promptText += `\n\nDO NOT select:
+    // Add restrictions
+    const restrictions = weaponPrompts?.restrictions || 
+      `\n\nDO NOT select:
 - The blade (wide, flat, sharp part)
 - The guard/crossguard
 - Decorative elements
 - The pommel alone
 
-ONLY select the cylindrical grip area where fingers would wrap around.
-
-Respond with ONLY a JSON object in this exact format:
+ONLY select the cylindrical grip area where fingers would wrap around.`
+    
+    promptText += restrictions
+    
+    // Add response format
+    const responseFormat = weaponPrompts?.responseFormat ||
+      `\n\nRespond with ONLY a JSON object in this exact format:
 {
   "gripBounds": {
     "minX": <pixel coordinate 0-512>,
@@ -398,6 +417,8 @@ Respond with ONLY a JSON object in this exact format:
     "guard": "<describe if you see a guard/crossguard>"
   }
 }`
+    
+    promptText += responseFormat
 
     // Use GPT-4 Vision to analyze the weapon and identify grip location
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

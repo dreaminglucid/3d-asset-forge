@@ -6,6 +6,7 @@
 import EventEmitter from 'events'
 import { AICreationService } from './AICreationService.mjs'
 import { ImageHostingService } from './ImageHostingService.mjs'
+import { getGenerationPrompts, getGPT4EnhancementPrompts } from '../utils/promptLoader.mjs'
 import fs from 'fs/promises'
 import path from 'path'
 import fetch from 'node-fetch'
@@ -155,17 +156,23 @@ export class GenerationService extends EventEmitter {
       pipeline.stages.imageGeneration.status = 'processing'
       
       try {
+        // Load generation prompts
+        const generationPrompts = await getGenerationPrompts()
+        
         // For avatars, ensure T-pose is in the prompt
         // For armor, ensure it's standalone with hollow openings
         let imagePrompt = enhancedPrompt
         if (pipeline.config.generationType === 'avatar' || pipeline.config.type === 'character') {
-          imagePrompt = `${enhancedPrompt} standing in T-pose with arms stretched out horizontally`
+          const tposePrompt = generationPrompts?.posePrompts?.avatar?.tpose || 'standing in T-pose with arms stretched out horizontally'
+          imagePrompt = `${enhancedPrompt} ${tposePrompt}`
         } else if (pipeline.config.type === 'armor') {
           const isChest = pipeline.config.subtype?.toLowerCase().includes('chest') || pipeline.config.subtype?.toLowerCase().includes('body')
           if (isChest) {
-            imagePrompt = `${enhancedPrompt} floating chest armor SHAPED FOR T-POSE BODY - shoulder openings must point STRAIGHT OUT SIDEWAYS at 90 degrees like a scarecrow (NOT angled down), wide "T" shape when viewed from front, ends at shoulders with no arm extensions, torso-only armor piece, hollow shoulder openings pointing horizontally, no armor stand`
+            const chestPrompt = generationPrompts?.posePrompts?.armor?.chest || 'floating chest armor SHAPED FOR T-POSE BODY - shoulder openings must point STRAIGHT OUT SIDEWAYS at 90 degrees like a scarecrow (NOT angled down), wide "T" shape when viewed from front, ends at shoulders with no arm extensions, torso-only armor piece, hollow shoulder openings pointing horizontally, no armor stand'
+            imagePrompt = `${enhancedPrompt} ${chestPrompt}`
           } else {
-            imagePrompt = `${enhancedPrompt} floating armor piece shaped for T-pose body fitting, openings positioned at correct angles for T-pose (horizontal for shoulders), hollow openings, no armor stand or mannequin`
+            const genericArmorPrompt = generationPrompts?.posePrompts?.armor?.generic || 'floating armor piece shaped for T-pose body fitting, openings positioned at correct angles for T-pose (horizontal for shoulders), hollow openings, no armor stand or mannequin'
+            imagePrompt = `${enhancedPrompt} ${genericArmorPrompt}`
           }
         }
           
@@ -714,27 +721,56 @@ export class GenerationService extends EventEmitter {
       throw new Error('OPENAI_API_KEY required for GPT-4 enhancement')
     }
     
+    // Load GPT-4 enhancement prompts
+    const gpt4Prompts = await getGPT4EnhancementPrompts()
+    
     const isAvatar = config.generationType === 'avatar' || config.type === 'character'
     const isArmor = config.type === 'armor'
     const isChestArmor = isArmor && (config.subtype?.toLowerCase().includes('chest') || config.subtype?.toLowerCase().includes('body'))
     
-    const systemPrompt = `You are an expert at optimizing prompts for 3D asset generation. 
-Your task is to enhance the user's description to create better results with image generation and 3D conversion.
-${isAvatar ? `CRITICAL for characters: The character MUST be in a T-pose (arms stretched out horizontally, legs slightly apart) for proper rigging. The character must have EMPTY HANDS - no weapons, tools, or held items. Always add "standing in T-pose with empty hands" to the description.` : ''}
-${isArmor ? `CRITICAL for armor pieces: The armor must be shown ALONE without any armor stand, mannequin, or body inside. ${isChestArmor ? 'EXTRA IMPORTANT for chest/body armor: This MUST be shaped for a SCARECROW POSE (T-POSE) - imagine a scarecrow with arms sticking STRAIGHT OUT SIDEWAYS. The shoulder openings MUST point STRAIGHT OUT HORIZONTALLY at 90 degrees from the body, NOT downward or forward! The chest piece should look like a wide "T" or cross shape. From above, the shoulder openings should form a straight line across. The armor should END AT THE SHOULDERS - no arm extensions or sleeves past the shoulder joint. ' : ''}The armor MUST be positioned and SHAPED for a SCARECROW/T-POSE body - shoulder openings pointing STRAIGHT SIDEWAYS, not down. The armor piece must have OPEN HOLES where the body parts go through. Always specify "floating armor piece shaped for scarecrow/T-pose body, shoulder openings pointing straight sideways at 90 degrees, no extensions, hollow openings, no armor stand" in the description.` : ''}
-Focus on:
-- Clear, specific visual details
-- Material and texture descriptions
-- Geometric shape and form
-- Style consistency (especially for ${config.style || 'low-poly RuneScape'} style)
-${isAvatar ? '- T-pose stance with empty hands for rigging compatibility' : ''}
-${isArmor ? `- Armor SHAPED for T-pose body (shoulder openings pointing straight sideways, not down)
-- Chest armor should form a "T" or cross shape when viewed from above
-- Shoulder openings at 180° angle to each other (straight line across)` : ''}
-Keep the enhanced prompt concise but detailed.`
+    // Build system prompt from loaded prompts
+    let systemPrompt = gpt4Prompts?.systemPrompt?.base || `You are an expert at optimizing prompts for 3D asset generation. 
+Your task is to enhance the user's description to create better results with image generation and 3D conversion.`
+    
+    if (isAvatar) {
+      systemPrompt += '\n' + (gpt4Prompts?.typeSpecific?.avatar?.critical || `CRITICAL for characters: The character MUST be in a T-pose (arms stretched out horizontally, legs slightly apart) for proper rigging. The character must have EMPTY HANDS - no weapons, tools, or held items. Always add "standing in T-pose with empty hands" to the description.`)
+    }
+    
+    if (isArmor) {
+      systemPrompt += '\n' + (gpt4Prompts?.typeSpecific?.armor?.base || `CRITICAL for armor pieces: The armor must be shown ALONE without any armor stand, mannequin, or body inside.`)
+      if (isChestArmor) {
+        systemPrompt += ' ' + (gpt4Prompts?.typeSpecific?.armor?.chest || 'EXTRA IMPORTANT for chest/body armor: This MUST be shaped for a SCARECROW POSE (T-POSE) - imagine a scarecrow with arms sticking STRAIGHT OUT SIDEWAYS...')
+      }
+      systemPrompt += ' ' + (gpt4Prompts?.typeSpecific?.armor?.positioning || 'The armor MUST be positioned and SHAPED for a SCARECROW/T-POSE body...')
+    }
+    
+    // Add focus points
+    const focusPoints = gpt4Prompts?.systemPrompt?.focusPoints || [
+      'Clear, specific visual details',
+      'Material and texture descriptions',
+      'Geometric shape and form',
+      `Style consistency (especially for ${config.style || 'low-poly RuneScape'} style)`
+    ]
+    
+    systemPrompt += '\nFocus on:\n' + focusPoints.map(point => '- ' + point.replace('${config.style || \'low-poly RuneScape\'}', config.style || 'low-poly RuneScape')).join('\n')
+    
+    if (isAvatar) {
+      systemPrompt += '\n' + (gpt4Prompts?.typeSpecific?.avatar?.focus || '- T-pose stance with empty hands for rigging compatibility')
+    }
+    
+    if (isArmor) {
+      const armorFocus = gpt4Prompts?.typeSpecific?.armor?.focus || [
+        '- Armor SHAPED for T-pose body (shoulder openings pointing straight sideways, not down)',
+        '- Chest armor should form a "T" or cross shape when viewed from above',
+        '- Shoulder openings at 180° angle to each other (straight line across)'
+      ]
+      systemPrompt += '\n' + armorFocus.join('\n')
+    }
+    
+    systemPrompt += '\n' + (gpt4Prompts?.systemPrompt?.closingInstruction || 'Keep the enhanced prompt concise but detailed.')
     
     const userPrompt = isArmor 
-      ? `Enhance this armor piece description for 3D generation. CRITICAL: The armor must be SHAPED FOR A T-POSE BODY - shoulder openings must point STRAIGHT SIDEWAYS at 90 degrees (like a scarecrow), NOT angled downward! Should look like a wide "T" shape. Ends at shoulders (no arm extensions), hollow openings, no armor stand: "${config.description}"`
+      ? (gpt4Prompts?.typeSpecific?.armor?.enhancementPrefix || `Enhance this armor piece description for 3D generation. CRITICAL: The armor must be SHAPED FOR A T-POSE BODY - shoulder openings must point STRAIGHT SIDEWAYS at 90 degrees (like a scarecrow), NOT angled downward! Should look like a wide "T" shape. Ends at shoulders (no arm extensions), hollow openings, no armor stand: `) + `"${config.description}"`
       : `Enhance this ${config.type} asset description for 3D generation: "${config.description}"`
     
     try {
@@ -771,10 +807,19 @@ Keep the enhanced prompt concise but detailed.`
       
     } catch (error) {
       console.error('GPT-4 enhancement failed:', error)
-      // Fallback to basic enhancement
+      // Load generation prompts for fallback
+      const generationPrompts = await getGenerationPrompts()
+      const fallbackTemplate = generationPrompts?.imageGeneration?.fallbackEnhancement || 
+        '${config.description}. ${config.style || "Low-poly RuneScape 2007"} style, clean geometry, game-ready 3D asset.'
+      
+      // Replace template variables
+      const fallbackPrompt = fallbackTemplate
+        .replace('${config.description}', config.description)
+        .replace('${config.style || "Low-poly RuneScape 2007"}', config.style || 'Low-poly RuneScape 2007')
+      
       return {
         originalPrompt: config.description,
-        optimizedPrompt: `${config.description}. ${config.style || 'Low-poly RuneScape 2007'} style, clean geometry, game-ready 3D asset.`,
+        optimizedPrompt: fallbackPrompt,
         error: error.message
       }
     }

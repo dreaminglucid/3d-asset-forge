@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Checkbox } from '../common'
-import { Zap, Brain, User, Palette, Grid3x3 } from 'lucide-react'
+import { Zap, Brain, User, Palette, Grid3x3, Settings2, Info } from 'lucide-react'
+import { cn } from '../../styles'
 
 interface PipelineOption {
   id: string
@@ -72,34 +73,55 @@ export const PipelineOptionsCard: React.FC<PipelineOptionsCardProps> = ({
   ]
 
   return (
-    <Card className="shadow-xl">
+    <Card className="overflow-hidden bg-gradient-to-br from-bg-primary via-bg-primary to-primary/5 border-border-primary shadow-lg">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Zap className="w-5 h-5" />
-          Pipeline Options
-        </CardTitle>
-        <CardDescription>Configure generation features</CardDescription>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-primary/10 rounded-xl">
+            <Settings2 className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-lg font-semibold">Pipeline Options</CardTitle>
+            <CardDescription className="text-xs mt-0.5">Configure generation features</CardDescription>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-6 space-y-3">
         {options.map((option) => {
           const Icon = option.icon
           return (
             <div 
               key={option.id}
-              className="p-3 rounded-lg hover:bg-bg-secondary transition-colors"
+              className={cn(
+                "p-4 rounded-xl border transition-all duration-200",
+                option.checked 
+                  ? "border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10" 
+                  : "border-border-primary hover:border-border-secondary bg-bg-secondary/50"
+              )}
             >
               <Checkbox
                 checked={option.checked}
                 onChange={(e) => option.onChange(e.target.checked)}
                 label={
-                  <div className="flex items-center gap-2">
-                    <Icon className="w-4 h-4 text-primary" />
-                    <span className="font-medium">
-                      {option.label}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "p-2 rounded-lg transition-colors",
+                      option.checked ? "bg-primary/10" : "bg-bg-tertiary"
+                    )}>
+                      <Icon className={cn(
+                        "w-4 h-4 transition-colors",
+                        option.checked ? "text-primary" : "text-text-secondary"
+                      )} />
+                    </div>
+                    <div className="flex-1">
+                      <span className="font-medium text-text-primary block">
+                        {option.label}
+                      </span>
+                      <span className="text-xs text-text-secondary">
+                        {option.description}
+                      </span>
+                    </div>
                   </div>
                 }
-                description={option.description}
               />
             </div>
           )

@@ -205,7 +205,7 @@ export const useGenerationStore = create<GenerationState>()(
           gameStyle: 'runescape',
           customStyle: '',
           
-          customGamePrompt: 'low-poly 3D game asset style',
+          customGamePrompt: '',
           customAssetTypePrompt: '',
           
           customAssetTypes: [],

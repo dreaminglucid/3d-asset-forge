@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badge, Progress } from '../common'
-import { CheckCircle, Loader2, XCircle, Sparkles, ChevronRight } from 'lucide-react'
+import { CheckCircle, Loader2, XCircle, Sparkles, ChevronRight, Zap, FileText, Brain, Camera, Box, User, Layers, Grid3x3 } from 'lucide-react'
 import { cn } from '../../styles'
 import { PipelineStage } from '../../store'
 
@@ -28,12 +28,17 @@ export const PipelineProgressCard: React.FC<PipelineProgressCardProps> = ({
   })
 
   return (
-    <Card className="overflow-hidden shadow-xl">
-      <CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-border-primary">
+    <Card className="overflow-hidden bg-gradient-to-br from-bg-primary via-bg-primary to-primary/5 border-border-primary shadow-lg">
+      <CardHeader>
         <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-xl">Generation Pipeline</CardTitle>
-            <CardDescription>Tracking your asset creation progress</CardDescription>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-primary/10 rounded-xl">
+              <Zap className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg font-semibold">Generation Pipeline</CardTitle>
+              <CardDescription className="text-xs mt-0.5">Tracking your asset creation progress</CardDescription>
+            </div>
           </div>
           <Button
             variant="ghost"
@@ -47,8 +52,8 @@ export const PipelineProgressCard: React.FC<PipelineProgressCardProps> = ({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-8">
-        <div className="space-y-6">
+      <CardContent className="p-6 space-y-4">
+        <div className="space-y-4">
           {filteredStages.map((stage, index) => (
             <PipelineStageItem
               key={stage.id}
@@ -74,6 +79,28 @@ export const PipelineProgressCard: React.FC<PipelineProgressCardProps> = ({
   )
 }
 
+// Helper function to get icon for stage
+const getStageIcon = (stageId: string) => {
+  switch (stageId) {
+    case 'text-input':
+      return <FileText className="w-4 h-4" />
+    case 'gpt4-enhancement':
+      return <Brain className="w-4 h-4" />
+    case 'image-generation':
+      return <Camera className="w-4 h-4" />
+    case 'image-to-3d':
+      return <Box className="w-4 h-4" />
+    case 'rigging':
+      return <User className="w-4 h-4" />
+    case 'retexturing':
+      return <Layers className="w-4 h-4" />
+    case 'sprites':
+      return <Grid3x3 className="w-4 h-4" />
+    default:
+      return <Sparkles className="w-4 h-4" />
+  }
+}
+
 // Sub-component for individual pipeline stage
 const PipelineStageItem: React.FC<{
   stage: PipelineStage
@@ -87,65 +114,73 @@ const PipelineStageItem: React.FC<{
   return (
     <div className="relative">
       <div className={cn(
-        "flex items-center gap-4 p-5 rounded-xl border-2 transition-all duration-300 hover:scale-[1.01]",
-        isActive && "border-primary bg-gradient-to-r from-primary/10 to-primary/5 shadow-lg animate-pulse",
-        isComplete && "border-success bg-gradient-to-r from-success/10 to-success/5",
-        isFailed && "border-error bg-gradient-to-r from-error/10 to-error/5",
-        isSkipped && "opacity-50 border-border-secondary",
-        !isActive && !isComplete && !isFailed && !isSkipped && "border-border-primary hover:border-border-secondary"
+        "flex items-center gap-4 p-4 rounded-xl border transition-all duration-200",
+        isActive && "border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10 shadow-sm",
+        isComplete && "border-success/30 bg-gradient-to-r from-success/5 to-success/10",
+        isFailed && "border-error/30 bg-gradient-to-r from-error/5 to-error/10",
+        isSkipped && "opacity-50 border-border-secondary bg-bg-secondary/30",
+        !isActive && !isComplete && !isFailed && !isSkipped && "border-border-primary bg-bg-secondary/50 hover:border-border-secondary"
       )}>
-        <div className={cn(
-          "flex items-center justify-center w-12 h-12 rounded-full transition-all",
-          isActive && "bg-primary text-white shadow-lg scale-110",
-          isComplete && "bg-success text-white",
-          isFailed && "bg-error text-white",
-          isSkipped && "bg-bg-tertiary text-text-muted",
-          !isActive && !isComplete && !isFailed && !isSkipped && "bg-bg-tertiary text-text-tertiary"
-        )}>
-          {isActive ? (
-            <Loader2 className="w-6 h-6 animate-spin" />
-          ) : isComplete ? (
-            <CheckCircle className="w-6 h-6" />
-          ) : isFailed ? (
-            <XCircle className="w-6 h-6" />
-          ) : stage.icon ? (
-            React.cloneElement(stage.icon as React.ReactElement, {
-              className: "w-6 h-6"
-            })
-          ) : (
-            <Sparkles className="w-6 h-6" />
-          )}
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "p-2.5 rounded-xl transition-all",
+            isActive && "bg-primary/10 animate-pulse",
+            isComplete && "bg-success/10",
+            isFailed && "bg-error/10",
+            isSkipped && "bg-bg-tertiary/50",
+            !isActive && !isComplete && !isFailed && !isSkipped && "bg-bg-tertiary/50"
+          )}>
+            {isActive ? (
+              <Loader2 className="w-5 h-5 text-primary animate-spin" />
+            ) : isComplete ? (
+              <CheckCircle className="w-5 h-5 text-success" />
+            ) : isFailed ? (
+              <XCircle className="w-5 h-5 text-error" />
+            ) : (
+              <div className={cn(
+                isSkipped ? "text-text-muted" : "text-text-secondary"
+              )}>
+                {stage.icon || getStageIcon(stage.id)}
+              </div>
+            )}
+          </div>
         </div>
         
         <div className="flex-1">
-          <h4 className="font-semibold text-text-primary text-lg">{stage.name}</h4>
-          <p className="text-sm text-text-secondary mt-1">{stage.description}</p>
+          <h4 className="font-medium text-text-primary">{stage.name}</h4>
+          <p className="text-xs text-text-secondary mt-0.5">{stage.description}</p>
         </div>
         
         {isActive && (
-          <div className="flex items-center gap-3">
-            <Progress value={50} className="w-32" />
-            <span className="text-sm font-medium text-primary animate-pulse">
+          <div className="flex items-center gap-2">
+            <Progress value={50} className="w-24 h-1.5" />
+            <span className="text-xs font-medium text-primary animate-pulse">
               Processing...
             </span>
           </div>
         )}
         
         {isComplete && (
-          <Badge variant="success" className="text-sm">
+          <Badge variant="success" className="text-xs">
             Complete
+          </Badge>
+        )}
+        
+        {isFailed && (
+          <Badge variant="error" className="text-xs">
+            Failed
           </Badge>
         )}
       </div>
       
       {!isLast && (
         <div className={cn(
-          "absolute left-7 top-full w-0.5 h-6 -translate-x-1/2 transition-all",
-          (isComplete || isActive) ? "bg-primary" : "bg-border-primary"
+          "absolute left-8 top-full w-0.5 h-4 -translate-x-1/2 transition-all",
+          (isComplete || isActive) ? "bg-primary/30" : "bg-border-primary/30"
         )} />
       )}
     </div>
   )
 }
 
-export default PipelineProgressCard 
+export default PipelineProgressCard

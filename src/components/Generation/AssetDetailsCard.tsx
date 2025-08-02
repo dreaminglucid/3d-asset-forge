@@ -1,22 +1,26 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Textarea } from '../common'
-import { FileText, Layers, Package, User, ChevronRight, Settings, Sword } from 'lucide-react'
+import { FileText, Layers, Package, User, ChevronRight, Gamepad2 } from 'lucide-react'
+import { cn } from '../../styles'
 import { CustomAssetType } from '../../types/generation'
+import { GameStylePrompt } from '../../services/api/PromptService'
 
 interface AssetDetailsCardProps {
   generationType: 'item' | 'avatar' | undefined
   assetName: string
   assetType: string
   description: string
-  gameStyle: 'runescape' | 'custom'
+  gameStyle: string
   customStyle: string
   customAssetTypes: CustomAssetType[]
+  customGameStyles?: Record<string, GameStylePrompt>
   onAssetNameChange: (value: string) => void
   onAssetTypeChange: (value: string) => void
   onDescriptionChange: (value: string) => void
   onGameStyleChange: (style: 'runescape' | 'custom') => void
   onCustomStyleChange: (value: string) => void
   onBack: () => void
+  onSaveCustomGameStyle?: (styleId: string, style: GameStylePrompt) => Promise<boolean>
 }
 
 export const AssetDetailsCard: React.FC<AssetDetailsCardProps> = ({
@@ -27,32 +31,33 @@ export const AssetDetailsCard: React.FC<AssetDetailsCardProps> = ({
   gameStyle,
   customStyle,
   customAssetTypes,
+  customGameStyles = {},
   onAssetNameChange,
   onAssetTypeChange,
   onDescriptionChange,
   onGameStyleChange,
   onCustomStyleChange,
-  onBack
+  onBack,
+  onSaveCustomGameStyle
 }) => {
   return (
-    <Card className="overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300">
-      <CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-border-primary">
+    <Card className="overflow-hidden bg-gradient-to-br from-bg-primary via-bg-primary to-primary/5 border-border-primary shadow-lg">
+      <CardHeader>
         <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <CardTitle className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-primary/10 rounded-xl">
               {generationType === 'avatar' ? (
-                <>
-                  <User className="w-5 h-5" />
-                  Avatar Details
-                </>
+                <User className="w-5 h-5 text-primary" />
               ) : (
-                <>
-                  <Package className="w-5 h-5" />
-                  Asset Details
-                </>
+                <Package className="w-5 h-5 text-primary" />
               )}
-            </CardTitle>
-            <CardDescription>Define what you want to create</CardDescription>
+            </div>
+            <div>
+              <CardTitle className="text-lg font-semibold">
+                {generationType === 'avatar' ? 'Avatar Details' : 'Asset Details'}
+              </CardTitle>
+              <CardDescription className="text-xs mt-0.5">Define what you want to create</CardDescription>
+            </div>
           </div>
           <Button
             variant="ghost"
@@ -66,55 +71,66 @@ export const AssetDetailsCard: React.FC<AssetDetailsCardProps> = ({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <CardContent className="p-6 space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-primary flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" />
+              <div className="p-1.5 bg-primary/10 rounded-lg">
+                <FileText className="w-3.5 h-3.5 text-primary" />
+              </div>
               {generationType === 'avatar' ? 'Avatar Name' : 'Asset Name'}
             </label>
             <Input
               value={assetName}
               onChange={(e) => onAssetNameChange(e.target.value)}
               placeholder={generationType === 'avatar' ? "e.g., Goblin Warrior" : "e.g., Dragon Sword"}
-              className="w-full"
+              className="w-full bg-bg-secondary/70 border-border-primary/50 focus:border-primary"
             />
           </div>
           
           <div className="space-y-2">
             <label className="text-sm font-medium text-text-primary flex items-center gap-2">
-              <Layers className="w-4 h-4 text-primary" />
+              <div className="p-1.5 bg-primary/10 rounded-lg">
+                <Layers className="w-3.5 h-3.5 text-primary" />
+              </div>
               Asset Type
             </label>
-            {generationType === 'avatar' ? (
-              <div className="px-4 py-2 bg-bg-tertiary border border-border-primary rounded-lg text-text-primary">
-                👤 Character (Humanoid)
-              </div>
-            ) : (
-              <select
-                value={assetType}
-                onChange={(e) => onAssetTypeChange(e.target.value)}
-                className="w-full px-4 py-2 bg-bg-secondary border border-border-primary rounded-lg text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all"
-              >
-                <option value="weapon">⚔️ Weapon</option>
-                <option value="armor">🛡️ Armor</option>
-                <option value="tool">🔨 Tool</option>
-                <option value="building">🏰 Building</option>
-                <option value="consumable">🧪 Consumable</option>
-                <option value="resource">💎 Resource</option>
-                {customAssetTypes.filter(t => t.name).map(type => (
-                  <option key={type.name} value={type.name.toLowerCase()}>
-                    ✨ {type.name}
-                  </option>
-                ))}
-              </select>
-            )}
+            <select
+              value={assetType}
+              onChange={(e) => onAssetTypeChange(e.target.value)}
+              className="w-full px-4 py-2 bg-bg-secondary border border-border-primary rounded-lg text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition-all appearance-none cursor-pointer [&>option]:bg-bg-primary [&>option]:text-text-primary"
+            >
+              {generationType === 'avatar' ? (
+                <>
+                  <option value="character">👤 Character</option>
+                  <option value="humanoid">🧍 Humanoid</option>
+                  <option value="npc">🤝 NPC</option>
+                  <option value="creature">🐲 Creature</option>
+                </>
+              ) : (
+                <>
+                  <option value="weapon">⚔️ Weapon</option>
+                  <option value="armor">🛡️ Armor</option>
+                  <option value="tool">🔨 Tool</option>
+                  <option value="building">🏰 Building</option>
+                  <option value="consumable">🧪 Consumable</option>
+                  <option value="resource">💎 Resource</option>
+                </>
+              )}
+              {customAssetTypes.filter(t => t.name).map(type => (
+                <option key={type.name} value={type.name.toLowerCase()}>
+                  ✨ {type.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         
         <div className="space-y-2">
           <label className="text-sm font-medium text-text-primary flex items-center gap-2">
-            <FileText className="w-4 h-4 text-primary" />
+            <div className="p-1.5 bg-primary/10 rounded-lg">
+              <FileText className="w-3.5 h-3.5 text-primary" />
+            </div>
             Description
           </label>
           <Textarea
@@ -122,7 +138,7 @@ export const AssetDetailsCard: React.FC<AssetDetailsCardProps> = ({
             onChange={(e) => onDescriptionChange(e.target.value)}
             placeholder="Describe your asset in detail..."
             rows={4}
-            className="w-full resize-none"
+            className="w-full resize-none bg-bg-secondary/70 border-border-primary/50 focus:border-primary"
           />
         </div>
         
@@ -130,8 +146,10 @@ export const AssetDetailsCard: React.FC<AssetDetailsCardProps> = ({
         <GameStyleSelector
           gameStyle={gameStyle}
           customStyle={customStyle}
+          customGameStyles={customGameStyles}
           onGameStyleChange={onGameStyleChange}
           onCustomStyleChange={onCustomStyleChange}
+          onSaveCustomGameStyle={onSaveCustomGameStyle}
         />
       </CardContent>
     </Card>
@@ -140,66 +158,61 @@ export const AssetDetailsCard: React.FC<AssetDetailsCardProps> = ({
 
 // Sub-component for game style selection
 const GameStyleSelector: React.FC<{
-  gameStyle: 'runescape' | 'custom'
+  gameStyle: string
   customStyle: string
+  customGameStyles?: Record<string, GameStylePrompt>
   onGameStyleChange: (style: 'runescape' | 'custom') => void
   onCustomStyleChange: (value: string) => void
-}> = ({ gameStyle, customStyle, onGameStyleChange, onCustomStyleChange }) => {
+  onSaveCustomGameStyle?: (styleId: string, style: GameStylePrompt) => Promise<boolean>
+}> = ({ gameStyle, customStyle, customGameStyles = {}, onGameStyleChange, onCustomStyleChange, onSaveCustomGameStyle }) => {
+  // Determine the current selected value for the dropdown
+  const currentValue = gameStyle === 'runescape' ? 'runescape' : 
+                      gameStyle === 'custom' && customStyle ? `custom:${customStyle}` : 
+                      'runescape'
+
+  const handleChange = (value: string) => {
+    if (value === 'runescape') {
+      onGameStyleChange('runescape')
+    } else if (value.startsWith('custom:')) {
+      const styleId = value.replace('custom:', '')
+      onGameStyleChange('custom')
+      onCustomStyleChange(styleId)
+    }
+  }
+
   return (
-    <div className="space-y-3">
-      <label className="text-sm font-medium text-text-primary">
+    <div className="space-y-2">
+      <label className="text-sm font-medium text-text-primary flex items-center gap-2">
+        <div className="p-1.5 bg-primary/10 rounded-lg">
+          <Gamepad2 className="w-3.5 h-3.5 text-primary" />
+        </div>
         Game Style
       </label>
-      <div className="grid grid-cols-2 gap-4">
-        <button
-          onClick={() => onGameStyleChange('runescape')}
-          className={`relative p-6 rounded-xl border-2 transition-all duration-200 overflow-hidden group hover:scale-[1.02] ${
-            gameStyle === 'runescape' 
-              ? "border-primary bg-gradient-to-br from-primary/20 to-primary/5 shadow-lg" 
-              : "border-border-primary hover:border-border-secondary bg-bg-secondary"
-          }`}
-        >
-          <div className="relative z-10">
-            <Sword className="w-8 h-8 mx-auto mb-3 text-primary" />
-            <p className="font-semibold text-text-primary">RuneScape 2007</p>
-            <p className="text-xs text-text-secondary mt-1">Classic low-poly style</p>
-          </div>
-          {gameStyle === 'runescape' && (
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent animate-pulse" />
-          )}
-        </button>
-        
-        <button
-          onClick={() => onGameStyleChange('custom')}
-          className={`relative p-6 rounded-xl border-2 transition-all duration-200 overflow-hidden group hover:scale-[1.02] ${
-            gameStyle === 'custom' 
-              ? "border-primary bg-gradient-to-br from-primary/20 to-primary/5 shadow-lg" 
-              : "border-border-primary hover:border-border-secondary bg-bg-secondary"
-          }`}
-        >
-          <div className="relative z-10">
-            <Settings className="w-8 h-8 mx-auto mb-3 text-primary" />
-            <p className="font-semibold text-text-primary">Custom Style</p>
-            <p className="text-xs text-text-secondary mt-1">Define your own</p>
-          </div>
-          {gameStyle === 'custom' && (
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent animate-pulse" />
-          )}
-        </button>
-      </div>
-      
-      {gameStyle === 'custom' && (
-        <div className="animate-slide-up">
-          <Input
-            value={customStyle}
-            onChange={(e) => onCustomStyleChange(e.target.value)}
-            placeholder="e.g., realistic medieval, cartoon, sci-fi"
-            className="w-full"
-          />
+      <select
+        value={currentValue}
+        onChange={(e) => handleChange(e.target.value)}
+        className="w-full px-4 py-2 bg-bg-secondary border border-border-primary rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all appearance-none cursor-pointer [&>option]:bg-bg-primary [&>option]:text-text-primary"
+      >
+        <option value="runescape">RuneScape 2007</option>
+        {Object.entries(customGameStyles).map(([styleId, style]) => (
+          <option key={styleId} value={`custom:${styleId}`}>
+            {style.name}
+          </option>
+        ))}
+      </select>
+      {/* Show style details below the dropdown */}
+      {gameStyle === 'runescape' && (
+        <div className="px-3 py-2 bg-primary/5 border border-primary/10 rounded-lg">
+          <p className="text-xs text-text-secondary">Classic low-poly style</p>
+        </div>
+      )}
+      {gameStyle === 'custom' && customStyle && customGameStyles[customStyle] && (
+        <div className="px-3 py-2 bg-primary/5 border border-primary/10 rounded-lg">
+          <p className="text-xs text-text-secondary">{customGameStyles[customStyle].base}</p>
         </div>
       )}
     </div>
   )
 }
 
-export default AssetDetailsCard 
+export default AssetDetailsCard

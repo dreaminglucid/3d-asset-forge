@@ -4,6 +4,7 @@
  */
 
 import fetch from 'node-fetch'
+import { getGenerationPrompts } from '../utils/promptLoader.mjs'
 
 export class AICreationService {
   constructor(config) {
@@ -20,7 +21,16 @@ class ImageGenerationService {
   }
 
   async generateImage(description, assetType, style) {
-    const prompt = `${description}. ${style || 'Low-poly game asset'} style, ${assetType}, clean geometry suitable for 3D conversion.`
+    // Load generation prompts
+    const generationPrompts = await getGenerationPrompts()
+    const promptTemplate = generationPrompts?.imageGeneration?.base || 
+      '${description}. ${style || "Low-poly game asset"} style, ${assetType}, clean geometry suitable for 3D conversion.'
+    
+    // Replace template variables
+    const prompt = promptTemplate
+      .replace('${description}', description)
+      .replace('${style || "Low-poly game asset"}', style || 'Low-poly game asset')
+      .replace('${assetType}', assetType)
 
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',

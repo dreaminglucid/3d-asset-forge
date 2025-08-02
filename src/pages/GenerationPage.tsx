@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
-  Button
+  Button, Card, CardContent
 } from '../components/common'
 import {
   ChevronRight, Sparkles,
@@ -16,6 +16,7 @@ import { useGenerationStore } from '../store'
 import type { PipelineStage } from '../store'
 import { usePipelineStatus } from '../hooks/usePipelineStatus'
 import { useMaterialPresets } from '../hooks/useMaterialPresets'
+import { useGameStylePrompts, useAssetTypePrompts, useMaterialPromptTemplates } from '../hooks/usePrompts'
 import { buildGenerationConfig } from '../utils/generationConfigBuilder'
 
 // Import all Generation components from single location
@@ -34,7 +35,6 @@ import {
   PipelineProgressCard,
   EditMaterialPresetModal,
   DeleteConfirmationModal,
-  GenerationInfoCard,
   GenerationTimeline,
   AssetActionsCard,
   NoAssetSelected
@@ -145,10 +145,108 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
     initializePipelineStages
   } = useGenerationStore()
 
+  // Load prompts
+  const { prompts: gameStylePrompts, loading: gameStyleLoading, saveCustomGameStyle, deleteCustomGameStyle, getAllStyles: getAllGameStyles } = useGameStylePrompts()
+  const { 
+    prompts: loadedAssetTypePrompts, 
+    loading: assetTypeLoading, 
+    saveCustomAssetType,
+    deleteCustomAssetType,
+    getAllTypes,
+    getTypesByGeneration 
+  } = useAssetTypePrompts()
+  const { templates: materialPromptTemplates } = useMaterialPromptTemplates()
+  
+  // Get custom game styles
+  const customGameStyles = useMemo(() => {
+    if (!gameStylePrompts) return {}
+    return gameStylePrompts.custom || {}
+  }, [gameStylePrompts])
+  
+  // Get asset types for the current generation type
+  const currentGenerationTypes = useMemo(() => {
+    if (!loadedAssetTypePrompts || !generationType) return {}
+    return getTypesByGeneration(generationType)
+  }, [loadedAssetTypePrompts, generationType, getTypesByGeneration])
+  
+  // Convert current generation types to the format expected by AdvancedPromptsCard
+  const currentTypePrompts = useMemo(() => {
+    return Object.entries(currentGenerationTypes).reduce((acc, [key, value]) => ({
+      ...acc,
+      [key]: value.prompt || ''
+    }), {})
+  }, [currentGenerationTypes])
+  
+  // Get current style prompt
+  const currentStylePrompt = useMemo(() => {
+    if (!gameStylePrompts) return ''
+    if (gameStyle === 'runescape') {
+      return gameStylePrompts.default?.runescape?.base || ''
+    } else if (gameStyle === 'custom' && customStyle && gameStylePrompts.custom?.[customStyle]) {
+      return gameStylePrompts.custom[customStyle].base || ''
+    }
+    return gameStylePrompts.default?.generic?.base || ''
+  }, [gameStyle, customStyle, gameStylePrompts])
+  
+  // Get all saved custom types for the current generation type
+  const allCustomAssetTypes = useMemo(() => {
+    if (!generationType) return []
+    
+    // Define default types for each generation type
+    const defaultTypes = generationType === 'avatar' 
+      ? ['character', 'humanoid', 'npc', 'creature']
+      : ['weapon', 'armor', 'tool', 'building', 'consumable', 'resource']
+    
+    // Get saved custom types for current generation type
+    const savedCustomTypes = Object.entries(currentGenerationTypes)
+      .filter(([key]) => !defaultTypes.includes(key))
+      .map(([key, value]) => ({
+        name: value.name || key,
+        prompt: value.prompt || ''
+      }))
+    
+    // Add temporary custom types that aren't saved yet
+    const tempTypes = customAssetTypes.filter(t => 
+      t.name && !savedCustomTypes.some(saved => saved.name.toLowerCase() === t.name.toLowerCase())
+    )
+    
+    return [...savedCustomTypes, ...tempTypes]
+  }, [currentGenerationTypes, customAssetTypes, generationType])
+
+  // Load prompts on mount and update store
+  useEffect(() => {
+    if (!gameStyleLoading && gameStylePrompts) {
+      // Set default game prompt from loaded prompts if not already set
+      const defaultPrompt = gameStylePrompts.default?.generic?.base || 'low-poly 3D game asset style'
+      if (!customGamePrompt) {
+        setCustomGamePrompt(defaultPrompt)
+      }
+    }
+  }, [gameStyleLoading, gameStylePrompts])
+  
+  // Apply game style specific prompts when game style changes
+  useEffect(() => {
+    if (!gameStyleLoading && gameStylePrompts && gameStyle) {
+      if (gameStyle === 'runescape') {
+        const runescapePrompt = gameStylePrompts.default?.runescape?.base
+        if (runescapePrompt) {
+          setCustomGamePrompt(runescapePrompt)
+        }
+      } else if (gameStyle === 'custom' && customStyle && gameStylePrompts.custom?.[customStyle]) {
+        const customStylePrompt = gameStylePrompts.custom[customStyle].base
+        if (customStylePrompt) {
+          setCustomGamePrompt(customStylePrompt)
+        }
+      }
+    }
+  }, [gameStyle, customStyle, gameStyleLoading, gameStylePrompts])
+
   // Set asset type based on generation type
   useEffect(() => {
     if (generationType === 'avatar') {
       setAssetType('character')
+    } else if (generationType === 'item') {
+      setAssetType('weapon')
     }
   }, [generationType])
 
@@ -196,8 +294,22 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
   useEffect(() => {
     const loadMaterialPresets = async () => {
       try {
+        console.log('[MaterialPresets] Starting to load material presets...')
         const response = await fetch('/api/material-presets')
+        console.log('[MaterialPresets] Response:', response)
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch material presets: ${response.status}`)
+        }
+        
         const data = await response.json()
+        console.log('[MaterialPresets] Parsed data:', data)
+        
+        if (!Array.isArray(data)) {
+          throw new Error('Material presets data is not an array')
+        }
+        
+        console.log('[MaterialPresets] Setting', data.length, 'presets to store')
         setMaterialPresets(data)
 
         // Set default selected materials based on what's available
@@ -212,13 +324,19 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
         }
 
         setIsLoadingMaterials(false)
+        console.log('[MaterialPresets] Loading complete')
       } catch (error) {
-        console.error('Failed to load material presets:', error)
+        console.error('[MaterialPresets] Failed to load material presets:', error)
         setIsLoadingMaterials(false)
       }
     }
     loadMaterialPresets()
   }, [])
+
+  // Debug: Monitor materialPresets changes
+  useEffect(() => {
+    console.log('[MaterialPresets] materialPresets updated:', materialPresets)
+  }, [materialPresets])
 
   // Load existing assets when Results tab is accessed
   useEffect(() => {
@@ -262,6 +380,40 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
 
   // Use the material presets hook
   const { handleSaveCustomMaterials, handleUpdatePreset, handleDeletePreset } = useMaterialPresets()
+
+  // Handle saving custom asset types
+  const handleSaveCustomAssetTypes = async () => {
+    if (!generationType) {
+      alert('Please select a generation type first')
+      return
+    }
+    
+    try {
+      // Save each custom asset type
+      const savePromises = customAssetTypes
+        .filter(customType => customType.name && customType.prompt)
+        .map(customType => {
+          const typeId = customType.name.toLowerCase().replace(/\s+/g, '-')
+          return saveCustomAssetType(typeId, {
+            name: customType.name,
+            prompt: customType.prompt,
+            placeholder: customType.prompt
+          }, generationType)
+        })
+      
+      // Wait for all saves to complete
+      await Promise.all(savePromises)
+      
+      // Clear only the temporary custom types after successful save
+      setCustomAssetTypes([])
+      
+      // The saved types will automatically appear via allCustomAssetTypes
+      alert('Custom asset types saved successfully!')
+    } catch (error) {
+      console.error('Failed to save custom asset types:', error)
+      alert('Failed to save custom asset types.')
+    }
+  }
 
   const handleGenerateSprites = async (assetId: string) => {
     try {
@@ -317,6 +469,13 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
       customAssetTypes.find(t => t.name.toLowerCase() === assetType)?.prompt ||
       ''
 
+    // Get the game style configuration
+    const gameStyleConfig = gameStyle === 'runescape' 
+      ? gameStylePrompts?.default?.runescape
+      : gameStyle === 'custom' && customStyle 
+        ? gameStylePrompts?.custom?.[customStyle] || gameStylePrompts?.default?.generic
+        : gameStylePrompts?.default?.generic
+
     const config = buildGenerationConfig({
       assetName,
       assetType,
@@ -324,7 +483,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
       generationType,
       gameStyle,
       customStyle,
-      customGamePrompt,
+      customGamePrompt: customGamePrompt || gameStyleConfig?.base,
       customAssetTypePrompt: currentAssetTypePrompt,
       enableRetexturing,
       enableSprites,
@@ -332,7 +491,9 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
       characterHeight,
       selectedMaterials,
       materialPresets,
-      materialPromptOverrides
+      materialPromptOverrides,
+      materialPromptTemplates: materialPromptTemplates.templates,
+      gameStyleConfig
     })
 
     console.log('Starting generation with config:', config)
@@ -416,7 +577,8 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
                     description={description}
                     gameStyle={gameStyle}
                     customStyle={customStyle}
-                    customAssetTypes={customAssetTypes}
+                    customAssetTypes={allCustomAssetTypes}
+                    customGameStyles={customGameStyles}
                     onAssetNameChange={setAssetName}
                     onAssetTypeChange={setAssetType}
                     onDescriptionChange={setDescription}
@@ -428,6 +590,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
                       resetForm()
                       resetPipeline()
                     }}
+                    onSaveCustomGameStyle={saveCustomGameStyle}
                   />
 
                   {/* Advanced Prompts Card */}
@@ -435,21 +598,36 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
                     showAdvancedPrompts={showAdvancedPrompts}
                     showAssetTypeEditor={showAssetTypeEditor}
                     generationType={generationType}
+                    gameStyle={gameStyle}
+                    customStyle={customStyle}
                     customGamePrompt={customGamePrompt}
                     customAssetTypePrompt={customAssetTypePrompt}
-                    assetTypePrompts={assetTypePrompts}
+                    assetTypePrompts={currentTypePrompts}
                     customAssetTypes={customAssetTypes}
+                    currentStylePrompt={currentStylePrompt}
+                    gameStylePrompts={gameStylePrompts}
+                    loadedPrompts={{
+                      avatar: loadedAssetTypePrompts?.avatar?.default?.character?.placeholder,
+                      item: loadedAssetTypePrompts?.item?.default?.weapon?.placeholder
+                    }}
                     onToggleAdvancedPrompts={() => setShowAdvancedPrompts(!showAdvancedPrompts)}
                     onToggleAssetTypeEditor={() => setShowAssetTypeEditor(!showAssetTypeEditor)}
                     onCustomGamePromptChange={setCustomGamePrompt}
                     onCustomAssetTypePromptChange={setCustomAssetTypePrompt}
-                    onAssetTypePromptsChange={setAssetTypePrompts}
+                    onAssetTypePromptsChange={(updatedPrompts) => {
+                      // Merge the updated prompts with the existing store prompts
+                      setAssetTypePrompts({
+                        ...assetTypePrompts,
+                        ...updatedPrompts
+                      })
+                    }}
                     onCustomAssetTypesChange={setCustomAssetTypes}
                     onAddCustomAssetType={addCustomAssetType}
+                    onSaveCustomAssetTypes={handleSaveCustomAssetTypes}
+                    onSaveCustomGameStyle={saveCustomGameStyle}
+                    onDeleteCustomGameStyle={deleteCustomGameStyle}
+                    onDeleteCustomAssetType={deleteCustomAssetType}
                   />
-
-                  {/* Additional Info Card */}
-                  <GenerationInfoCard />
                 </div>
 
                 {/* Sidebar */}
@@ -509,24 +687,28 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
                   )}
 
                   {/* Start Generation Button */}
-                  <Button
-                    onClick={handleStartGeneration}
-                    disabled={!assetName || !description || isGenerating}
-                    className="w-full h-14 text-base font-semibold shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all"
-                    size="lg"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-5 h-5 mr-2" />
-                        Start Generation
-                      </>
-                    )}
-                  </Button>
+                  <Card className="overflow-hidden bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 border-primary/20">
+                    <CardContent className="p-4">
+                      <Button
+                        onClick={handleStartGeneration}
+                        disabled={!assetName || !description || isGenerating}
+                        className="w-full h-14 text-base font-semibold bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-[1.01]"
+                        size="lg"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-5 h-5 mr-2 animate-pulse" />
+                            Start Generation
+                          </>
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             </div>
