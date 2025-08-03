@@ -1,9 +1,7 @@
 import * as THREE from 'three'
 import { Vector3, Box3, SkinnedMesh, Mesh, BufferGeometry, BufferAttribute, Skeleton, Bone } from 'three'
-import { BVHAcceleratedMeshFittingService } from './BVHAcceleratedMeshFittingService'
-import { GenericMeshFittingService } from './GenericMeshFittingService'
-import { MeshDeformationService } from '../deformation/MeshDeformationService'
-import { WeightTransferService } from '../deformation/WeightTransferService'
+import { MeshFittingService } from './MeshFittingService'
+import { WeightTransferService } from './WeightTransferService'
 
 export interface BodyRegion {
   name: string
@@ -36,7 +34,7 @@ export interface FittingConfig {
   hullStepSize?: number
   hullSmoothInfluence?: number
   
-  // GenericFittingParameters for shrinkwrap method
+  // MeshFittingParameters for shrinkwrap method
   iterations?: number
   stepSize?: number
   smoothingRadius?: number
@@ -65,15 +63,11 @@ interface FittingParameters {
 }
 
 export class ArmorFittingService {
-  private fittingService: BVHAcceleratedMeshFittingService
-  private genericFittingService: GenericMeshFittingService
-  private deformationService: MeshDeformationService
+  private genericFittingService: MeshFittingService
   private weightTransferService: WeightTransferService
 
   constructor() {
-    this.fittingService = new BVHAcceleratedMeshFittingService()
-    this.genericFittingService = new GenericMeshFittingService()
-    this.deformationService = new MeshDeformationService()
+    this.genericFittingService = new MeshFittingService()
     this.weightTransferService = new WeightTransferService()
   }
 

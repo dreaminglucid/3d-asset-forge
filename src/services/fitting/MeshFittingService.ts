@@ -14,7 +14,7 @@ import {
   SkinnedMesh
 } from 'three'
 
-export interface GenericFittingParameters {
+export interface MeshFittingParameters {
   iterations: number
   stepSize: number // 0-1, how much to move toward target per iteration
   smoothingRadius: number // Radius for gaussian smoothing
@@ -37,7 +37,7 @@ export interface GenericFittingParameters {
   debugColorMode?: 'direction' | 'magnitude' | 'sidedness'
 }
 
-export class GenericMeshFittingService {
+export class MeshFittingService {
   private raycaster: Raycaster = new Raycaster()
   private tempVertex = new Vector3()
   private tempTarget = new Vector3()
@@ -72,7 +72,7 @@ export class GenericMeshFittingService {
     sourceMesh: Mesh,
     displacements: Float32Array,
     hasDisplacement: boolean[],
-    parameters: GenericFittingParameters
+    parameters: MeshFittingParameters
   ): void {
     if (!parameters.showDebugArrows || !this.debugArrowGroup) return
     
@@ -452,7 +452,7 @@ export class GenericMeshFittingService {
   fitMeshToTarget(
     sourceMesh: Mesh,
     targetMesh: Mesh,
-    parameters: GenericFittingParameters
+    parameters: MeshFittingParameters
   ): void {
     console.log('🎯 GenericMeshFittingService: Starting iterative fitting')
     console.log('Source mesh:', sourceMesh)
@@ -1538,7 +1538,7 @@ export class GenericMeshFittingService {
   fitMeshToTargetUniform(
     sourceMesh: Mesh,
     targetMesh: Mesh,
-    parameters: GenericFittingParameters
+    parameters: MeshFittingParameters
   ): void {
     console.log('🎯 GenericMeshFittingService: Starting uniform pressure fitting')
     
@@ -3517,4 +3517,4 @@ export class GenericMeshFittingService {
   }
 }
 
-export default GenericMeshFittingService 
+export default MeshFittingService 

@@ -1,12 +1,12 @@
 import * as THREE from 'three'
-import { GenericMeshFittingService } from '../../../../services/fitting/armor/GenericMeshFittingService'
+import { MeshFittingService } from '../../../../services/fitting/MeshFittingService'
 
 export interface MeshFittingDebuggerProps {
     onClose: () => void
 }
 
 export interface SceneProps {
-    fittingService: React.MutableRefObject<GenericMeshFittingService>
+    fittingService: React.MutableRefObject<MeshFittingService>
     isProcessing: boolean
     showWireframe: boolean
     viewMode: 'sphereCube' | 'avatarArmor' | 'helmetFitting'

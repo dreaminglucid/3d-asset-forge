@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-export interface GenericFittingParameters {
+export interface MeshFittingParameters {
   iterations: number
   stepSize: number
   smoothingRadius: number

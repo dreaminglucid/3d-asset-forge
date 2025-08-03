@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Checkbox } from '../common'
-import { FittingConfig } from '../../services/fitting/armor/ArmorFittingService'
+import { FittingConfig } from '../../services/fitting/ArmorFittingService'
 import { cn } from '../../styles'
 import { 
   Sliders, Save, Download, RefreshCw, Eye, EyeOff,

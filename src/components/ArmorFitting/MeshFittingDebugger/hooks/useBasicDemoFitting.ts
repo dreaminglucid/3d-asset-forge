@@ -1,15 +1,15 @@
 import * as THREE from 'three'
 import { MutableRefObject } from 'react'
-import { GenericMeshFittingService, GenericFittingParameters } from '../../../../services/fitting/armor/GenericMeshFittingService'
+import { MeshFittingService, MeshFittingParameters } from '../../../../services/fitting/MeshFittingService'
 
 interface BasicDemoFittingProps {
     sceneRef: MutableRefObject<THREE.Scene | null>
-    fittingService: MutableRefObject<GenericMeshFittingService>
+    fittingService: MutableRefObject<MeshFittingService>
     
     setIsProcessing: (value: boolean) => void
     
     isProcessing: boolean
-    fittingParameters: GenericFittingParameters
+    fittingParameters: MeshFittingParameters
 }
 
 export function useBasicDemoFitting({

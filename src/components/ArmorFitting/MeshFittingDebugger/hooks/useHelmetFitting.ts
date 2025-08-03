@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { MutableRefObject } from 'react'
-import { GenericMeshFittingService } from '../../../../services/fitting/armor/GenericMeshFittingService'
+import { MeshFittingService } from '../../../../services/fitting/MeshFittingService'
 import { ExtendedMesh } from '../../../../types'
 import {
     storeWorldTransform,
@@ -21,7 +21,7 @@ interface HelmetFittingProps {
         rotation: THREE.Euler
         scale: THREE.Vector3
     } | null>
-    fittingService: MutableRefObject<GenericMeshFittingService>
+    fittingService: MutableRefObject<MeshFittingService>
     
     setIsProcessing: (value: boolean) => void
     setIsHelmetFitted: (value: boolean) => void

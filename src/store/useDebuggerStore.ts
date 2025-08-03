@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import * as THREE from 'three'
-import { GenericFittingParameters } from '../types/fitting'
+import { MeshFittingParameters } from '../types/fitting'
 import { DebugConfiguration } from '../types/service-types'
 
 // Types for available models
@@ -48,7 +48,7 @@ interface DebuggerState {
     isAnimationPlaying: boolean
 
     // Fitting Parameters
-    fittingParameters: GenericFittingParameters
+    fittingParameters: MeshFittingParameters
 
     // Helmet Fitting Settings
     helmetFittingMethod: 'auto' | 'manual'
@@ -101,7 +101,7 @@ interface DebuggerActions {
     toggleAnimation: () => void
 
     // Fitting Parameters
-    updateFittingParameters: (params: Partial<GenericFittingParameters>) => void
+    updateFittingParameters: (params: Partial<MeshFittingParameters>) => void
     resetFittingParameters: () => void
 
     // Helmet Fitting
@@ -150,7 +150,7 @@ interface DebuggerSelectors {
 
 type DebuggerStore = DebuggerState & DebuggerActions & DebuggerSelectors
 
-const defaultFittingParameters: GenericFittingParameters = {
+const defaultFittingParameters: MeshFittingParameters = {
     iterations: 8,
     stepSize: 0.15,
     smoothingRadius: 0.2,

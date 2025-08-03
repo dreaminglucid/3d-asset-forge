@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { GLTFExportResult, GLTFNode } from '../../../types/gltf'
+import { GLTFExportResult, GLTFNode } from '../../types/gltf'
 
 /**
  * Diagnostic utilities for understanding bone scaling issues

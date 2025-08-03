@@ -2,8 +2,8 @@ import React, { useRef, useState, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { Canvas } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
-import { GenericMeshFittingService } from '../../../services/fitting/armor/GenericMeshFittingService'
-import { ArmorFittingService } from '../../../services/fitting/armor/ArmorFittingService'
+import { MeshFittingService } from '../../../services/fitting/MeshFittingService'
+import { ArmorFittingService } from '../../../services/fitting/ArmorFittingService'
 import { cn } from '../../../styles'
 import { X, Play, Grid3x3, Link, Activity, RotateCcw, Pause, Box, Sliders, Download, Wrench, ChevronDown, Settings, FileDown } from 'lucide-react'
 import { useDebuggerStore } from '../../../store/useDebuggerStore'
@@ -162,7 +162,7 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
     } = useDebuggerStore()
 
     // Refs (keep these as they're for Three.js objects)
-    const fittingService = useRef(new GenericMeshFittingService())
+    const fittingService = useRef(new MeshFittingService())
     const armorFittingService = useRef(new ArmorFittingService())
     const sceneRef = useRef<THREE.Scene | null>(null)
     const avatarMeshRef = useRef<THREE.SkinnedMesh | null>(null)
@@ -1255,7 +1255,7 @@ export function MeshFittingDebugger({ onClose }: MeshFittingDebuggerProps) {
                                                                         onClick={async () => {
                                                                             if (!boundArmorMesh) return
                                                                             try {
-                                                                                const { BoneDiagnostics } = await import('../../../services/fitting/armor/BoneDiagnostics')
+                                                                                const { BoneDiagnostics } = await import('../../../services/fitting/BoneDiagnostics')
                                                                                 console.clear()
                                                                                 BoneDiagnostics.analyzeSkeletonForExport(boundArmorMesh.skeleton, 'Bound Armor Skeleton')
 

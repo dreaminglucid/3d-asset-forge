@@ -1,7 +1,7 @@
 import { MutableRefObject } from 'react'
 import * as THREE from 'three'
-import { GenericMeshFittingService, GenericFittingParameters } from '../../../../services/fitting/armor/GenericMeshFittingService'
-import { ArmorFittingService } from '../../../../services/fitting/armor/ArmorFittingService'
+import { MeshFittingService, MeshFittingParameters } from '../../../../services/fitting/MeshFittingService'
+import { ArmorFittingService } from '../../../../services/fitting/ArmorFittingService'
 import { ExtendedMesh } from '../../../../types'
 
 // Import modular hooks
@@ -25,7 +25,7 @@ interface FittingHandlersProps {
     debugArrowGroupRef: MutableRefObject<THREE.Group | null>
     headBoundsHelperRef: MutableRefObject<THREE.Box3Helper | null>
     hullMeshRef: MutableRefObject<THREE.Mesh | null>
-    fittingService: MutableRefObject<GenericMeshFittingService>
+    fittingService: MutableRefObject<MeshFittingService>
     armorFittingService: MutableRefObject<ArmorFittingService>
     
     // State setters
@@ -42,7 +42,7 @@ interface FittingHandlersProps {
     // State values
     isProcessing: boolean
     showHull: boolean
-    fittingParameters: GenericFittingParameters
+    fittingParameters: MeshFittingParameters
     selectedAvatar: { name: string } | null
     showDebugArrows: boolean
     helmetFittingMethod: string

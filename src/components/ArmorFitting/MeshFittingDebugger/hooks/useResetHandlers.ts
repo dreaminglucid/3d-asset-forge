@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { MutableRefObject } from 'react'
-import { GenericMeshFittingService } from '../../../../services/fitting/armor/GenericMeshFittingService'
+import { MeshFittingService } from '../../../../services/fitting/MeshFittingService'
 import { ExtendedMesh } from '../../../../types'
 import {
     disposeMesh,
@@ -24,7 +24,7 @@ interface ResetHandlersProps {
     } | null>
     debugArrowGroupRef: MutableRefObject<THREE.Group | null>
     hullMeshRef: MutableRefObject<THREE.Mesh | null>
-    fittingService: MutableRefObject<GenericMeshFittingService>
+    fittingService: MutableRefObject<MeshFittingService>
     
     setIsArmorFitted: (value: boolean) => void
     setIsArmorBound: (value: boolean) => void
@@ -95,7 +95,7 @@ export function useResetHandlers({
         clearDebugGroups(scene, debugArrowGroupRef)
 
         // Create new fitting service instance
-        fittingService.current = new GenericMeshFittingService()
+        fittingService.current = new MeshFittingService()
         if (debugArrowGroupRef.current) {
             fittingService.current.setDebugArrowGroup(debugArrowGroupRef.current)
         }

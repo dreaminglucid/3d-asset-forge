@@ -5,8 +5,8 @@ import { Bug, Download, Upload, Package, RotateCcw } from 'lucide-react'
 import { useAssets } from '../hooks/useAssets'
 import { useArmorFittingStore } from '../store/useArmorFittingStore'
 import {
-  SimplifiedArmorFittingViewer,
-  SimplifiedArmorFittingViewerRef,
+  ArmorFittingViewer,
+  ArmorFittingViewerRef,
   ArmorFittingControls,
   ArmorAssetList,
   ViewportControls,
@@ -17,7 +17,7 @@ import {
 
 export const ArmorFittingPage: React.FC = () => {
   const { assets, loading } = useAssets()
-  const viewerRef = useRef<SimplifiedArmorFittingViewerRef>(null)
+  const viewerRef = useRef<ArmorFittingViewerRef>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Get state and actions from Zustand store
@@ -163,7 +163,7 @@ export const ArmorFittingPage: React.FC = () => {
         <div className="overflow-hidden flex-1 relative bg-gradient-to-br from-bg-primary to-bg-secondary rounded-xl">
           {selectedAvatar || selectedArmor || selectedHelmet ? (
             <>
-              <SimplifiedArmorFittingViewer
+              <ArmorFittingViewer
                 ref={viewerRef}
                 avatarUrl={selectedAvatar?.hasModel ? `/api/assets/${selectedAvatar.id}/model` : undefined}
                 armorUrl={selectedArmor?.hasModel ? `/api/assets/${selectedArmor.id}/model` : undefined}

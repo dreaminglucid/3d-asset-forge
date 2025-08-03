@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { MutableRefObject } from 'react'
-import { GenericMeshFittingService, GenericFittingParameters } from '../../../../services/fitting/armor/GenericMeshFittingService'
-import { ArmorFittingService } from '../../../../services/fitting/armor/ArmorFittingService'
+import { MeshFittingService, MeshFittingParameters } from '../../../../services/fitting/MeshFittingService'
+import { ArmorFittingService } from '../../../../services/fitting/ArmorFittingService'
 import { ExtendedMesh } from '../../../../types'
 import {
     calculateScaleRatio,
@@ -18,7 +18,7 @@ interface ArmorFittingProps {
     originalArmorGeometryRef: MutableRefObject<THREE.BufferGeometry | null>
     debugArrowGroupRef: MutableRefObject<THREE.Group | null>
     hullMeshRef: MutableRefObject<THREE.Mesh | null>
-    fittingService: MutableRefObject<GenericMeshFittingService>
+    fittingService: MutableRefObject<MeshFittingService>
     armorFittingService: MutableRefObject<ArmorFittingService>
     
     setIsProcessing: (value: boolean) => void
@@ -30,7 +30,7 @@ interface ArmorFittingProps {
     
     isProcessing: boolean
     showHull: boolean
-    fittingParameters: GenericFittingParameters
+            fittingParameters: MeshFittingParameters
     selectedAvatar: { name: string } | null
 }
 

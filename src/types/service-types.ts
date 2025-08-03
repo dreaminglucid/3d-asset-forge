@@ -2,7 +2,7 @@
  * Service-specific types
  */
 
-import type { GenericFittingParameters } from './fitting'
+import type { MeshFittingParameters } from './fitting'
 import type { BoundingBox } from './index'
 
 /**
@@ -22,7 +22,7 @@ export type JSONValue =
 export interface DebugConfiguration {
   viewMode?: 'sphereCube' | 'avatarArmor' | 'helmetFitting'
   showWireframe?: boolean
-  fittingParameters?: Partial<GenericFittingParameters>
+      fittingParameters?: Partial<MeshFittingParameters>
   helmetSettings?: {
     method?: 'auto' | 'manual'
     sizeMultiplier?: number
