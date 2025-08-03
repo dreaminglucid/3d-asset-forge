@@ -2,13 +2,51 @@ import React, { useRef, useImperativeHandle, forwardRef, useEffect, useMemo, use
 import * as THREE from 'three'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, useGLTF } from '@react-three/drei'
-// @ts-ignore
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
-// @ts-ignore
+// @ts-ignore - Three.js examples modules don't have proper type declarations
+import { GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+// @ts-ignore - Three.js examples modules don't have proper type declarations
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter'
 import { MeshFittingService } from '../../services/fitting/MeshFittingService'
 import { ArmorFittingService, BodyRegion, CollisionPoint } from '../../services/fitting/ArmorFittingService'
 import { WeightTransferService } from '../../services/fitting/WeightTransferService'
+
+// Type declarations
+interface AnimatedGLTF extends GLTF {
+  animations: THREE.AnimationClip[]
+}
+
+declare global {
+  interface Window {
+    __visualizationGroup?: THREE.Group
+  }
+}
+
+// Fitting parameter interfaces
+interface ArmorFittingParams {
+  iterations: number
+  stepSize: number
+  targetOffset: number
+  sampleRate: number
+  smoothingStrength: number
+  smoothingRadius: number
+  preserveFeatures?: boolean
+  featureAngleThreshold?: number
+  useImprovedShrinkwrap?: boolean
+  preserveOpenings?: boolean
+  pushInteriorVertices?: boolean
+}
+
+interface HelmetFittingParams {
+  method?: 'auto' | 'manual'
+  sizeMultiplier?: number
+  fitTightness?: number
+  verticalOffset?: number
+  forwardOffset?: number
+  rotation?: { x: number; y: number; z: number }
+  attachToHead?: boolean
+  showHeadBounds?: boolean
+  showCollisionDebug?: boolean
+}
 
 // Simplified demo component that handles model loading
 interface ModelDemoProps {
@@ -76,7 +114,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
   }, [avatarUrl, currentAnimation, needsAnimationFile])
   
   // Load animation file if available - with error handling
-  const [animationGltf, setAnimationGltf] = useState<any>(null)
+  const [animationGltf, setAnimationGltf] = useState<AnimatedGLTF | null>(null)
   
   useEffect(() => {
     if (!animationPath) {
@@ -95,15 +133,15 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
           console.log('Loading animation from:', animationPath)
           loader.load(
             animationPath,
-            (gltf: any) => {
+            (gltf: GLTF) => {
               console.log('Animation loaded successfully:', animationPath)
               console.log('Animation count:', gltf.animations.length)
-              setAnimationGltf(gltf)
+              setAnimationGltf(gltf as AnimatedGLTF)
             },
-            (progress: any) => {
+            (progress: ProgressEvent) => {
               // Progress callback
             },
-            (error: any) => {
+            (error: ErrorEvent) => {
               console.error('Failed to load animation file:', error)
               setAnimationGltf(null)
             }
@@ -142,7 +180,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
           gltf.scene.userData.gltf = gltf
           
           // Find skinned mesh
-          gltf.scene.traverse((child: any) => {
+          gltf.scene.traverse((child: THREE.Object3D) => {
             if (child instanceof THREE.SkinnedMesh && !avatarMesh) {
               avatarMesh = child
               avatarMesh.userData.isAvatar = true
@@ -151,7 +189,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
           
           console.log('Avatar loaded with animations:', gltf.animations.length)
           if (gltf.animations.length > 0) {
-            gltf.animations.forEach((clip: any) => {
+            gltf.animations.forEach((clip: THREE.AnimationClip) => {
               console.log(`- Built-in animation: "${clip.name}" (${clip.duration}s)`)
             })
           }
@@ -193,7 +231,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
           loadedUrlsRef.current.armor = armorUrl
           
           // Find mesh
-          gltf.scene.traverse((child: any) => {
+          gltf.scene.traverse((child: THREE.Object3D) => {
             if (child instanceof THREE.Mesh && !armorMesh) {
               armorMesh = child
               armorMesh.userData.isArmor = true
@@ -252,7 +290,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
           const gltfScene = gltf.scene
           gltfScene.userData.isGltfRoot = true // Mark this as the GLTF root
           
-          gltf.scene.traverse((child: any) => {
+          gltf.scene.traverse((child: THREE.Object3D) => {
             if (child instanceof THREE.Mesh && !helmetMesh) {
               helmetMesh = child
               helmetMesh.userData.isHelmet = true
@@ -342,10 +380,10 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
     // Find the avatar mesh
     let avatarMesh: THREE.SkinnedMesh | null = null
     avatarRef.current.traverse((child) => {
-      if (child instanceof THREE.SkinnedMesh && !avatarMesh) {
-        avatarMesh = child
-      }
-    })
+          if (child instanceof THREE.SkinnedMesh && !avatarMesh) {
+            avatarMesh = child
+          }
+        })
     
     if (!avatarMesh) {
       console.log('No avatar mesh found')
@@ -369,7 +407,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
       if (animationGltf?.animations && animationGltf.animations.length > 0) {
         animations = animationGltf.animations
         console.log(`Using animations from ${currentAnimation} file:`, animations.length)
-      } else {
+        } else {
         console.log('No animations found in animation file')
         // Try to get from base model as fallback
         avatarRef.current.traverse((child) => {
@@ -380,7 +418,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
         })
         
         // Also check the group itself
-        const avatarGltf = (avatarRef.current.children[0] as any)?.userData?.gltf
+        const avatarGltf = avatarRef.current.children[0]?.userData?.gltf as AnimatedGLTF | undefined
         if (!animations.length && avatarGltf?.animations) {
           animations = avatarGltf.animations
           console.log('Using animations from base model:', animations.length)
@@ -397,13 +435,13 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
         let targetClip: THREE.AnimationClip | null = null
         
         if (currentAnimation === 'walking') {
-          targetClip = animations.find((clip: any) => {
+          targetClip = animations.find((clip) => {
             const name = clip.name.toLowerCase()
             return (name.includes('walk') || name.includes('walking')) && 
                    !name.includes('run') && !name.includes('running')
           }) || animations[0]
         } else if (currentAnimation === 'running') {
-          targetClip = animations.find((clip: any) => {
+          targetClip = animations.find((clip) => {
             const name = clip.name.toLowerCase()
             return (name.includes('run') || name.includes('running')) && 
                    !name.includes('walk') && !name.includes('walking')
@@ -543,8 +581,8 @@ export interface ArmorFittingViewerRef {
   }
   
   // Fitting operations
-  performFitting: (params: any) => void
-  performHelmetFitting: (params: any) => Promise<void>
+  performFitting: (params: ArmorFittingParams) => void
+  performHelmetFitting: (params: HelmetFittingParams) => Promise<void>
   attachHelmetToHead: () => void
   detachHelmetFromHead: () => void
   transferWeights: () => void
@@ -727,7 +765,7 @@ export const ArmorFittingViewer = forwardRef<
       meshes.scene.add(visualizationGroupRef.current)
       console.log('Added visualization group to scene')
       // Store globally for Scene component access
-      ;(window as any).__visualizationGroup = visualizationGroupRef.current
+      window.__visualizationGroup = visualizationGroupRef.current
     }
     
     // Compute body regions if avatar changed
@@ -951,12 +989,12 @@ export const ArmorFittingViewer = forwardRef<
       scene: sceneRef.current
     }),
     
-    performFitting: (params: any) => {
+    performFitting: (params: ArmorFittingParams) => {
       if (!avatarMeshRef.current || !armorMeshRef.current || !sceneRef.current) {
         console.error('Avatar, armor, or scene not available')
-        return
-      }
-      
+      return
+    }
+    
       const armorMesh = armorMeshRef.current
       const avatarMesh = avatarMeshRef.current
       const scene = sceneRef.current
@@ -1124,9 +1162,9 @@ export const ArmorFittingViewer = forwardRef<
       const torsoInfo = calculateTorsoBounds(avatarMesh)
       if (!torsoInfo) {
         console.error('Could not calculate torso bounds')
-        return
-      }
-      
+      return
+    }
+    
       const { torsoCenter, torsoSize } = torsoInfo
       
       // Scale and position armor
@@ -1253,8 +1291,8 @@ export const ArmorFittingViewer = forwardRef<
         // Ensure armor is visible and properly updated
         armorMesh.visible = true
         armorMesh.updateMatrix()
-        armorMesh.updateMatrixWorld(true)
-        
+      armorMesh.updateMatrixWorld(true)
+      
         // Force scene update
         scene.updateMatrixWorld(true)
         
@@ -1271,7 +1309,7 @@ export const ArmorFittingViewer = forwardRef<
       }
     },
     
-    performHelmetFitting: async (params: any) => {
+    performHelmetFitting: async (params: HelmetFittingParams) => {
       if (!avatarMeshRef.current || !helmetMeshRef.current) {
         console.error('Avatar or helmet mesh not available')
         return
@@ -1546,7 +1584,7 @@ export const ArmorFittingViewer = forwardRef<
       return new Promise<ArrayBuffer>((resolve, reject) => {
         exporter.parse(
           exportScene,
-          (result: any) => {
+          (result: ArrayBuffer | { [key: string]: unknown }) => {
             if (result instanceof ArrayBuffer) {
               resolve(result)
             } else {
@@ -1556,7 +1594,7 @@ export const ArmorFittingViewer = forwardRef<
               resolve(buffer.buffer)
             }
           },
-          (error: any) => {
+          (error: Error) => {
             console.error('Export failed:', error)
             reject(error)
           },
