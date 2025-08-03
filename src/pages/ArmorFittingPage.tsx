@@ -1,12 +1,12 @@
 import React, { useRef } from 'react'
 import { ErrorNotification, EmptyState } from '../components/common'
 import { cn } from '../styles'
-import { Bug, Download, Upload, Package } from 'lucide-react'
+import { Bug, Download, Upload, Package, RotateCcw } from 'lucide-react'
 import { useAssets } from '../hooks/useAssets'
 import { useArmorFittingStore } from '../store/useArmorFittingStore'
 import {
-  ArmorFittingViewer,
-  ArmorFittingViewerRef,
+  SimplifiedArmorFittingViewer,
+  SimplifiedArmorFittingViewerRef,
   ArmorFittingControls,
   ArmorAssetList,
   ViewportControls,
@@ -17,7 +17,7 @@ import {
 
 export const ArmorFittingPage: React.FC = () => {
   const { assets, loading } = useAssets()
-  const viewerRef = useRef<ArmorFittingViewerRef>(null)
+  const viewerRef = useRef<SimplifiedArmorFittingViewerRef>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Get state and actions from Zustand store
@@ -25,9 +25,9 @@ export const ArmorFittingPage: React.FC = () => {
     // State
     selectedAvatar,
     selectedArmor,
+    selectedHelmet, // NEW
     assetTypeFilter,
     fittingConfig,
-    armorTransform,
     enableWeightTransfer,
     equipmentSlot,
     visualizationMode,
@@ -38,12 +38,22 @@ export const ArmorFittingPage: React.FC = () => {
     showDebugger,
     lastError,
     isExporting,
+    // Helmet state - NEW
+    helmetFittingMethod,
+    helmetSizeMultiplier,
+    helmetFitTightness,
+    helmetVerticalOffset,
+    helmetForwardOffset,
+    helmetRotation,
+    isArmorFitted,
+    isArmorBound,
+    isHelmetFitted,
+    isHelmetAttached,
 
     // Actions
     handleAssetSelect,
     setAssetTypeFilter,
     updateFittingConfig,
-    updateArmorTransform,
     setEnableWeightTransfer,
     setEquipmentSlot,
     setVisualizationMode,
@@ -52,7 +62,9 @@ export const ArmorFittingPage: React.FC = () => {
     setCollisions,
     setShowDebugger,
     performFitting,
+    bindArmorToSkeleton,
     resetFitting,
+    resetScene,
     exportFittedArmor,
     exportEquippedAvatar,
     saveConfiguration,
@@ -63,7 +75,24 @@ export const ArmorFittingPage: React.FC = () => {
     canUndo,
     canRedo,
     isReadyToFit,
-    currentProgress
+    currentProgress,
+    // Helmet actions - NEW
+    setHelmetFittingMethod,
+    setHelmetSizeMultiplier,
+    setHelmetFitTightness,
+    setHelmetVerticalOffset,
+    setHelmetForwardOffset,
+    updateHelmetRotation,
+    resetHelmetSettings,
+    performHelmetFitting,
+    attachHelmetToHead,
+    detachHelmetFromHead,
+    // Animation state and actions
+    currentAnimation,
+    isAnimationPlaying,
+    setCurrentAnimation,
+    setIsAnimationPlaying,
+    toggleAnimation
   } = useArmorFittingStore()
 
   const handleLoadConfig = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,6 +103,8 @@ export const ArmorFittingPage: React.FC = () => {
       e.target.value = ''
     }
   }
+
+  // Don't auto-update asset type filter - let user choose between avatar and equipment
 
   // Keyboard shortcuts
   React.useEffect(() => {
@@ -110,37 +141,61 @@ export const ArmorFittingPage: React.FC = () => {
           assets={assets}
           loading={loading}
           assetType={assetTypeFilter}
-          selectedAsset={assetTypeFilter === 'avatar' ? selectedAvatar : selectedArmor}
+          selectedAsset={
+            assetTypeFilter === 'avatar' 
+              ? selectedAvatar 
+              : assetTypeFilter === 'armor'
+                ? selectedArmor
+                : selectedHelmet
+          }
           selectedAvatar={selectedAvatar}
           selectedArmor={selectedArmor}
+          selectedHelmet={selectedHelmet} // NEW
           onAssetSelect={handleAssetSelect}
           onAssetTypeChange={setAssetTypeFilter}
+          hideTypeToggle={true} // NEW - hide toggle since equipment slot determines type
+          equipmentSlot={equipmentSlot as 'Head' | 'Spine2' | 'Pelvis'} // NEW - pass equipment slot for filtering
         />
       </div>
 
       {/* Center - 3D Viewport */}
       <div className="flex-1 flex flex-col">
         <div className="overflow-hidden flex-1 relative bg-gradient-to-br from-bg-primary to-bg-secondary rounded-xl">
-          {selectedAvatar || selectedArmor ? (
+          {selectedAvatar || selectedArmor || selectedHelmet ? (
             <>
-              <ArmorFittingViewer
+              <SimplifiedArmorFittingViewer
                 ref={viewerRef}
                 avatarUrl={selectedAvatar?.hasModel ? `/api/assets/${selectedAvatar.id}/model` : undefined}
                 armorUrl={selectedArmor?.hasModel ? `/api/assets/${selectedArmor.id}/model` : undefined}
-                armorTransform={armorTransform}
+                helmetUrl={selectedHelmet?.hasModel ? `/api/assets/${selectedHelmet.id}/model` : undefined}
                 showWireframe={showWireframe}
-                visualizationMode={visualizationMode}
+                equipmentSlot={equipmentSlot as 'Head' | 'Spine2' | 'Pelvis'}
+                selectedAvatar={selectedAvatar}
+                currentAnimation={currentAnimation}
+                isAnimationPlaying={isAnimationPlaying}
+                visualizationMode={visualizationMode === 'hull' ? 'none' : visualizationMode}
                 selectedBone={selectedBone}
-                equipmentSlot={equipmentSlot}
-                onBodyRegionsComputed={setBodyRegions}
+                onModelsLoaded={() => console.log('Models loaded in page')}
+                onBodyRegionsDetected={setBodyRegions}
                 onCollisionsDetected={setCollisions}
               />
+
+              {/* Control Buttons at bottom of viewport */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-wrap justify-center gap-3 z-10 max-w-[90%]">
+                <button
+                  onClick={() => resetScene(viewerRef)}
+                  className="px-5 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2.5 bg-bg-primary/80 backdrop-blur-sm border border-white/10 text-text-primary hover:bg-bg-secondary hover:border-white/20 hover:scale-105"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Reset</span>
+                </button>
+              </div>
 
               {/* Viewport Controls */}
               <ViewportControls
                 showWireframe={showWireframe}
                 onToggleWireframe={() => setShowWireframe(!showWireframe)}
-                onResetCamera={() => viewerRef.current?.resetCamera?.()}
+                onResetCamera={() => {/* Camera reset not implemented */}}
               />
 
               {/* Undo/Redo Controls */}
@@ -182,23 +237,50 @@ export const ArmorFittingPage: React.FC = () => {
             <ArmorFittingControls
               fittingConfig={fittingConfig}
               onFittingConfigChange={updateFittingConfig}
-              armorTransform={armorTransform}
-              onArmorTransformChange={updateArmorTransform}
               enableWeightTransfer={enableWeightTransfer}
               onEnableWeightTransferChange={setEnableWeightTransfer}
               showWireframe={showWireframe}
               onShowWireframeChange={setShowWireframe}
-              equipmentSlot={equipmentSlot}
-              onEquipmentSlotChange={setEquipmentSlot}
-              visualizationMode={visualizationMode}
-              onVisualizationModeChange={setVisualizationMode}
-              onPerformFitting={() => performFitting(viewerRef)}
-              onResetFitting={resetFitting}
-              onExportArmor={() => exportFittedArmor(viewerRef)}
-              onSaveConfiguration={saveConfiguration}
-              isFitting={isFitting}
-              fittingProgress={fittingProgress}
-              canFit={isReadyToFit()}
+                          equipmentSlot={equipmentSlot as 'Head' | 'Spine2' | 'Pelvis'}
+            onEquipmentSlotChange={(slot) => setEquipmentSlot(slot, viewerRef)}
+            visualizationMode={visualizationMode}
+            onVisualizationModeChange={setVisualizationMode}
+            onPerformFitting={() => performFitting(viewerRef)}
+            onResetFitting={resetFitting}
+            onExportArmor={() => exportFittedArmor(viewerRef)}
+            onSaveConfiguration={saveConfiguration}
+            isFitting={isFitting}
+            fittingProgress={fittingProgress}
+            canFit={isReadyToFit()}
+              isArmorFitted={isArmorFitted}
+              isArmorBound={isArmorBound}
+              onBindArmorToSkeleton={() => bindArmorToSkeleton(viewerRef)}
+              // Helmet fitting props - NEW
+              helmetFittingMethod={helmetFittingMethod}
+              onHelmetFittingMethodChange={setHelmetFittingMethod}
+              helmetSizeMultiplier={helmetSizeMultiplier}
+              onHelmetSizeMultiplierChange={setHelmetSizeMultiplier}
+              helmetFitTightness={helmetFitTightness}
+              onHelmetFitTightnessChange={setHelmetFitTightness}
+              helmetVerticalOffset={helmetVerticalOffset}
+              onHelmetVerticalOffsetChange={setHelmetVerticalOffset}
+              helmetForwardOffset={helmetForwardOffset}
+              onHelmetForwardOffsetChange={setHelmetForwardOffset}
+              helmetRotation={helmetRotation}
+              onHelmetRotationChange={updateHelmetRotation}
+              onPerformHelmetFitting={() => performHelmetFitting(viewerRef)}
+              onResetHelmetSettings={resetHelmetSettings}
+              isHelmetFitted={isHelmetFitted}
+              isHelmetAttached={isHelmetAttached}
+              onAttachHelmetToHead={() => attachHelmetToHead(viewerRef)}
+              onDetachHelmetFromHead={() => detachHelmetFromHead(viewerRef)}
+              hasHelmet={!!selectedHelmet}
+              // Animation props
+              currentAnimation={currentAnimation}
+              isAnimationPlaying={isAnimationPlaying}
+              onCurrentAnimationChange={setCurrentAnimation}
+              onAnimationPlayingChange={setIsAnimationPlaying}
+              onToggleAnimation={toggleAnimation}
             />
 
             {/* Config Management */}

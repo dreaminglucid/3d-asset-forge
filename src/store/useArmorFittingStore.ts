@@ -3,16 +3,12 @@ import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
 import { Asset } from '../types'
 import { FittingConfig, BodyRegion, CollisionPoint } from '../services/fitting/armor/ArmorFittingService'
-import { ArmorFittingViewerRef } from '../components/ArmorFitting/ArmorFittingViewer'
+import { SimplifiedArmorFittingViewerRef as ArmorFittingViewerRef } from '../components/ArmorFitting/SimplifiedArmorFittingViewer'
 
-interface ArmorTransform {
-  position: { x: number; y: number; z: number }
-  scale: number
-}
+
 
 interface HistoryEntry {
   fittingConfig: FittingConfig
-  armorTransform: ArmorTransform
   timestamp: number
 }
 
@@ -20,13 +16,19 @@ interface ArmorFittingState {
   // Selected items
   selectedAvatar: Asset | null
   selectedArmor: Asset | null
-  assetTypeFilter: 'avatar' | 'armor'
+  selectedHelmet: Asset | null // NEW
+  assetTypeFilter: 'avatar' | 'armor' | 'helmet' // UPDATED
   
   // Fitting configuration
   fittingConfig: FittingConfig
   
-  // Manual transform controls
-  armorTransform: ArmorTransform
+  // Helmet fitting parameters - NEW
+  helmetFittingMethod: 'auto' | 'manual'
+  helmetSizeMultiplier: number
+  helmetFitTightness: number
+  helmetVerticalOffset: number
+  helmetForwardOffset: number
+  helmetRotation: { x: number; y: number; z: number }
   
   // Additional options
   enableWeightTransfer: boolean
@@ -37,11 +39,19 @@ interface ArmorFittingState {
   selectedBone: number
   showWireframe: boolean
   
+  // Animation
+  currentAnimation: 'tpose' | 'walking' | 'running'
+  isAnimationPlaying: boolean
+  
   // Fitting results
   bodyRegions: Map<string, BodyRegion> | null
   collisions: CollisionPoint[] | null
   isFitting: boolean
   fittingProgress: number
+  isArmorFitted: boolean
+  isArmorBound: boolean
+  isHelmetFitted: boolean // NEW
+  isHelmetAttached: boolean // NEW
   
   // UI state
   showDebugger: boolean
@@ -62,32 +72,45 @@ interface ArmorFittingActions {
   // Asset selection
   setSelectedAvatar: (avatar: Asset | null) => void
   setSelectedArmor: (armor: Asset | null) => void
-  setAssetTypeFilter: (type: 'avatar' | 'armor') => void
+  setSelectedHelmet: (helmet: Asset | null) => void // NEW
+  setAssetTypeFilter: (type: 'avatar' | 'armor' | 'helmet') => void // UPDATED
   handleAssetSelect: (asset: Asset) => void
   
   // Fitting configuration
   setFittingConfig: (config: FittingConfig) => void
   updateFittingConfig: (updates: Partial<FittingConfig>) => void
   
-  // Transform controls
-  setArmorTransform: (transform: ArmorTransform) => void
-  updateArmorTransform: (updates: Partial<ArmorTransform>) => void
-  resetTransform: () => void
+  // Helmet fitting parameters - NEW
+  setHelmetFittingMethod: (method: 'auto' | 'manual') => void
+  setHelmetSizeMultiplier: (multiplier: number) => void
+  setHelmetFitTightness: (tightness: number) => void
+  setHelmetVerticalOffset: (offset: number) => void
+  setHelmetForwardOffset: (offset: number) => void
+  setHelmetRotation: (rotation: { x: number; y: number; z: number }) => void
+  updateHelmetRotation: (axis: 'x' | 'y' | 'z', value: number) => void
+  resetHelmetSettings: () => void
   
   // Options
   setEnableWeightTransfer: (enabled: boolean) => void
-  setEquipmentSlot: (slot: string) => void
+  setEquipmentSlot: (slot: string, viewerRef?: React.RefObject<ArmorFittingViewerRef>) => void
   
   // Visualization
   setVisualizationMode: (mode: ArmorFittingState['visualizationMode']) => void
   setSelectedBone: (bone: number) => void
   setShowWireframe: (show: boolean) => void
   
+  // Animation
+  setCurrentAnimation: (animation: ArmorFittingState['currentAnimation']) => void
+  setIsAnimationPlaying: (playing: boolean) => void
+  toggleAnimation: () => void
+  
   // Fitting results
   setBodyRegions: (regions: Map<string, BodyRegion> | null) => void
   setCollisions: (collisions: CollisionPoint[] | null) => void
   setIsFitting: (fitting: boolean) => void
   setFittingProgress: (progress: number) => void
+  setIsHelmetFitted: (fitted: boolean) => void // NEW
+  setIsHelmetAttached: (attached: boolean) => void // NEW
   
   // UI state
   setShowDebugger: (show: boolean) => void
@@ -105,9 +128,14 @@ interface ArmorFittingActions {
   
   // Complex actions
   performFitting: (viewerRef: React.RefObject<ArmorFittingViewerRef>) => Promise<void>
+  bindArmorToSkeleton: (viewerRef: React.RefObject<ArmorFittingViewerRef>) => Promise<void>
   resetFitting: () => void
+  performHelmetFitting: (viewerRef: React.RefObject<ArmorFittingViewerRef>) => Promise<void> // NEW
+  attachHelmetToHead: (viewerRef: React.RefObject<ArmorFittingViewerRef>) => Promise<void> // NEW
+  detachHelmetFromHead: (viewerRef: React.RefObject<ArmorFittingViewerRef>) => Promise<void> // NEW
   exportFittedArmor: (viewerRef: React.RefObject<ArmorFittingViewerRef>) => Promise<void>
   exportEquippedAvatar: (viewerRef: React.RefObject<ArmorFittingViewerRef>) => Promise<void>
+  resetScene: (viewerRef: React.RefObject<ArmorFittingViewerRef>) => void
   saveConfiguration: () => Promise<void>
   loadConfiguration: (file: File) => Promise<void>
   
@@ -129,28 +157,32 @@ const initialState: ArmorFittingState = {
   // Selected items
   selectedAvatar: null,
   selectedArmor: null,
+  selectedHelmet: null, // NEW
   assetTypeFilter: 'avatar',
   
-  // Fitting configuration
+  // Fitting configuration - matches GenericFittingParameters from debugger
   fittingConfig: {
-    method: 'hull',
-    margin: 0.02,
-    smoothingIterations: 3,
-    collisionIterations: 2,
-    preserveDetails: true,
-    stiffness: 0.7,
-    hullTargetOffset: 0.02,
-    hullIterations: 5,
-    hullStepSize: 0.5,
-    hullSmoothInfluence: 5,
-    hullMaxDisplacement: 0.05
+    method: 'shrinkwrap' as const, // Only using shrinkwrap
+    iterations: 8,
+    stepSize: 0.15,
+    smoothingRadius: 0.2,
+    smoothingStrength: 0.3,
+    targetOffset: 0.05,
+    sampleRate: 1.0,
+    preserveFeatures: true,
+    featureAngleThreshold: 45,
+    useImprovedShrinkwrap: false,
+    preserveOpenings: true,
+    pushInteriorVertices: true
   },
   
-  // Manual transform controls
-  armorTransform: {
-    position: { x: 0, y: 0, z: 0 },
-    scale: 1.0
-  },
+  // Helmet fitting parameters - NEW
+  helmetFittingMethod: 'auto',
+            helmetSizeMultiplier: 1.0,
+          helmetFitTightness: 1.0, // Match debugger default
+  helmetVerticalOffset: 0,
+  helmetForwardOffset: 0,
+  helmetRotation: { x: 0, y: 0, z: 0 },
   
   // Additional options
   enableWeightTransfer: false,
@@ -161,11 +193,19 @@ const initialState: ArmorFittingState = {
   selectedBone: 0,
   showWireframe: false,
   
+  // Animation
+  currentAnimation: 'tpose',
+  isAnimationPlaying: false,
+  
   // Fitting results
   bodyRegions: null,
   collisions: null,
   isFitting: false,
   fittingProgress: 0,
+  isArmorFitted: false,
+  isArmorBound: false,
+  isHelmetFitted: false, // NEW
+  isHelmetAttached: false, // NEW
   
   // UI state
   showDebugger: false,
@@ -198,6 +238,10 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
             state.selectedArmor = armor
             state.lastError = null
           }),
+          setSelectedHelmet: (helmet) => set((state) => { // NEW
+            state.selectedHelmet = helmet
+            state.lastError = null
+          }),
           setAssetTypeFilter: (type) => set((state) => {
             state.assetTypeFilter = type
           }),
@@ -207,8 +251,10 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
             set((state) => {
               if (assetTypeFilter === 'avatar') {
                 state.selectedAvatar = asset
-              } else {
+              } else if (assetTypeFilter === 'armor') {
                 state.selectedArmor = asset
+              } else if (assetTypeFilter === 'helmet') { // NEW
+                state.selectedHelmet = asset
               }
               state.lastError = null
             })
@@ -225,33 +271,98 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
             })
           },
           
-          // Transform controls
-          setArmorTransform: (transform) => set((state) => {
-            state.armorTransform = transform
+          // Helmet fitting parameters - NEW
+          setHelmetFittingMethod: (method) => set((state) => {
+            state.helmetFittingMethod = method
           }),
-          updateArmorTransform: (updates) => {
-            // Don't save every small transform change to history
-            set((state) => {
-              Object.assign(state.armorTransform, updates)
-            })
-          },
-          resetTransform: () => {
-            get().saveToHistory()
-            set((state) => {
-              state.armorTransform = {
-                position: { x: 0, y: 0, z: 0 },
-                scale: 1.0
-              }
-            })
-          },
+          setHelmetSizeMultiplier: (multiplier) => set((state) => {
+            state.helmetSizeMultiplier = multiplier
+          }),
+          setHelmetFitTightness: (tightness) => set((state) => {
+            state.helmetFitTightness = tightness
+          }),
+          setHelmetVerticalOffset: (offset) => set((state) => {
+            state.helmetVerticalOffset = offset
+          }),
+          setHelmetForwardOffset: (offset) => set((state) => {
+            state.helmetForwardOffset = offset
+          }),
+          setHelmetRotation: (rotation) => set((state) => {
+            state.helmetRotation = rotation
+          }),
+          updateHelmetRotation: (axis, value) => set((state) => {
+            state.helmetRotation[axis] = value
+          }),
+          resetHelmetSettings: () => set((state) => {
+            state.helmetFittingMethod = 'auto'
+            state.helmetSizeMultiplier = 1.0
+            state.helmetFitTightness = 0.85
+            state.helmetVerticalOffset = 0
+            state.helmetForwardOffset = 0
+            state.helmetRotation = { x: 0, y: 0, z: 0 }
+          }),
           
           // Options
           setEnableWeightTransfer: (enabled) => set((state) => {
             state.enableWeightTransfer = enabled
           }),
-          setEquipmentSlot: (slot) => set((state) => {
-            state.equipmentSlot = slot
-          }),
+          setEquipmentSlot: (slot, viewerRef) => {
+            const prevSlot = get().equipmentSlot
+            console.log(`=== SWITCHING EQUIPMENT SLOT: ${prevSlot} -> ${slot} ===`)
+            
+            // Clear meshes from scene based on what we're leaving
+            if (viewerRef?.current && prevSlot !== slot) {
+              if (prevSlot === 'Head' && slot !== 'Head') {
+                // Leaving helmet mode - clear helmet mesh
+                console.log('Leaving helmet mode - clearing helmet from scene')
+                viewerRef.current.clearHelmet()
+              } else if (prevSlot === 'Spine2' && slot !== 'Spine2') {
+                // Leaving armor mode - clear armor mesh
+                console.log('Leaving armor mode - clearing armor from scene')
+                viewerRef.current.clearArmor()
+              }
+            }
+            
+            set((state) => {
+              state.equipmentSlot = slot
+              
+              // Reset selection states when changing slots
+              if (slot === 'Head') {
+                // Switched to helmet mode - clear armor selection
+                state.selectedArmor = null
+                state.isArmorFitted = false
+                state.isArmorBound = false
+              } else if (slot === 'Spine2') {
+                // Switched to armor mode - clear helmet selection
+                state.selectedHelmet = null
+                state.isHelmetFitted = false
+                state.isHelmetAttached = false
+              }
+              
+              // Reset common states
+              state.fittingProgress = 0
+              state.isFitting = false
+              state.lastError = null
+              
+              // Reset animation to T-pose
+              state.currentAnimation = 'tpose'
+              state.isAnimationPlaying = false
+              
+              // Reset visual states
+              state.showWireframe = false
+              
+              // Update asset type filter to show equipment for the new slot
+              // If avatar is selected, show the equipment type for that slot
+              // Otherwise stay on avatar selection
+              if (state.selectedAvatar) {
+                if (slot === 'Head') {
+                  state.assetTypeFilter = 'helmet'
+                } else if (slot === 'Spine2') {
+                  state.assetTypeFilter = 'armor'
+                }
+              }
+            })
+          },
           
           // Visualization
           setVisualizationMode: (mode) => set((state) => {
@@ -262,6 +373,21 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
           }),
           setShowWireframe: (show) => set((state) => {
             state.showWireframe = show
+          }),
+          
+          // Animation
+          setCurrentAnimation: (animation) => set((state) => {
+            state.currentAnimation = animation
+            // Stop animation when switching to T-pose
+            if (animation === 'tpose') {
+              state.isAnimationPlaying = false
+            }
+          }),
+          setIsAnimationPlaying: (playing) => set((state) => {
+            state.isAnimationPlaying = playing
+          }),
+          toggleAnimation: () => set((state) => {
+            state.isAnimationPlaying = !state.isAnimationPlaying
           }),
           
           // Fitting results
@@ -276,6 +402,12 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
           }),
           setFittingProgress: (progress) => set((state) => {
             state.fittingProgress = progress
+          }),
+          setIsHelmetFitted: (fitted) => set((state) => { // NEW
+            state.isHelmetFitted = fitted
+          }),
+          setIsHelmetAttached: (attached) => set((state) => { // NEW
+            state.isHelmetAttached = attached
           }),
           
           // UI state
@@ -295,10 +427,6 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
           saveToHistory: () => set((state) => {
             const entry: HistoryEntry = {
               fittingConfig: { ...state.fittingConfig },
-              armorTransform: { 
-                ...state.armorTransform,
-                position: { ...state.armorTransform.position }
-              },
               timestamp: Date.now()
             }
             
@@ -319,10 +447,6 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
               state.historyIndex--
               const entry = state.history[state.historyIndex]
               state.fittingConfig = { ...entry.fittingConfig }
-              state.armorTransform = {
-                ...entry.armorTransform,
-                position: { ...entry.armorTransform.position }
-              }
             }
           }),
           
@@ -331,10 +455,6 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
               state.historyIndex++
               const entry = state.history[state.historyIndex]
               state.fittingConfig = { ...entry.fittingConfig }
-              state.armorTransform = {
-                ...entry.armorTransform,
-                position: { ...entry.armorTransform.position }
-              }
             }
           }),
           
@@ -343,12 +463,18 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
           
           // Complex actions
           performFitting: async (viewerRef) => {
-            const { selectedAvatar, selectedArmor, fittingConfig, enableWeightTransfer } = get()
+            const { selectedAvatar, selectedArmor, fittingConfig, enableWeightTransfer, isFitting } = get()
             
             if (!viewerRef.current || !selectedAvatar || !selectedArmor) {
               set((state) => {
                 state.lastError = 'Missing avatar or armor selection'
               })
+              return
+            }
+            
+            // Ensure we're not already processing
+            if (isFitting) {
+              console.warn('Already processing a fitting operation')
               return
             }
             
@@ -359,55 +485,51 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
             })
             
             try {
-              // Phase 1: Bounding box fit
+              // Using shrinkwrap fitting from MeshFittingDebugger
               set((state) => { state.fittingProgress = 25 })
-              console.log('🎯 ArmorFittingLab: Phase 1 - Bounding box fit to position armor at torso')
-              viewerRef.current.performBoundingBoxFit()
+              console.log('🎯 ArmorFittingLab: Performing shrinkwrap-based armor fitting')
+              
+              // Create fitting parameters matching GenericFittingParameters interface
+              const shrinkwrapParams = {
+                ...fittingConfig,
+                iterations: Math.min(fittingConfig.iterations || 8, 10),
+                stepSize: fittingConfig.stepSize || 0.1,
+                targetOffset: fittingConfig.targetOffset || 0.01,
+                sampleRate: fittingConfig.sampleRate || 1.0,
+                smoothingRadius: fittingConfig.smoothingRadius || 2,
+                smoothingStrength: fittingConfig.smoothingStrength || 0.2,
+                preserveFeatures: fittingConfig.preserveFeatures || false,
+                featureAngleThreshold: fittingConfig.featureAngleThreshold || 45,
+                useImprovedShrinkwrap: fittingConfig.useImprovedShrinkwrap || false,
+                preserveOpenings: fittingConfig.preserveOpenings || false,
+                pushInteriorVertices: fittingConfig.pushInteriorVertices || false
+              }
+              
+              console.log('Shrinkwrap parameters:', shrinkwrapParams)
+              
+              // Perform the fitting
+              set((state) => { state.fittingProgress = 50 })
+              viewerRef.current.performFitting?.(shrinkwrapParams)
+              
+              // Update progress
               await new Promise(resolve => setTimeout(resolve, 1000))
+              set((state) => { state.fittingProgress = 80 })
               
-              // Phase 2: Method-specific fitting
-              if (fittingConfig.method === 'hull') {
-                set((state) => { state.fittingProgress = 50 })
-                const hullParams = {
-                  targetOffset: fittingConfig.hullTargetOffset || 0.02,
-                  iterations: fittingConfig.hullIterations || 5,
-                  stepSize: fittingConfig.hullStepSize || 0.5,
-                  smoothInfluence: fittingConfig.hullSmoothInfluence || 5,
-                  smoothStrength: 0.7,
-                  maxDisplacement: fittingConfig.hullMaxDisplacement || 0.05,
-                  preserveVolume: false,
-                  maintainPosition: true
-                }
-                console.log('🎯 ArmorFittingLab: Starting hull-based fit with params:', hullParams)
-                await viewerRef.current.performHullBasedFit(hullParams)
-                set((state) => { state.fittingProgress = 75 })
-              } else if (fittingConfig.method === 'collision' || fittingConfig.method === 'smooth') {
-                set((state) => { state.fittingProgress = 50 })
-                for (let i = 0; i < fittingConfig.collisionIterations; i++) {
-                  viewerRef.current.performCollisionBasedFit()
-                  await new Promise(resolve => setTimeout(resolve, 200))
-                }
-                
-                console.log('🎯 ArmorFittingLab: Applying final smoothing pass')
-                viewerRef.current.performSmoothDeformation()
-                await new Promise(resolve => setTimeout(resolve, 300))
-              }
-              
-              // Phase 3: Smooth deformation
-              if (fittingConfig.method === 'smooth') {
-                set((state) => { state.fittingProgress = 75 })
-                viewerRef.current.performSmoothDeformation()
-                await new Promise(resolve => setTimeout(resolve, 500))
-              }
-              
-              // Phase 4: Weight transfer (optional)
+              // Weight transfer if enabled
               if (enableWeightTransfer) {
                 set((state) => { state.fittingProgress = 90 })
-                viewerRef.current.transferWeights()
-                await new Promise(resolve => setTimeout(resolve, 500))
+                console.log('🎯 ArmorFittingLab: Transferring vertex weights from avatar to armor')
+                viewerRef.current.transferWeights?.()
+                await new Promise(resolve => setTimeout(resolve, 800))
               }
               
-              set((state) => { state.fittingProgress = 100 })
+              set((state) => { 
+                state.fittingProgress = 100
+                // Mark armor as fitted if we're in armor mode
+                if (state.equipmentSlot === 'Spine2') {
+                  state.isArmorFitted = true
+                }
+              })
               
               // Save to history after successful fitting
               get().saveToHistory()
@@ -416,6 +538,55 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
               console.error('Fitting failed:', error)
               set((state) => {
                 state.lastError = `Fitting failed: ${(error as Error).message}`
+              })
+            } finally {
+              setTimeout(() => {
+                set((state) => {
+                  state.isFitting = false
+                })
+              }, 100)
+            }
+          },
+          
+          bindArmorToSkeleton: async (viewerRef) => {
+            const { selectedAvatar, selectedArmor, isArmorFitted, isFitting } = get()
+            
+            if (!viewerRef.current || !selectedAvatar || !selectedArmor || !isArmorFitted) {
+              set((state) => {
+                state.lastError = 'Must fit armor before binding to skeleton'
+              })
+              return
+            }
+            
+            // Ensure we're not already processing
+            if (isFitting) {
+              console.warn('Already processing a binding operation')
+              return
+            }
+            
+            set((state) => {
+              state.isFitting = true
+              state.fittingProgress = 0
+              state.lastError = null
+            })
+            
+            try {
+              console.log('🎯 ArmorFittingLab: Binding armor to skeleton')
+              
+              // Call viewer's transferWeights method
+              viewerRef.current.transferWeights()
+              
+              set((state) => {
+                state.isArmorBound = true
+                state.fittingProgress = 100
+              })
+              
+              console.log('✅ ArmorFittingLab: Armor bound to skeleton')
+              
+            } catch (error) {
+              console.error('Binding failed:', error)
+              set((state) => {
+                state.lastError = `Binding failed: ${(error as Error).message}`
               })
             } finally {
               set((state) => {
@@ -431,7 +602,92 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
               state.bodyRegions = null
               state.collisions = null
               state.lastError = null
+              state.isArmorFitted = false
+              state.isArmorBound = false
+              state.isHelmetFitted = false
+              state.isHelmetAttached = false
+              // Reset animation to T-pose
+              state.currentAnimation = 'tpose'
+              state.isAnimationPlaying = false
             })
+          },
+          
+          // Helmet fitting actions - NEW
+          performHelmetFitting: async (viewerRef) => {
+            const { selectedAvatar, selectedHelmet, helmetFittingMethod, helmetSizeMultiplier, 
+                    helmetFitTightness, helmetVerticalOffset, helmetForwardOffset, helmetRotation } = get()
+            
+            if (!viewerRef.current || !selectedAvatar || !selectedHelmet) {
+              set((state) => {
+                state.lastError = 'Missing avatar or helmet selection'
+              })
+              return
+            }
+            
+            set((state) => {
+              state.isFitting = true
+              state.lastError = null
+            })
+            
+            try {
+              await viewerRef.current.performHelmetFitting({
+                method: helmetFittingMethod,
+                sizeMultiplier: helmetSizeMultiplier,
+                fitTightness: helmetFitTightness,
+                verticalOffset: helmetVerticalOffset,
+                forwardOffset: helmetForwardOffset,
+                rotation: {
+                  x: helmetRotation.x * Math.PI / 180,
+                  y: helmetRotation.y * Math.PI / 180,
+                  z: helmetRotation.z * Math.PI / 180
+                }
+              })
+              
+              set((state) => {
+                state.isHelmetFitted = true
+              })
+            } catch (error) {
+              console.error('Helmet fitting failed:', error)
+              set((state) => {
+                state.lastError = `Helmet fitting failed: ${(error as Error).message}`
+              })
+            } finally {
+              set((state) => {
+                state.isFitting = false
+              })
+            }
+          },
+          
+          attachHelmetToHead: async (viewerRef) => {
+            if (!viewerRef.current) return
+            
+            try {
+              viewerRef.current.attachHelmetToHead()
+              set((state) => {
+                state.isHelmetAttached = true
+              })
+            } catch (error) {
+              console.error('Helmet attachment failed:', error)
+              set((state) => {
+                state.lastError = `Helmet attachment failed: ${(error as Error).message}`
+              })
+            }
+          },
+          
+          detachHelmetFromHead: async (viewerRef) => {
+            if (!viewerRef.current) return
+            
+            try {
+              viewerRef.current.detachHelmetFromHead()
+              set((state) => {
+                state.isHelmetAttached = false
+              })
+            } catch (error) {
+              console.error('Helmet detachment failed:', error)
+              set((state) => {
+                state.lastError = `Helmet detachment failed: ${(error as Error).message}`
+              })
+            }
           },
           
           exportFittedArmor: async (viewerRef) => {
@@ -443,7 +699,7 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
             })
             
             try {
-              const arrayBuffer = await viewerRef.current.exportAlignedEquipment()
+              const arrayBuffer = await viewerRef.current.exportFittedModel()
               const blob = new Blob([arrayBuffer], { type: 'model/gltf-binary' })
               const url = URL.createObjectURL(blob)
               const a = document.createElement('a')
@@ -472,7 +728,7 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
             })
             
             try {
-              const arrayBuffer = await viewerRef.current.exportEquippedModel()
+              const arrayBuffer = await viewerRef.current.exportFittedModel()
               const blob = new Blob([arrayBuffer], { type: 'model/gltf-binary' })
               const url = URL.createObjectURL(blob)
               const a = document.createElement('a')
@@ -492,8 +748,70 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
             }
           },
           
+          resetScene: (viewerRef) => {
+            const { equipmentSlot } = get()
+            
+            console.log('=== RESETTING SCENE ===')
+            
+            if (!viewerRef?.current) {
+              console.error('No viewer ref available for reset')
+              return
+            }
+            
+            // Reset transforms on meshes
+            viewerRef.current.resetTransform()
+            
+            // Reset fitting states based on current equipment slot
+            set((state) => {
+              // Reset common states
+              state.fittingProgress = 0
+              state.isFitting = false
+              state.lastError = null
+              state.showWireframe = false
+              
+              // Reset animation to T-pose
+              state.currentAnimation = 'tpose'
+              state.isAnimationPlaying = false
+              
+              // Reset fitting states for current equipment slot
+              if (equipmentSlot === 'Head') {
+                state.isHelmetFitted = false
+                state.isHelmetAttached = false
+                // Reset helmet parameters to defaults
+                state.helmetFittingMethod = 'auto'
+                state.helmetSizeMultiplier = 1.0
+                state.helmetFitTightness = 1.0
+                state.helmetVerticalOffset = 0
+                state.helmetForwardOffset = 0
+                state.helmetRotation = { x: 0, y: 0, z: 0 }
+              } else if (equipmentSlot === 'Spine2') {
+                state.isArmorFitted = false
+                state.isArmorBound = false
+                state.bodyRegions = null
+                state.collisions = null
+                // Reset fitting config to defaults  
+                state.fittingConfig = {
+                  method: 'shrinkwrap' as const,
+                  iterations: 8,
+                  stepSize: 0.15,
+                  smoothingRadius: 0.2,
+                  smoothingStrength: 0.3,
+                  targetOffset: 0.05,
+                  sampleRate: 1.0,
+                  preserveFeatures: true,
+                  featureAngleThreshold: 45,
+                  useImprovedShrinkwrap: false,
+                  preserveOpenings: true,
+                  pushInteriorVertices: true
+                }
+              }
+            })
+            
+            console.log('=== SCENE RESET COMPLETE ===')
+          },
+          
           saveConfiguration: async () => {
-            const { selectedAvatar, selectedArmor, fittingConfig, armorTransform, enableWeightTransfer } = get()
+            const { selectedAvatar, selectedArmor, fittingConfig, enableWeightTransfer } = get()
             
             if (!selectedAvatar || !selectedArmor) {
               set((state) => {
@@ -512,7 +830,6 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
                 avatarId: selectedAvatar.id,
                 armorId: selectedArmor.id,
                 fittingConfig,
-                armorTransform,
                 enableWeightTransfer,
                 timestamp: new Date().toISOString()
               }
@@ -547,7 +864,6 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
               
               set((state) => {
                 state.fittingConfig = config.fittingConfig
-                state.armorTransform = config.armorTransform
                 state.enableWeightTransfer = config.enableWeightTransfer
               })
               
@@ -571,8 +887,12 @@ export const useArmorFittingStore = create<ArmorFittingStore>()(
           
           // Selectors
           isReadyToFit: () => {
-            const { selectedAvatar, selectedArmor } = get()
-            return !!(selectedAvatar && selectedArmor)
+            const { selectedAvatar, selectedArmor, selectedHelmet, equipmentSlot } = get()
+            if (equipmentSlot === 'Head') {
+              return !!(selectedAvatar && selectedHelmet)
+            } else {
+              return !!(selectedAvatar && selectedArmor)
+            }
           },
           
           hasUnsavedChanges: () => {

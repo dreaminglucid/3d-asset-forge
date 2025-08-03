@@ -4,8 +4,8 @@ import { FittingConfig } from '../../services/fitting/armor/ArmorFittingService'
 import { cn } from '../../styles'
 import { 
   Sliders, Save, Download, RefreshCw, Eye, EyeOff,
-  Move, Activity, Sparkles,
-  Grid3X3, Box, Wand2, Zap, Target, Layers
+  Activity, Sparkles,
+  Grid3X3, Wand2, Zap, Target, Layers, Play, Pause, RotateCcw, Link
 } from 'lucide-react'
 import { EQUIPMENT_SLOTS } from '../../constants'
 
@@ -13,13 +13,7 @@ interface ArmorFittingControlsProps {
   // Fitting config
   fittingConfig: FittingConfig
   onFittingConfigChange: (updates: Partial<FittingConfig>) => void
-  
-  // Transform controls
-  armorTransform: {
-    position: { x: number; y: number; z: number }
-    scale: number
-  }
-  onArmorTransformChange: (updates: Partial<ArmorFittingControlsProps['armorTransform']>) => void
+
   
   // Options
   enableWeightTransfer: boolean
@@ -43,6 +37,37 @@ interface ArmorFittingControlsProps {
   isFitting: boolean
   fittingProgress: number
   canFit: boolean
+  isArmorFitted?: boolean
+  isArmorBound?: boolean
+  onBindArmorToSkeleton?: () => void
+  
+  // Helmet fitting - NEW
+  helmetFittingMethod?: 'auto' | 'manual'
+  onHelmetFittingMethodChange?: (method: 'auto' | 'manual') => void
+  helmetSizeMultiplier?: number
+  onHelmetSizeMultiplierChange?: (value: number) => void
+  helmetFitTightness?: number
+  onHelmetFitTightnessChange?: (value: number) => void
+  helmetVerticalOffset?: number
+  onHelmetVerticalOffsetChange?: (value: number) => void
+  helmetForwardOffset?: number
+  onHelmetForwardOffsetChange?: (value: number) => void
+  helmetRotation?: { x: number; y: number; z: number }
+  onHelmetRotationChange?: (axis: 'x' | 'y' | 'z', value: number) => void
+  onPerformHelmetFitting?: () => void
+  onResetHelmetSettings?: () => void
+  isHelmetFitted?: boolean
+  isHelmetAttached?: boolean
+  onAttachHelmetToHead?: () => void
+  onDetachHelmetFromHead?: () => void
+  hasHelmet?: boolean
+  
+  // Animation
+  currentAnimation?: 'tpose' | 'walking' | 'running'
+  isAnimationPlaying?: boolean
+  onCurrentAnimationChange?: (animation: 'tpose' | 'walking' | 'running') => void
+  onAnimationPlayingChange?: (playing: boolean) => void
+  onToggleAnimation?: () => void
 }
 
 const RangeInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => {
@@ -55,40 +80,13 @@ const RangeInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props
   )
 }
 
-const FITTING_METHODS = {
-  hull: {
-    name: 'Hull-Based',
-    description: 'Fit to actual body shape',
-    icon: <Wand2 size={18} />,
-    color: 'text-green-400'
-  },
-  collision: {
-    name: 'Collision-Based',
-    description: 'Resolve intersections',
-    icon: <Zap size={18} />,
-    color: 'text-orange-400'
-  },
-  smooth: {
-    name: 'Smooth Deform',
-    description: 'Shape-preserving fit',
-    icon: <Sparkles size={18} />,
-    color: 'text-purple-400'
-  },
-  boundingBox: {
-    name: 'Bounding Box',
-    description: 'Fast initial fit',
-    icon: <Box size={18} />,
-    color: 'text-blue-400'
-  }
-}
+// Using shrinkwrap algorithm from MeshFittingDebugger
 
 
 
 export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
   fittingConfig,
   onFittingConfigChange,
-  armorTransform,
-  onArmorTransformChange,
   enableWeightTransfer,
   onEnableWeightTransferChange,
   showWireframe,
@@ -103,7 +101,36 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
   onSaveConfiguration,
   isFitting,
   fittingProgress,
-  canFit
+  canFit,
+  isArmorFitted = false,
+  isArmorBound = false,
+  onBindArmorToSkeleton,
+  // Helmet fitting props - NEW
+  helmetFittingMethod = 'auto',
+  onHelmetFittingMethodChange,
+  helmetSizeMultiplier = 1.0,
+  onHelmetSizeMultiplierChange,
+  helmetFitTightness = 0.85,
+  onHelmetFitTightnessChange,
+  helmetVerticalOffset = 0,
+  onHelmetVerticalOffsetChange,
+  helmetForwardOffset = 0,
+  onHelmetForwardOffsetChange,
+  helmetRotation = { x: 0, y: 0, z: 0 },
+  onHelmetRotationChange,
+  onPerformHelmetFitting,
+  onResetHelmetSettings,
+  isHelmetFitted = false,
+  isHelmetAttached = false,
+  onAttachHelmetToHead,
+  onDetachHelmetFromHead,
+  hasHelmet = false,
+  // Animation props
+  currentAnimation = 'tpose',
+  isAnimationPlaying = false,
+  onCurrentAnimationChange,
+  onAnimationPlayingChange,
+  onToggleAnimation
 }) => {
   // Filter out weapon slots - only show armor slots (Head, Chest, Legs)
   const armorSlots = EQUIPMENT_SLOTS.filter(slot => 
@@ -145,216 +172,354 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
         </CardContent>
       </Card>
 
-      {/* Fitting Method */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wand2 className="w-4 h-4" />
-            Fitting Method
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-2">
-            {Object.entries(FITTING_METHODS).map(([key, method]) => (
-              <button
-                key={key}
-                onClick={() => onFittingConfigChange({ method: key as 'boundingBox' | 'collision' | 'smooth' | 'iterative' | 'hull' })}
-                className={cn(
-                  "p-2.5 rounded-lg border transition-all text-left",
-                  fittingConfig.method === key
-                    ? "border-primary bg-primary/10"
-                    : "border-border-primary hover:border-border-secondary bg-bg-secondary/30"
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={cn("flex-shrink-0", method.color)}>
-                    {method.icon}
-                  </div>
-                  <div className="min-w-0">
-                    <div className={cn("font-medium text-xs", fittingConfig.method === key && "text-primary")}>
-                      {method.name}
-                    </div>
-                    <div className="text-[10px] text-text-tertiary truncate">
-                      {method.description}
-                    </div>
-                  </div>
+      {/* Conditional Rendering Based on Equipment Slot */}
+      {equipmentSlot === 'Head' ? (
+        // Helmet Fitting Controls (matches MeshFittingDebugger)
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Layers className="w-4 h-4" />
+                Helmet Fitting
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Fitting Method */}
+              <div>
+                <label className="text-xs font-medium block mb-2">Fitting Method</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => onHelmetFittingMethodChange?.('auto')}
+                    className={cn(
+                      "px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+                      helmetFittingMethod === 'auto'
+                        ? "bg-primary/20 text-primary border border-primary/30"
+                        : "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary/70 border border-border-primary"
+                    )}
+                  >
+                    Auto
+                  </button>
+                  <button
+                    onClick={() => onHelmetFittingMethodChange?.('manual')}
+                    className={cn(
+                      "px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+                      helmetFittingMethod === 'manual'
+                        ? "bg-primary/20 text-primary border border-primary/30"
+                        : "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary/70 border border-border-primary"
+                    )}
+                  >
+                    Manual
+                  </button>
                 </div>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              </div>
 
-      {/* Fitting Parameters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sliders className="w-4 h-4" />
-            Parameters
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Method-specific parameters */}
-          {fittingConfig.method === 'hull' && (
-            <>
+              {/* Size Multiplier */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium">Target Offset</label>
+                  <label className="text-xs font-medium">Size</label>
                   <span className="text-[10px] text-text-secondary font-mono">
-                    {(fittingConfig.hullTargetOffset || 0.02).toFixed(3)}m
+                    {(helmetSizeMultiplier * 100).toFixed(0)}%
                   </span>
                 </div>
                 <RangeInput
-                  min="0"
+                  min="0.8"
+                  max="1.2"
+                  step="0.01"
+                  value={helmetSizeMultiplier}
+                  onChange={(e) => onHelmetSizeMultiplierChange?.(parseFloat(e.target.value))}
+                />
+              </div>
+
+              {/* Fit Tightness */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium">Fit Tightness</label>
+                  <span className="text-[10px] text-text-secondary font-mono">
+                    {(helmetFitTightness * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <RangeInput
+                  min="0.7"
+                  max="1.0"
+                  step="0.01"
+                  value={helmetFitTightness}
+                  onChange={(e) => onHelmetFitTightnessChange?.(parseFloat(e.target.value))}
+                />
+                <p className="text-xs text-text-tertiary mt-1">How snug the helmet fits (lower = tighter)</p>
+              </div>
+
+              {/* Position Offsets */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium">Vertical Offset</label>
+                  <span className="text-[10px] text-text-secondary font-mono">
+                    {helmetVerticalOffset.toFixed(2)}m
+                  </span>
+                </div>
+                <RangeInput
+                  min="-0.1"
                   max="0.1"
-                  step="0.001"
-                  value={fittingConfig.hullTargetOffset || 0.02}
-                  onChange={(e) => onFittingConfigChange({ 
-                    hullTargetOffset: parseFloat(e.target.value) 
-                  })}
+                  step="0.005"
+                  value={helmetVerticalOffset}
+                  onChange={(e) => onHelmetVerticalOffsetChange?.(parseFloat(e.target.value))}
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium">Iterations</label>
+                  <label className="text-xs font-medium">Forward Offset</label>
                   <span className="text-[10px] text-text-secondary font-mono">
-                    {fittingConfig.hullIterations || 5}
+                    {helmetForwardOffset.toFixed(2)}m
                   </span>
                 </div>
                 <RangeInput
-                  min="1"
-                  max="20"
-                  step="1"
-                  value={fittingConfig.hullIterations || 5}
-                  onChange={(e) => onFittingConfigChange({ 
-                    hullIterations: parseInt(e.target.value) 
-                  })}
-                />
-              </div>
-            </>
-          )}
-
-          {(fittingConfig.method === 'collision' || fittingConfig.method === 'smooth') && (
-            <>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium">Margin</label>
-                  <span className="text-[10px] text-text-secondary font-mono">
-                    {fittingConfig.margin.toFixed(3)}m
-                  </span>
-                </div>
-                <RangeInput
-                  min="0"
+                  min="-0.1"
                   max="0.1"
-                  step="0.001"
-                  value={fittingConfig.margin}
-                  onChange={(e) => onFittingConfigChange({ 
-                    margin: parseFloat(e.target.value) 
-                  })}
+                  step="0.005"
+                  value={helmetForwardOffset}
+                  onChange={(e) => onHelmetForwardOffsetChange?.(parseFloat(e.target.value))}
                 />
               </div>
-            </>
-          )}
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium">Stiffness</label>
-              <span className="text-[10px] text-text-secondary font-mono">
-                {fittingConfig.stiffness.toFixed(2)}
-              </span>
-            </div>
-            <RangeInput
-              min="0"
-              max="1"
-              step="0.01"
-              value={fittingConfig.stiffness}
-              onChange={(e) => onFittingConfigChange({ 
-                stiffness: parseFloat(e.target.value) 
-              })}
-            />
-          </div>
-
-          <Checkbox
-            checked={enableWeightTransfer}
-            onChange={(e) => onEnableWeightTransferChange(e.target.checked)}
-            size="sm"
-            label={
-              <div className="flex items-center gap-2">
-                <span>Enable Weight Transfer</span>
-                <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                  Beta
-                </Badge>
+              {/* Rotation Controls */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium">Rotation</label>
+                {(['x', 'y', 'z'] as const).map((axis) => (
+                  <div key={axis}>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] text-text-secondary">{axis.toUpperCase()}</label>
+                      <span className="text-[10px] text-text-secondary font-mono">
+                        {helmetRotation[axis].toFixed(0)}°
+                      </span>
+                    </div>
+                    <RangeInput
+                      min="-45"
+                      max="45"
+                      step="1"
+                      value={helmetRotation[axis]}
+                      onChange={(e) => onHelmetRotationChange?.(axis, parseFloat(e.target.value))}
+                    />
+                  </div>
+                ))}
               </div>
-            }
-          />
-        </CardContent>
-      </Card>
 
-      {/* Transform Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Move className="w-4 h-4" />
-            Manual Adjust
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium">Scale</label>
-              <span className="text-[10px] text-text-secondary font-mono">
-                {armorTransform.scale.toFixed(2)}x
-              </span>
-            </div>
-            <RangeInput
-              min="0.5"
-              max="2"
-              step="0.01"
-              value={armorTransform.scale}
-              onChange={(e) => onArmorTransformChange({ 
-                scale: parseFloat(e.target.value) 
-              })}
-            />
-          </div>
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                <Button
+                  onClick={onPerformHelmetFitting}
+                  disabled={!canFit || isFitting}
+                  className="w-full"
+                  size="sm"
+                >
+                  <Wand2 className="w-3 h-3 mr-1.5" />
+                  Fit Helmet
+                </Button>
 
-          {(['x', 'y', 'z'] as const).map((axis) => (
-            <div key={axis}>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={onAttachHelmetToHead}
+                    disabled={!isHelmetFitted || isHelmetAttached}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    Attach
+                  </Button>
+                  <Button
+                    onClick={onDetachHelmetFromHead}
+                    disabled={!isHelmetAttached}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    Detach
+                  </Button>
+                </div>
+
+                <Button
+                  onClick={onResetHelmetSettings}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1.5" />
+                  Reset Settings
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        // Armor Fitting Controls (for chest/Spine2)
+        null // No method selection - just using shrinkwrap algorithm
+      )}
+
+      {/* Fitting Parameters - Only show for armor (chest) */}
+      {equipmentSlot === 'Spine2' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sliders className="w-4 h-4" />
+              Fitting Parameters
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Match MeshFittingDebugger parameters exactly */}
+            <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium">Position {axis.toUpperCase()}</label>
+                <label className="text-xs font-medium">Iterations</label>
                 <span className="text-[10px] text-text-secondary font-mono">
-                  {armorTransform.position[axis].toFixed(3)}m
+                  {fittingConfig.iterations || 8}
                 </span>
               </div>
               <RangeInput
-                min="-0.5"
-                max="0.5"
-                step="0.01"
-                value={armorTransform.position[axis]}
-                onChange={(e) => onArmorTransformChange({ 
-                  position: {
-                    ...armorTransform.position,
-                    [axis]: parseFloat(e.target.value)
-                  }
+                min="1"
+                max="20"
+                step="1"
+                value={fittingConfig.iterations || 8}
+                onChange={(e) => onFittingConfigChange({ 
+                  iterations: parseInt(e.target.value) 
                 })}
               />
             </div>
-          ))}
-          
-          <Button
-            onClick={() => onArmorTransformChange({ 
-              position: { x: 0, y: 0, z: 0 }, 
-              scale: 1.0 
-            })}
-            variant="secondary"
-            size="sm"
-            className="w-full mt-2"
-          >
-            <RefreshCw className="w-3 h-3 mr-1.5" />
-            Reset Transform
-          </Button>
-        </CardContent>
-      </Card>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium">Step Size</label>
+                <span className="text-[10px] text-text-secondary font-mono">
+                  {(fittingConfig.stepSize || 0.1).toFixed(2)}
+                </span>
+              </div>
+              <RangeInput
+                min="0"
+                max="1"
+                step="0.05"
+                value={fittingConfig.stepSize || 0.1}
+                onChange={(e) => onFittingConfigChange({ 
+                  stepSize: parseFloat(e.target.value) 
+                })}
+              />
+              <p className="text-xs text-text-tertiary mt-1">Movement per iteration</p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium">Smoothing Radius</label>
+                <span className="text-[10px] text-text-secondary font-mono">
+                  {(fittingConfig.smoothingRadius || 2).toFixed(1)}
+                </span>
+              </div>
+              <RangeInput
+                min="0"
+                max="5"
+                step="0.5"
+                value={fittingConfig.smoothingRadius || 2}
+                onChange={(e) => onFittingConfigChange({ 
+                  smoothingRadius: parseFloat(e.target.value) 
+                })}
+              />
+              <p className="text-xs text-text-tertiary mt-1">Neighbor influence radius</p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium">Smoothing Strength</label>
+                <span className="text-[10px] text-text-secondary font-mono">
+                  {(fittingConfig.smoothingStrength || 0.2).toFixed(2)}
+                </span>
+              </div>
+              <RangeInput
+                min="0"
+                max="1"
+                step="0.05"
+                value={fittingConfig.smoothingStrength || 0.2}
+                onChange={(e) => onFittingConfigChange({ 
+                  smoothingStrength: parseFloat(e.target.value) 
+                })}
+              />
+              <p className="text-xs text-text-tertiary mt-1">Influence on neighbors</p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium">Target Offset</label>
+                <span className="text-[10px] text-text-secondary font-mono">
+                  {((fittingConfig.targetOffset || 0.01) * 100).toFixed(1)}cm
+                </span>
+              </div>
+              <RangeInput
+                min="0"
+                max="0.1"
+                step="0.005"
+                value={fittingConfig.targetOffset || 0.01}
+                onChange={(e) => onFittingConfigChange({ 
+                  targetOffset: parseFloat(e.target.value) 
+                })}
+              />
+              <p className="text-xs text-text-tertiary mt-1">Distance from surface</p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium">Sample Rate</label>
+                <span className="text-[10px] text-text-secondary font-mono">
+                  {((fittingConfig.sampleRate || 0.5) * 100).toFixed(0)}%
+                </span>
+              </div>
+              <RangeInput
+                min="0.1"
+                max="1.0"
+                step="0.1"
+                value={fittingConfig.sampleRate || 0.5}
+                onChange={(e) => onFittingConfigChange({ 
+                  sampleRate: parseFloat(e.target.value) 
+                })}
+              />
+              <p className="text-xs text-text-tertiary mt-1">Vertices processed per iteration</p>
+            </div>
+
+            <div className="pt-2 space-y-2">
+              <Checkbox
+                checked={fittingConfig.preserveFeatures || false}
+                onChange={(e) => onFittingConfigChange({ preserveFeatures: e.target.checked })}
+                label="Preserve Features"
+                description="Preserve sharp edges and flat surfaces during smoothing"
+                size="sm"
+              />
+              <Checkbox
+                checked={fittingConfig.useImprovedShrinkwrap || false}
+                onChange={(e) => onFittingConfigChange({ useImprovedShrinkwrap: e.target.checked })}
+                label="Improved Shrinkwrap"
+                description="Use improved shrinkwrap algorithm with surface relaxation"
+                size="sm"
+              />
+              <Checkbox
+                checked={fittingConfig.preserveOpenings || false}
+                onChange={(e) => onFittingConfigChange({ preserveOpenings: e.target.checked })}
+                label="Preserve Openings"
+                description="Lock vertices around neck and arm regions to preserve armor openings"
+                size="sm"
+              />
+              <Checkbox
+                checked={fittingConfig.pushInteriorVertices || false}
+                onChange={(e) => onFittingConfigChange({ pushInteriorVertices: e.target.checked })}
+                label="Push Interior Vertices"
+                description="Restore vertices that end up inside the avatar back to their pre-shrinkwrap positions"
+                size="sm"
+              />
+              <Checkbox
+                checked={enableWeightTransfer}
+                onChange={(e) => onEnableWeightTransferChange(e.target.checked)}
+                label="Enable Weight Transfer"
+                description="Copy vertex weights from avatar"
+                size="sm"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+
+
 
       {/* Visualization */}
       <Card>
@@ -370,9 +535,8 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
               { mode: 'none', label: 'None', icon: <EyeOff className="w-3 h-3" /> },
               { mode: 'regions', label: 'Regions', icon: <Layers className="w-3 h-3" /> },
               { mode: 'collisions', label: 'Collisions', icon: <Zap className="w-3 h-3" /> },
-              { mode: 'weights', label: 'Weights', icon: <Activity className="w-3 h-3" /> },
-              { mode: 'hull', label: 'Hull', icon: <Box className="w-3 h-3" /> }
-            ].filter(({ mode }) => mode === 'none' || mode !== 'hull').map(({ mode, label, icon }) => (
+              { mode: 'weights', label: 'Weights', icon: <Activity className="w-3 h-3" /> }
+            ].map(({ mode, label, icon }) => (
               <button
                 key={mode}
                 onClick={() => onVisualizationModeChange(mode as 'none' | 'regions' | 'collisions' | 'weights' | 'hull')}
@@ -401,59 +565,153 @@ export const ArmorFittingControls: React.FC<ArmorFittingControlsProps> = ({
         </CardContent>
       </Card>
 
-      {/* Actions */}
-      <div className="space-y-2 pt-2">
-        <Button
-          onClick={onPerformFitting}
-          disabled={!canFit || isFitting}
-          variant="primary"
-          className="w-full"
-        >
-          {isFitting ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
-              Fitting... {Math.round(fittingProgress)}%
-            </>
-          ) : (
-            <>
-              <Activity className="w-4 h-4 mr-2" />
-              Perform Fitting
-            </>
-          )}
-        </Button>
-
-        <div className="grid grid-cols-2 gap-2">
+      {/* Animation Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <Activity className="w-4 h-4 mr-2 inline" />
+            Animation
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Note about animations */}
+          <div className="text-xs text-text-tertiary bg-bg-tertiary/30 p-2 rounded">
+            Note: Animations use built-in avatar animations or separate animation files (anim_walk.glb, anim_run.glb) if available
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => onCurrentAnimationChange?.('tpose')}
+              className={cn(
+                "px-2 py-1.5 rounded text-xs font-medium transition-all",
+                currentAnimation === 'tpose'
+                  ? "bg-primary text-white"
+                  : "bg-bg-tertiary text-text-secondary hover:bg-white/10"
+              )}
+            >
+              T-Pose
+            </button>
+            <button
+              onClick={() => onCurrentAnimationChange?.('walking')}
+              className={cn(
+                "px-2 py-1.5 rounded text-xs font-medium transition-all",
+                currentAnimation === 'walking'
+                  ? "bg-primary text-white"
+                  : "bg-bg-tertiary text-text-secondary hover:bg-white/10"
+              )}
+            >
+              Walk
+            </button>
+            <button
+              onClick={() => onCurrentAnimationChange?.('running')}
+              className={cn(
+                "px-2 py-1.5 rounded text-xs font-medium transition-all",
+                currentAnimation === 'running'
+                  ? "bg-primary text-white"
+                  : "bg-bg-tertiary text-text-secondary hover:bg-white/10"
+              )}
+            >
+              Run
+            </button>
+          </div>
+          
           <Button
-            onClick={onExportArmor}
-            disabled={!canFit}
-            variant="secondary"
+            onClick={onToggleAnimation}
+            disabled={currentAnimation === 'tpose'}
+            variant={isAnimationPlaying ? "secondary" : "primary"}
             size="sm"
+            className="w-full"
           >
-            <Download className="w-3 h-3 mr-1.5" />
-            Export
+            {isAnimationPlaying ? (
+              <>
+                <Pause className="w-3 h-3 mr-1.5" />
+                Pause Animation
+              </>
+            ) : (
+              <>
+                <Play className="w-3 h-3 mr-1.5" />
+                Play Animation
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Actions - Only show for armor (chest) */}
+      {equipmentSlot === 'Spine2' && (
+        <div className="space-y-2 pt-2">
+          <Button
+            onClick={onPerformFitting}
+            disabled={!canFit || isFitting}
+            variant="primary"
+            className="w-full"
+          >
+            {isFitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                Fitting... {Math.round(fittingProgress)}%
+              </>
+            ) : (
+              <>
+                <Activity className="w-4 h-4 mr-2" />
+                Perform Fitting
+              </>
+            )}
           </Button>
 
+          {isArmorFitted && !isArmorBound && onBindArmorToSkeleton && (
+            <Button
+              onClick={onBindArmorToSkeleton}
+              disabled={isFitting}
+              variant="secondary"
+              className="w-full"
+            >
+              {isFitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                  Binding...
+                </>
+              ) : (
+                <>
+                  <Link className="w-4 h-4 mr-2" />
+                  Bind Armor to Skeleton
+                </>
+              )}
+            </Button>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              onClick={onExportArmor}
+              disabled={!canFit}
+              variant="secondary"
+              size="sm"
+            >
+              <Download className="w-3 h-3 mr-1.5" />
+              Export
+            </Button>
+
+            <Button
+              onClick={onSaveConfiguration}
+              disabled={!canFit}
+              variant="secondary"
+              size="sm"
+            >
+              <Save className="w-3 h-3 mr-1.5" />
+              Save Config
+            </Button>
+          </div>
+
           <Button
-            onClick={onSaveConfiguration}
-            disabled={!canFit}
+            onClick={onResetFitting}
             variant="secondary"
             size="sm"
+            className="w-full"
           >
-            <Save className="w-3 h-3 mr-1.5" />
-            Save Config
+            <RefreshCw className="w-3 h-3 mr-1.5" />
+            Reset Fitting
           </Button>
         </div>
-
-        <Button
-          onClick={onResetFitting}
-          variant="secondary"
-          size="sm"
-          className="w-full"
-        >
-          <RefreshCw className="w-3 h-3 mr-1.5" />
-          Reset Fitting
-        </Button>
-      </div>
+      )}
     </div>
   )
 } 

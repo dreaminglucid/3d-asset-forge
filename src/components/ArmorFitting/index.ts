@@ -1,5 +1,6 @@
 // Main components
 export { ArmorFittingViewer, type ArmorFittingViewerRef } from './ArmorFittingViewer'
+export { SimplifiedArmorFittingViewer, type SimplifiedArmorFittingViewerRef } from './SimplifiedArmorFittingViewer'
 export { ArmorFittingControls } from './ArmorFittingControls'
 export { ArmorAssetList } from './ArmorAssetList'
 export { MeshFittingDebugger } from './MeshFittingDebugger'

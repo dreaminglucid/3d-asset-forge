@@ -11,12 +11,6 @@ export interface ArmorFittingState {
   // Fitting configuration
   fittingConfig: FittingConfig
   
-  // Manual transform controls
-  armorTransform: {
-    position: { x: number; y: number; z: number }
-    scale: number
-  }
-  
   // Additional options
   enableWeightTransfer: boolean
   equipmentSlot: string
@@ -38,8 +32,6 @@ export interface ArmorFittingActions {
   setSelectedArmor: (asset: Asset | null) => void
   setFittingConfig: (config: FittingConfig) => void
   updateFittingConfig: (updates: Partial<FittingConfig>) => void
-  setArmorTransform: (transform: ArmorFittingState['armorTransform']) => void
-  updateArmorTransform: (updates: Partial<ArmorFittingState['armorTransform']>) => void
   setEnableWeightTransfer: (enabled: boolean) => void
   setEquipmentSlot: (slot: string) => void
   setVisualizationMode: (mode: ArmorFittingState['visualizationMode']) => void
@@ -72,12 +64,6 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
     hullMaxDisplacement: 0.05
   })
   
-  // Manual transform controls
-  const [armorTransform, setArmorTransform] = useState({
-    position: { x: 0, y: 0, z: 0 },
-    scale: 1.0
-  })
-  
   // Additional options
   const [enableWeightTransfer, setEnableWeightTransfer] = useState(false)
   const [equipmentSlot, setEquipmentSlot] = useState<string>('Spine2')
@@ -95,10 +81,6 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
 
   const updateFittingConfig = useCallback((updates: Partial<FittingConfig>) => {
     setFittingConfig(prev => ({ ...prev, ...updates }))
-  }, [])
-
-  const updateArmorTransform = useCallback((updates: Partial<typeof armorTransform>) => {
-    setArmorTransform(prev => ({ ...prev, ...updates }))
   }, [])
 
   const performFitting = useCallback(async (viewerRef: React.RefObject<ArmorFittingViewerRef>) => {
@@ -134,7 +116,7 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
       } else if (fittingConfig.method === 'collision' || fittingConfig.method === 'smooth') {
         // Original collision-based methods
         setFittingProgress(50)
-        for (let i = 0; i < fittingConfig.collisionIterations; i++) {
+        for (let i = 0; i < (fittingConfig.collisionIterations || 3); i++) {
           viewerRef.current.performCollisionBasedFit()
           await new Promise(resolve => setTimeout(resolve, 200))
         }
@@ -206,7 +188,6 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
       avatarId: selectedAvatar.id,
       armorId: selectedArmor.id,
       fittingConfig,
-      armorTransform,
       enableWeightTransfer,
       timestamp: new Date().toISOString()
     }
@@ -219,14 +200,13 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
     a.download = `armor_fitting_config_${Date.now()}.json`
     a.click()
     URL.revokeObjectURL(url)
-  }, [selectedAvatar, selectedArmor, fittingConfig, armorTransform, enableWeightTransfer])
+  }, [selectedAvatar, selectedArmor, fittingConfig, enableWeightTransfer])
 
   return {
     // State
     selectedAvatar,
     selectedArmor,
     fittingConfig,
-    armorTransform,
     enableWeightTransfer,
     equipmentSlot,
     visualizationMode,
@@ -242,8 +222,6 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
     setSelectedArmor,
     setFittingConfig,
     updateFittingConfig,
-    setArmorTransform,
-    updateArmorTransform,
     setEnableWeightTransfer,
     setEquipmentSlot,
     setVisualizationMode,

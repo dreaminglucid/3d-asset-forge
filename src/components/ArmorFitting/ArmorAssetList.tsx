@@ -7,12 +7,15 @@ import { Asset } from '../../types'
 interface ArmorAssetListProps {
   assets: Asset[]
   loading: boolean
-  assetType: 'avatar' | 'armor'
+  assetType: 'avatar' | 'armor' | 'helmet' // UPDATED
   selectedAsset: Asset | null
   selectedAvatar?: Asset | null
   selectedArmor?: Asset | null
+  selectedHelmet?: Asset | null // NEW
   onAssetSelect: (asset: Asset) => void
-  onAssetTypeChange: (type: 'avatar' | 'armor') => void
+  onAssetTypeChange: (type: 'avatar' | 'armor' | 'helmet') => void // UPDATED
+  hideTypeToggle?: boolean // NEW - for armor fitting page
+  equipmentSlot?: 'Head' | 'Spine2' | 'Pelvis' // NEW - to determine which equipment to show
 }
 
 export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
@@ -22,8 +25,11 @@ export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
   selectedAsset,
   selectedAvatar,
   selectedArmor,
+  selectedHelmet, // NEW
   onAssetSelect,
-  onAssetTypeChange
+  onAssetTypeChange,
+  hideTypeToggle = false, // NEW
+  equipmentSlot = 'Spine2' // NEW - default to chest
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -36,13 +42,11 @@ export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
   const armorAssets = useMemo(() =>
     assets.filter(a => {
       const name = a.name.toLowerCase()
-      // Exclude shields - only include helmet, chest, and leg armor
-      if (name.includes('shield')) return false
+      // Exclude shields and helmets - only include chest and leg armor
+      if (name.includes('shield') || name.includes('helmet') || name.includes('head')) return false
 
       return (
         a.type === 'armor' ||
-        name.includes('helmet') ||
-        name.includes('head') ||
         name.includes('chest') ||
         name.includes('legs') ||
         name.includes('leg') ||
@@ -52,13 +56,32 @@ export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
     }),
     [assets]
   )
+  
+  // NEW - Separate helmet assets
+  const helmetAssets = useMemo(() =>
+    assets.filter(a => {
+      const name = a.name.toLowerCase()
+      return name.includes('helmet') || name.includes('head')
+    }),
+    [assets]
+  )
 
   const filteredAssets = useMemo(() => {
-    const baseAssets = assetType === 'avatar' ? avatarAssets : armorAssets
+    // Filter based on equipment slot
+    let baseAssets: Asset[] = []
+    
+    if (assetType === 'avatar') {
+      baseAssets = avatarAssets
+    } else if (assetType === 'armor' && equipmentSlot === 'Spine2') {
+      baseAssets = armorAssets
+    } else if (assetType === 'helmet' && equipmentSlot === 'Head') {
+      baseAssets = helmetAssets
+    }
+    
     return baseAssets.filter(a =>
       a.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
-  }, [assetType, avatarAssets, armorAssets, searchTerm])
+  }, [assetType, avatarAssets, armorAssets, helmetAssets, searchTerm, equipmentSlot])
 
   // Group armor by slot
   const groupedArmorAssets = useMemo(() => {
@@ -98,37 +121,56 @@ export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-border-primary bg-bg-primary bg-opacity-30">
-        <h2 className="text-lg font-semibold text-text-primary mb-4">Asset Library</h2>
+        <h2 className="text-lg font-semibold text-text-primary mb-4">
+          {hideTypeToggle 
+            ? assetType === 'avatar' 
+              ? 'Select Avatar'
+              : assetType === 'helmet'
+                ? 'Select Helmet' 
+                : 'Select Armor'
+            : 'Asset Library'}
+        </h2>
 
-        {/* Asset Type Toggle */}
-        <div className="flex gap-2 p-1 bg-bg-tertiary/30 rounded-xl">
-          <button
-            onClick={() => onAssetTypeChange('avatar')}
-            className={cn(
-              "flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-              "flex items-center justify-center gap-2",
-              assetType === 'avatar'
-                ? "bg-primary/80 text-white shadow-lg shadow-primary/20"
-                : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/20"
-            )}
-          >
-            <User size={16} />
-            Avatars
-          </button>
-          <button
-            onClick={() => onAssetTypeChange('armor')}
-            className={cn(
-              "flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-              "flex items-center justify-center gap-2",
-              assetType === 'armor'
-                ? "bg-primary/80 text-white shadow-lg shadow-primary/20"
-                : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/20"
-            )}
-          >
-            <Sword size={16} />
-            Equipment
-          </button>
-        </div>
+        {/* Asset Type Toggle - Show avatars and appropriate equipment type */}
+        {hideTypeToggle && (
+          <div className="flex gap-2 p-1 bg-bg-tertiary/30 rounded-xl">
+            <button
+              onClick={() => onAssetTypeChange('avatar')}
+              className={cn(
+                "flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                "flex items-center justify-center gap-2",
+                assetType === 'avatar'
+                  ? "bg-primary/80 text-white shadow-lg shadow-primary/20"
+                  : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/20"
+              )}
+            >
+              <User size={16} />
+              Avatars
+            </button>
+            <button
+              onClick={() => onAssetTypeChange(equipmentSlot === 'Head' ? 'helmet' : 'armor')}
+              className={cn(
+                "flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                "flex items-center justify-center gap-2",
+                assetType === (equipmentSlot === 'Head' ? 'helmet' : 'armor')
+                  ? "bg-primary/80 text-white shadow-lg shadow-primary/20"
+                  : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/20"
+              )}
+            >
+              {equipmentSlot === 'Head' ? (
+                <>
+                  <HardHat size={16} />
+                  Helmets
+                </>
+              ) : (
+                <>
+                  <Sword size={16} />
+                  Armor
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Scrollable Content */}
@@ -164,8 +206,8 @@ export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
                 <p className="text-text-tertiary/60 text-xs mt-1">Try a different search term</p>
               )}
             </div>
-          ) : assetType === 'avatar' ? (
-            // Avatar list
+          ) : assetType === 'avatar' || assetType === 'helmet' ? (
+            // Avatar or Helmet list
             <div className="space-y-2">
               {filteredAssets.map((asset) => {
                 const Icon = getAssetIcon(asset)
@@ -189,7 +231,7 @@ export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
                           <p className="text-sm font-medium text-text-primary">{asset.name}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="secondary" size="sm" className="capitalize bg-bg-tertiary/50 text-text-secondary border border-white/10">
-                              Character
+                              {assetType === 'avatar' ? 'Character' : 'Helmet'}
                             </Badge>
                             <Badge variant="primary" size="sm" className="bg-primary/20 text-primary border border-primary/30">
                               <Box size={10} className="mr-1" />
@@ -280,6 +322,7 @@ export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
         <div>
           <h3 className="text-xs font-medium text-text-tertiary uppercase tracking-wider mb-3">Current Selection</h3>
           <div className="space-y-3">
+            {/* Always show avatar */}
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
                 <User size={16} className="text-primary" />
@@ -291,17 +334,36 @@ export const ArmorAssetList: React.FC<ArmorAssetListProps> = ({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
-                <Sword size={16} className="text-primary" />
+            
+            {/* Show armor only for chest slot */}
+            {equipmentSlot === 'Spine2' && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
+                  <Sword size={16} className="text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-text-tertiary">Armor</p>
+                  <p className="text-sm font-medium text-text-primary">
+                    {selectedArmor?.name || 'None selected'}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-text-tertiary">Equipment</p>
-                <p className="text-sm font-medium text-text-primary">
-                  {selectedArmor?.name || 'None selected'}
-                </p>
+            )}
+            
+            {/* Show helmet only for head slot */}
+            {equipmentSlot === 'Head' && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
+                  <HardHat size={16} className="text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-text-tertiary">Helmet</p>
+                  <p className="text-sm font-medium text-text-primary">
+                    {selectedHelmet?.name || 'None selected'}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

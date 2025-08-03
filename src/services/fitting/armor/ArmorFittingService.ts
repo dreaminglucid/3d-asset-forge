@@ -21,12 +21,12 @@ export interface CollisionPoint {
 }
 
 export interface FittingConfig {
-  method: 'boundingBox' | 'collision' | 'smooth' | 'iterative' | 'hull'
-  margin: number // cm converted to scene units
-  smoothingIterations: number
-  collisionIterations: number
-  preserveDetails: boolean
-  stiffness: number
+  method: 'boundingBox' | 'collision' | 'smooth' | 'iterative' | 'hull' | 'shrinkwrap'
+  margin?: number // cm converted to scene units
+  smoothingIterations?: number
+  collisionIterations?: number
+  preserveDetails?: boolean
+  stiffness?: number
   useBodyHull?: boolean
   hullExpansion?: number
   hullSimplification?: number
@@ -35,6 +35,19 @@ export interface FittingConfig {
   hullIterations?: number
   hullStepSize?: number
   hullSmoothInfluence?: number
+  
+  // GenericFittingParameters for shrinkwrap method
+  iterations?: number
+  stepSize?: number
+  smoothingRadius?: number
+  smoothingStrength?: number
+  targetOffset?: number
+  sampleRate?: number
+  preserveFeatures?: boolean
+  featureAngleThreshold?: number
+  useImprovedShrinkwrap?: boolean
+  preserveOpenings?: boolean
+  pushInteriorVertices?: boolean
 }
 
 interface FittingParameters {
