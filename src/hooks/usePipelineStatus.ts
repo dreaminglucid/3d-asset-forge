@@ -9,7 +9,7 @@ interface UsePipelineStatusOptions {
 }
 
 export function usePipelineStatus({ apiClient, onComplete }: UsePipelineStatusOptions) {
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   
   const {
     currentPipelineId,

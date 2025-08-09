@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { MutableRefObject } from 'react'
+import { useCallback, useRef, MutableRefObject } from 'react'
 import { MeshFittingService } from '../../../../services/fitting/MeshFittingService'
 import { ExtendedMesh } from '../../../../types'
 import {
@@ -11,6 +11,7 @@ import {
     getBoneWorldPosition,
     disposeMesh
 } from '../utils'
+import { notify } from '../../../../utils/notify'
 
 interface HelmetFittingProps {
     sceneRef: MutableRefObject<THREE.Scene | null>
@@ -107,7 +108,7 @@ export function useHelmetFitting({
     const attachHelmetToHead = () => {
         if (!avatarMeshRef.current || !helmetMeshRef.current) {
             console.error('Avatar or helmet mesh not loaded')
-            alert('Please load both avatar and helmet first')
+            notify.error('Please load both avatar and helmet first')
             return
         }
 
@@ -131,7 +132,7 @@ export function useHelmetFitting({
                 avatarRoot.attach(helmetMeshRef.current)
                 setIsHelmetAttached(true)
                 console.log('Helmet attached to avatar root')
-                alert('Helmet attached to avatar root. Note: It will follow body movement but not specific head animations.')
+                notify.info('Helmet attached to avatar root. Note: It will follow body movement but not specific head animations.')
             }
             return
         }
@@ -201,7 +202,7 @@ export function useHelmetFitting({
 
         // Make original helmet visible again
         helmetMeshRef.current.visible = true
-        helmetMeshRef.current.traverse((child) => {
+        helmetMeshRef.current.traverse((child: THREE.Object3D) => {
             child.visible = true
         })
 

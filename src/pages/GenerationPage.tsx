@@ -18,6 +18,7 @@ import { usePipelineStatus } from '../hooks/usePipelineStatus'
 import { useMaterialPresets } from '../hooks/useMaterialPresets'
 import { useGameStylePrompts, useAssetTypePrompts, useMaterialPromptTemplates } from '../hooks/usePrompts'
 import { buildGenerationConfig } from '../utils/generationConfigBuilder'
+import { notify } from '../utils/notify'
 
 // Import all Generation components from single location
 import {
@@ -384,7 +385,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
   // Handle saving custom asset types
   const handleSaveCustomAssetTypes = async () => {
     if (!generationType) {
-      alert('Please select a generation type first')
+      notify.warning('Please select a generation type first')
       return
     }
     
@@ -408,10 +409,10 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
       setCustomAssetTypes([])
       
       // The saved types will automatically appear via allCustomAssetTypes
-      alert('Custom asset types saved successfully!')
+      notify.success('Custom asset types saved successfully!')
     } catch (error) {
       console.error('Failed to save custom asset types:', error)
-      alert('Failed to save custom asset types.')
+      notify.error('Failed to save custom asset types.')
     }
   }
 
@@ -439,7 +440,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
 
     } catch (error) {
       console.error('Failed to generate sprites:', error)
-      alert('Failed to generate sprites. Please check the console for details.')
+      notify.error('Failed to generate sprites. Please check the console for details.')
     } finally {
       setIsGeneratingSprites(false)
     }
@@ -447,7 +448,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
 
   const handleStartGeneration = async () => {
     if (!assetName || !description) {
-      alert('Please fill in all required fields')
+      notify.warning('Please fill in all required fields')
       return
     }
 
@@ -505,7 +506,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
     } catch (error) {
       console.error('Failed to start generation:', error)
       setIsGenerating(false)
-      alert('Failed to start generation. Please check the console.')
+      notify.error('Failed to start generation. Please check the console.')
     }
   }
 

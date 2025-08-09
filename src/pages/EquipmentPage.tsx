@@ -4,6 +4,7 @@ import { Asset } from '../types'
 import { EquipmentViewerRef } from '../components/Equipment/EquipmentViewer'
 import { WeaponHandleDetector } from '../services/processing/WeaponHandleDetector'
 import type { HandleDetectionResult } from '../services/processing/WeaponHandleDetector'
+import { notify } from '../utils/notify'
 
 // Import all modular components
 import {
@@ -86,12 +87,12 @@ export const EquipmentPage: React.FC = () => {
 
       // Show success message
       setTimeout(() => {
-        alert('Grip point detected! Weapon is normalized with grip at origin.')
+        notify.success('Grip point detected! Weapon is normalized with grip at origin.')
       }, 100)
 
     } catch (error) {
       console.error('Handle detection failed:', error)
-      alert(`Handle detection failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      notify.error(`Handle detection failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsDetectingHandle(false)
     }

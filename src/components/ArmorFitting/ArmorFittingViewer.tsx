@@ -2,13 +2,13 @@ import React, { useRef, useImperativeHandle, forwardRef, useEffect, useMemo, use
 import * as THREE from 'three'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, useGLTF } from '@react-three/drei'
-// @ts-ignore - Three.js examples modules don't have proper type declarations
 import { GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 // @ts-ignore - Three.js examples modules don't have proper type declarations
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter'
 import { MeshFittingService } from '../../services/fitting/MeshFittingService'
 import { ArmorFittingService, BodyRegion, CollisionPoint } from '../../services/fitting/ArmorFittingService'
 import { WeightTransferService } from '../../services/fitting/WeightTransferService'
+import { notify } from '../../utils/notify'
 
 // Type declarations
 interface AnimatedGLTF extends GLTF {
@@ -47,6 +47,7 @@ interface HelmetFittingParams {
   showHeadBounds?: boolean
   showCollisionDebug?: boolean
 }
+
 
 // Simplified demo component that handles model loading
 interface ModelDemoProps {
@@ -141,7 +142,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
             (progress: ProgressEvent) => {
               // Progress callback
             },
-            (error: ErrorEvent) => {
+            (error: unknown) => {
               console.error('Failed to load animation file:', error)
               setAnimationGltf(null)
             }
@@ -649,7 +650,7 @@ export const ArmorFittingViewer = forwardRef<
   })())
   const [bodyRegions, setBodyRegions] = useState<Map<string, BodyRegion> | null>(null)
   const [collisions, setCollisions] = useState<CollisionPoint[] | null>(null)
-  const visualizationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const visualizationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastComputedAvatar = useRef<string | null>(null)
   const lastComputedArmor = useRef<string | null>(null)
   
@@ -1381,7 +1382,7 @@ export const ArmorFittingViewer = forwardRef<
           const avatarRoot = avatarMeshRef.current.parent || avatarMeshRef.current
           avatarRoot.attach(helmetMeshRef.current)
           console.log('Helmet attached to avatar root')
-          alert('Helmet attached to avatar root. Note: It will follow body movement but not specific head animations.')
+          notify.info('Helmet attached to avatar root. Note: It will follow body movement but not specific head animations.')
         }
         return
       }
@@ -1582,27 +1583,27 @@ export const ArmorFittingViewer = forwardRef<
       // Export using GLTFExporter
       const exporter = new GLTFExporter()
       return new Promise<ArrayBuffer>((resolve, reject) => {
-        exporter.parse(
-          exportScene,
-          (result: ArrayBuffer | { [key: string]: unknown }) => {
-            if (result instanceof ArrayBuffer) {
-              resolve(result)
-            } else {
-              // Convert JSON to ArrayBuffer if needed
-              const json = JSON.stringify(result)
-              const buffer = new TextEncoder().encode(json)
-              resolve(buffer.buffer)
-            }
-          },
-          (error: Error) => {
-            console.error('Export failed:', error)
-            reject(error)
-          },
-          { binary: true }
-        )
+                  exporter.parse(
+            exportScene,
+            (result: ArrayBuffer | { [key: string]: unknown }) => {
+              if (result instanceof ArrayBuffer) {
+                resolve(result)
+              } else {
+                // Convert JSON to ArrayBuffer if needed
+                const json = JSON.stringify(result)
+                const buffer = new TextEncoder().encode(json)
+                resolve(buffer.buffer)
+              }
+            },
+            (error: unknown) => {
+              console.error('Export failed:', error)
+              reject(error as Error)
+            },
+            { binary: true }
+          )
       })
     },
-    
+
     resetTransform: () => {
       // Reset helmet transform if in Head mode
       if (equipmentSlot === 'Head' && helmetMeshRef.current) {

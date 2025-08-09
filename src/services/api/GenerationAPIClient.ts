@@ -3,7 +3,7 @@
  * Handles communication with the backend generation service
  */
 
-import { EventEmitter } from 'events'
+import { TypedEventEmitter } from '../../utils/TypedEventEmitter'
 import { GenerationConfig } from '../../types/generation'
 import { ExtendedImportMeta } from '../../types'
 
@@ -69,7 +69,7 @@ export interface GenerationAPIEvents {
 // Type helper to extract event arguments
 type EventArgs<T extends keyof GenerationAPIEvents> = GenerationAPIEvents[T]
 
-export class GenerationAPIClient extends EventEmitter {
+export class GenerationAPIClient extends TypedEventEmitter<GenerationAPIEvents> {
   private apiUrl: string
   private pollInterval: number = 2000 // Poll every 2 seconds
   private pipelineConfigs: Map<string, GenerationConfig> = new Map()
@@ -200,7 +200,7 @@ export class GenerationAPIClient extends EventEmitter {
         
       } catch (error) {
         console.error('Error polling pipeline status:', error)
-        this.emit('error', { pipelineId, error })
+        this.emit('error', { pipelineId, error: (error as Error) })
       }
     }
     

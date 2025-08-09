@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { MaterialPreset } from '../types'
 import { useGenerationStore } from '../store'
+import { notify } from '../utils/notify'
 
 export function useMaterialPresets() {
   const {
@@ -43,13 +44,13 @@ export function useMaterialPresets() {
       if (response.ok) {
         setMaterialPresets(updatedPresets)
         setCustomMaterials([])
-        alert('Custom materials saved successfully!')
+        notify.success('Custom materials saved successfully!')
       } else {
         throw new Error('Failed to save materials')
       }
     } catch (error) {
       console.error('Failed to save custom materials:', error)
-      alert('Failed to save custom materials. Note: This requires a backend endpoint to be implemented.')
+      notify.error('Failed to save custom materials. Note: This requires a backend endpoint to be implemented.')
     }
   }, [customMaterials, materialPresets, setMaterialPresets, setCustomMaterials])
 
@@ -68,13 +69,13 @@ export function useMaterialPresets() {
       if (response.ok) {
         setMaterialPresets(updatedPresets)
         setEditingPreset(null)
-        alert('Material preset updated successfully!')
+        notify.success('Material preset updated successfully!')
       } else {
         throw new Error('Failed to update preset')
       }
     } catch (error) {
       console.error('Failed to update preset:', error)
-      alert('Failed to update material preset.')
+      notify.error('Failed to update material preset.')
     }
   }, [materialPresets, setMaterialPresets, setEditingPreset])
 
@@ -92,13 +93,13 @@ export function useMaterialPresets() {
         setMaterialPresets(updatedPresets)
         setSelectedMaterials(selectedMaterials.filter(id => id !== presetId))
         setShowDeleteConfirm(null)
-        alert('Material preset deleted successfully!')
+        notify.success('Material preset deleted successfully!')
       } else {
         throw new Error('Failed to delete preset')
       }
     } catch (error) {
       console.error('Failed to delete preset:', error)
-      alert('Failed to delete material preset.')
+      notify.error('Failed to delete material preset.')
     }
   }, [materialPresets, selectedMaterials, setMaterialPresets, setSelectedMaterials, setShowDeleteConfirm])
 

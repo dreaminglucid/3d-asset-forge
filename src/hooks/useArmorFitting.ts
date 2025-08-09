@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { Asset } from '../types'
 import { FittingConfig, BodyRegion, CollisionPoint } from '../services/fitting/ArmorFittingService'
 import { ArmorFittingViewerRef } from '../components/ArmorFitting/ArmorFittingViewer'
+import { notify } from '../utils/notify'
 
 export interface ArmorFittingState {
   // Selected items
@@ -93,7 +94,18 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
       // Phase 1: Bounding box fit
       setFittingProgress(25)
       console.log('🎯 ArmorFittingLab: Phase 1 - Bounding box fit to position armor at torso')
-      viewerRef.current.performBoundingBoxFit()
+      viewerRef.current.performFitting({
+        iterations: 0,
+        stepSize: 0,
+        targetOffset: 0,
+        sampleRate: 1,
+        smoothingStrength: 0,
+        smoothingRadius: 1,
+        preserveFeatures: true,
+        useImprovedShrinkwrap: false,
+        preserveOpenings: true,
+        pushInteriorVertices: false
+      })
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       // Phase 2: Method-specific fitting
@@ -111,26 +123,70 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
           maintainPosition: true
         }
         console.log('🎯 ArmorFittingLab: Starting hull-based fit with params:', hullParams)
-        await viewerRef.current.performHullBasedFit(hullParams)
+        await viewerRef.current.performFitting({
+          iterations: hullParams.iterations,
+          stepSize: hullParams.stepSize,
+          targetOffset: hullParams.targetOffset,
+          sampleRate: 1,
+          smoothingStrength: hullParams.smoothStrength ?? 0.7,
+          smoothingRadius: hullParams.smoothInfluence ?? 5,
+          preserveFeatures: true,
+          useImprovedShrinkwrap: true,
+          preserveOpenings: true,
+          pushInteriorVertices: true
+        })
         setFittingProgress(75)
       } else if (fittingConfig.method === 'collision' || fittingConfig.method === 'smooth') {
         // Original collision-based methods
         setFittingProgress(50)
         for (let i = 0; i < (fittingConfig.collisionIterations || 3); i++) {
-          viewerRef.current.performCollisionBasedFit()
+          viewerRef.current.performFitting({
+            iterations: 1,
+            stepSize: 0.2,
+            targetOffset: 0.01,
+            sampleRate: 1,
+            smoothingStrength: 0.0,
+            smoothingRadius: 1,
+            preserveFeatures: true,
+            useImprovedShrinkwrap: false,
+            preserveOpenings: true,
+            pushInteriorVertices: true
+          })
           await new Promise(resolve => setTimeout(resolve, 200))
         }
         
         // Final smoothing pass
         console.log('🎯 ArmorFittingLab: Applying final smoothing pass')
-        viewerRef.current.performSmoothDeformation()
+        viewerRef.current.performFitting({
+          iterations: 1,
+          stepSize: 0.0,
+          targetOffset: 0.0,
+          sampleRate: 1,
+          smoothingStrength: 0.2,
+          smoothingRadius: 3,
+          preserveFeatures: true,
+          useImprovedShrinkwrap: false,
+          preserveOpenings: true,
+          pushInteriorVertices: false
+        })
         await new Promise(resolve => setTimeout(resolve, 300))
       }
       
       // Phase 3: Smooth deformation
       if (fittingConfig.method === 'smooth') {
         setFittingProgress(75)
-        viewerRef.current.performSmoothDeformation()
+        viewerRef.current.performFitting({
+          iterations: 1,
+          stepSize: 0.0,
+          targetOffset: 0.0,
+          sampleRate: 1,
+          smoothingStrength: 0.2,
+          smoothingRadius: 3,
+          preserveFeatures: true,
+          useImprovedShrinkwrap: false,
+          preserveOpenings: true,
+          pushInteriorVertices: false
+        })
         await new Promise(resolve => setTimeout(resolve, 500))
       }
       
@@ -144,13 +200,14 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
       setFittingProgress(100)
       
       // Show success message
-      setTimeout(() => {
-        alert('Armor fitting completed successfully!')
-      }, 100)
+              setTimeout(() => {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          notify.success('Armor fitting completed successfully!')
+        }, 100)
       
     } catch (error) {
       console.error('Fitting failed:', error)
-      alert('Fitting failed: ' + (error as Error).message)
+      notify.error('Fitting failed: ' + (error as Error).message)
     } finally {
       setIsFitting(false)
     }
@@ -167,7 +224,7 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
     if (!viewerRef.current) return
     
     try {
-      const arrayBuffer = await viewerRef.current.exportAlignedEquipment()
+      const arrayBuffer = await viewerRef.current.exportFittedModel()
       const blob = new Blob([arrayBuffer], { type: 'model/gltf-binary' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -177,7 +234,7 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
       URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Export failed:', error)
-      alert('Export failed: ' + (error as Error).message)
+      notify.error('Export failed: ' + (error as Error).message)
     }
   }, [])
 
