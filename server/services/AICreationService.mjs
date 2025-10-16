@@ -108,7 +108,13 @@ class MeshyService {
     }
 
     const data = await response.json()
-    return data.result || data
+    // Normalize to task id string for polling
+    const taskId = data.task_id || data.id || (data.result && (data.result.task_id || data.result.id))
+    if (!taskId) {
+      // Fallback to previous behavior but this will likely break polling
+      return data.result || data
+    }
+    return taskId
   }
 
   async getTaskStatus(taskId) {
@@ -161,7 +167,12 @@ class MeshyService {
     }
 
     const data = await response.json()
-    return data.result || data
+    // Normalize to task id string for polling
+    const taskId = data.task_id || data.id || (data.result && (data.result.task_id || data.result.id))
+    if (!taskId) {
+      return data.result || data
+    }
+    return taskId
   }
 
   async getRetextureTaskStatus(taskId) {
@@ -209,7 +220,12 @@ class MeshyService {
     }
 
     const data = await response.json()
-    return data.result || data
+    // Normalize to task id string for polling
+    const taskId = data.task_id || data.id || (data.result && (data.result.task_id || data.result.id))
+    if (!taskId) {
+      return data.result || data
+    }
+    return taskId
   }
 
   async getRiggingTaskStatus(taskId) {

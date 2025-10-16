@@ -31,7 +31,9 @@ export function usePipelineStatus({ apiClient, onComplete }: UsePipelineStatusOp
   } = useGenerationStore()
 
   useEffect(() => {
-    console.log('Pipeline status effect triggered. currentPipelineId:', currentPipelineId)
+    const DEBUG = (import.meta as any).env?.VITE_DEBUG_PIPELINE === 'true'
+    const POLL_MS = parseInt((import.meta as any).env?.VITE_PIPELINE_POLL_INTERVAL_MS || '1500', 10)
+    if (DEBUG) console.log('Pipeline status effect triggered. currentPipelineId:', currentPipelineId)
     if (!currentPipelineId) return
     
     const stageMapping: Record<string, string> = {
@@ -47,14 +49,14 @@ export function usePipelineStatus({ apiClient, onComplete }: UsePipelineStatusOp
     
     intervalRef.current = setInterval(async () => {
       try {
-        console.log('Fetching pipeline status for:', currentPipelineId)
+        if (DEBUG) console.log('Fetching pipeline status for:', currentPipelineId)
         const status = await apiClient.fetchPipelineStatus(currentPipelineId)
-        console.log('Received status:', status)
+        if (DEBUG) console.log('Received status:', status)
         
         if (status) {
           // Update pipeline stages
           Object.entries(status.stages || {}).forEach(([stageName, stageData]) => {
-            console.log('Processing stage:', stageName, stageData)
+            if (DEBUG) console.log('Processing stage:', stageName, stageData)
             const uiStageId = stageMapping[stageName]
             if (uiStageId) {
               let uiStatus = stageData.status === 'processing' ? 'active' : stageData.status
@@ -77,8 +79,10 @@ export function usePipelineStatus({ apiClient, onComplete }: UsePipelineStatusOp
             const baseAssetId = config.assetId || assetName.toLowerCase().replace(/\s+/g, '-')
             
             // Debug logging
-            console.log('Pipeline completed with results:', results)
-            console.log('Rigging results:', results.rigging)
+            if (DEBUG) {
+              console.log('Pipeline completed with results:', results)
+              console.log('Rigging results:', results.rigging)
+            }
             
             const finalAsset: GeneratedAsset = {
               id: baseAssetId,
@@ -154,9 +158,9 @@ export function usePipelineStatus({ apiClient, onComplete }: UsePipelineStatusOp
           }
         }
       } catch (error) {
-        console.error('Failed to get pipeline status:', error)
+        if (DEBUG) console.error('Failed to get pipeline status:', error)
       }
-    }, 500)
+    }, POLL_MS)
     
     return () => {
       if (intervalRef.current) {

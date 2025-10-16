@@ -259,9 +259,14 @@ export class GenerationService extends EventEmitter {
         const textureResolution = quality === 'ultra' ? 4096 : quality === 'high' ? 2048 : 1024
         const enablePbr = quality !== 'standard'
 
+        // Allow per-quality model selection via env, with a sensible default
+        const qualityUpper = quality.toUpperCase()
+        const aiModelEnv = process.env[`MESHY_MODEL_${qualityUpper}`] || process.env.MESHY_MODEL_DEFAULT
+        const aiModel = aiModelEnv || 'meshy-5'
+
         meshyTaskId = await this.aiService.meshyService.startImageTo3D(imageUrlForMeshy, {
           enable_pbr: enablePbr,
-          ai_model: 'meshy-5',
+          ai_model: aiModel,
           topology: 'quad',
           targetPolycount: targetPolycount,
           texture_resolution: textureResolution
@@ -270,10 +275,17 @@ export class GenerationService extends EventEmitter {
         // Poll for completion
         let meshyResult = null
         let attempts = 0
-        const maxAttempts = 60 // 5 minutes with 5 second intervals
+        const pollIntervalMs = parseInt(process.env.MESHY_POLL_INTERVAL_MS || '5000', 10)
+        const timeoutMs = parseInt(
+          (process.env[`MESHY_TIMEOUT_${qualityUpper}_MS`] || process.env.MESHY_TIMEOUT_MS || '300000'),
+          10
+        )
+        const maxAttempts = Math.max(1, Math.ceil(timeoutMs / pollIntervalMs))
+        
+        console.log(`⏳ Meshy polling configured: quality=${quality}, model=${aiModel}, interval=${pollIntervalMs}ms, timeout=${timeoutMs}ms, maxAttempts=${maxAttempts}`)
         
         while (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds
+          await new Promise(resolve => setTimeout(resolve, pollIntervalMs))
           
           const status = await this.aiService.meshyService.getTaskStatus(meshyTaskId)
           pipeline.stages.image3D.progress = status.progress || (attempts / maxAttempts * 100)
