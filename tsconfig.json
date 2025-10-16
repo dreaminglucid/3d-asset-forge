@@ -8,6 +8,10 @@
     "moduleResolution": "bundler",
     "types": ["node", "react", "react-dom", "three"],
     "typeRoots": ["./src/types", "./node_modules/@types"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
     
     /* Emit */
     "outDir": "./dist",

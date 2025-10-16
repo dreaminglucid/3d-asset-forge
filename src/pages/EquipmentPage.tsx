@@ -1,12 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useAssets } from '../hooks/useAssets'
+
 import { Asset } from '../types'
-import { EquipmentViewerRef } from '../components/Equipment/EquipmentViewer'
-import { WeaponHandleDetector } from '../services/processing/WeaponHandleDetector'
-import type { HandleDetectionResult } from '../services/processing/WeaponHandleDetector'
 import { notify } from '../utils/notify'
 
-// Import all modular components
 import {
   AssetSelectionPanel,
   ViewportSection,
@@ -16,7 +12,14 @@ import {
   PositionControls,
   CreatureSizeControls,
   ExportOptionsPanel
-} from '../components/Equipment'
+} from '@/components/Equipment'
+import { EquipmentViewerRef } from '@/components/Equipment/EquipmentViewer'
+import { useAssets } from '@/hooks'
+import { WeaponHandleDetector } from '@/services/processing/WeaponHandleDetector'
+import type { HandleDetectionResult } from '@/services/processing/WeaponHandleDetector'
+
+
+// Import all modular components
 
 export const EquipmentPage: React.FC = () => {
   const { assets, loading } = useAssets()

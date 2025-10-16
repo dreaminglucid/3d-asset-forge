@@ -1,9 +1,10 @@
-import React from 'react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badge } from '../common'
-import { cn } from '../../styles'
 import { Box, Eye, Download, Hand, Package } from 'lucide-react'
-import ThreeViewer, { ThreeViewerRef } from '../shared/ThreeViewer'
+import React from 'react'
+
+import { cn } from '../../styles'
 import type { Asset } from '../../types'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Badge } from '../common'
+import ThreeViewer, { ThreeViewerRef } from '../shared/ThreeViewer'
 
 interface ModelViewerProps {
   modelUrl: string | null

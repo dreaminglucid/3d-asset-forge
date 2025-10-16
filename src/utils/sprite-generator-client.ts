@@ -3,8 +3,9 @@
  * Processes sprite metadata created by the server and generates actual sprites
  */
 
-import { SpriteGenerationService } from '../services/generation/SpriteGenerationService'
-import { AssetService as AssetServiceInstance } from '../services/api/AssetService'
+import { AssetService as AssetServiceInstance } from '@/services/api/AssetService'
+import { SpriteGenerationService } from '@/services/generation/SpriteGenerationService'
+import { apiFetch } from '@/utils/api'
 
 export interface SpriteMetadata {
   baseModel: string
@@ -49,7 +50,7 @@ export class SpriteGeneratorClient {
     try {
       // Check for sprite metadata
       const metadataUrl = `/api/assets/${assetId}/sprite-metadata.json`
-      const response = await fetch(metadataUrl)
+      const response = await apiFetch(metadataUrl)
       
       if (!response.ok) {
         // No sprite metadata, sprites not needed

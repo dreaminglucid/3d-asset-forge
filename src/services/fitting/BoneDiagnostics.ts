@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+
 import { GLTFExportResult, GLTFNode } from '../../types/gltf'
 
 /**

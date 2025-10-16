@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react'
-import { Card, CardContent, Badge, Input } from '../common'
-import { cn } from '../../styles'
 import { Search, ChevronRight, Package } from 'lucide-react'
-import { Asset } from '../../types'
+import React, { useState, useMemo } from 'react'
+
 import { EQUIPMENT_SLOTS } from '../../constants'
+import { cn } from '../../styles'
+import { Asset } from '../../types'
+import { Card, CardContent, Badge, Input } from '../common'
 
 interface EquipmentListProps {
   assets: Asset[]

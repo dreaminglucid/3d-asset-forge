@@ -1,7 +1,8 @@
 import * as THREE from 'three'
-import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
-import type { GLTFExportJSON } from '../../types/service-types'
+import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
+
+import type { GLTFExportJSON as _GLTFExportJSON } from '../../types/service-types'
 
 export interface SimpleHandRiggingOptions {
   palmBoneLength?: number  // Length from wrist to palm center (default: 0.08)
@@ -312,6 +313,9 @@ export class SimpleHandRiggingService {
     try {
       const isLeft = wristBone.name.toLowerCase().includes('left')
       const side = isLeft ? 'left' : 'right'
+      if (debugMode) {
+        console.log(`Debug: palm length=${palmBoneLength}, finger length=${fingerBoneLength}`)
+      }
       
       console.log(`\n🖐️ Creating simple hand bones for ${side} hand...`)
 
@@ -667,7 +671,7 @@ export class SimpleHandRiggingService {
   private getHandForwardDirection(
     model: THREE.Object3D,
     wristBone: THREE.Bone,
-    isLeft: boolean
+    _isLeft: boolean
   ): THREE.Vector3 {
     console.log(`    Detecting hand forward direction for ${wristBone.name}`)
     
@@ -756,7 +760,7 @@ export class SimpleHandRiggingService {
     
     // Most rigs have hands extending along one of the bone's local axes
     // We'll test each axis and see which makes most sense
-    const axes = [
+    const _axes = [
       new THREE.Vector3(1, 0, 0),   // +X
       new THREE.Vector3(-1, 0, 0),  // -X
       new THREE.Vector3(0, 1, 0),   // +Y
@@ -849,6 +853,7 @@ export class SimpleHandRiggingService {
     fingerBone: THREE.Bone,
     isLeft: boolean
   ): Promise<void> {
+    console.log(`Applying simple weights for ${isLeft ? 'left' : 'right'} hand`)
     // Get bone positions in their local/model space
     const wristLocalPos = wristBone.position.clone()
     const palmLocalPos = palmBone.position.clone()
@@ -1019,11 +1024,9 @@ export class SimpleHandRiggingService {
           if (projectionLength < 0) verticesInNegativeDirection++
           
           // Count wrist-influenced vertices
-          let isWristInfluenced = false
           for (let j = 0; j < 4; j++) {
             if (newIndices[i * 4 + j] === wristIndex && newWeights[i * 4 + j] > 0.1) {
               wristInfluencedCount++
-              isWristInfluenced = true
               // Track where wrist vertices are
               if (projectionLength < wristVertexMinProj) wristVertexMinProj = projectionLength
               if (projectionLength > wristVertexMaxProj) wristVertexMaxProj = projectionLength

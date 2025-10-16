@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react'
-import { Asset } from '../types'
-import { FittingConfig, BodyRegion, CollisionPoint } from '../services/fitting/ArmorFittingService'
+
 import { ArmorFittingViewerRef } from '../components/ArmorFitting/ArmorFittingViewer'
+import { Asset } from '../types'
 import { notify } from '../utils/notify'
+
+import { FittingConfig, BodyRegion, CollisionPoint } from '@/services/fitting/ArmorFittingService'
 
 export interface ArmorFittingState {
   // Selected items
@@ -201,7 +203,7 @@ export function useArmorFitting(): ArmorFittingState & ArmorFittingActions {
       
       // Show success message
               setTimeout(() => {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+           
           notify.success('Armor fitting completed successfully!')
         }, 100)
       

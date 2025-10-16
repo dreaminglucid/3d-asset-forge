@@ -1,7 +1,8 @@
+import { useGLTF, Html, Text as DreiText } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
 import React, { useRef, useState, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
-import { useFrame } from '@react-three/fiber'
-import { useGLTF, Html, Text as DreiText } from '@react-three/drei'
+
 import { HelmetDemoProps } from '../types'
 
 export const HelmetDemo: React.FC<HelmetDemoProps> = ({ 
@@ -18,10 +19,10 @@ export const HelmetDemo: React.FC<HelmetDemoProps> = ({
     const helmetRef = useRef<THREE.Group>(null)
     const [isLoaded, setIsLoaded] = useState(false)
 
-    const mixer = useRef<THREE.AnimationMixer>()
-    const lastTime = useRef(0)
-    const activeAction = useRef<THREE.AnimationAction | null>(null)
-    const animationFrame = useRef<number>()
+    const _mixer = useRef<THREE.AnimationMixer>()
+    const _lastTime = useRef(0)
+    const _activeAction = useRef<THREE.AnimationAction | null>(null)
+    const _animationFrame = useRef<number>()
 
     // Check if paths are valid before attempting to load
     const hasValidPaths = avatarPath && helmetPath && avatarPath !== '' && helmetPath !== ''
@@ -32,7 +33,7 @@ export const HelmetDemo: React.FC<HelmetDemoProps> = ({
     // Construct animation file path based on the model if animation is needed
     const animationPath = useMemo(() => {
         if (needsAnimationFile && avatarPath) {
-            const match = avatarPath.match(/gdd-assets\/([^\/]+)\//);
+            const match = avatarPath.match(new RegExp('gdd-assets/([^/]+)/'));
             if (match) {
                 const characterName = match[1];
                 const animFileName = currentAnimation === 'walking' ? 'anim_walk.glb' : 'anim_run.glb';
@@ -115,7 +116,7 @@ export const HelmetDemo: React.FC<HelmetDemoProps> = ({
         })
 
         return clone
-    }, [avatar, avatarPath])
+    }, [avatar])
 
     const helmetClone = useMemo(() => {
         if (!helmet) return null
@@ -132,7 +133,7 @@ export const HelmetDemo: React.FC<HelmetDemoProps> = ({
             }
         })
         return clone
-    }, [helmet, helmetPath])
+    }, [helmet])
 
     // Reset when paths change
     useEffect(() => {

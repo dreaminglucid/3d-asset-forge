@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
 import { X, Save, Trash2, AlertTriangle } from 'lucide-react'
-import { Modal, Button, Input } from '../common'
+import { useState, useEffect } from 'react'
+
 import type { Asset, AssetMetadata } from '../../types'
+import { Modal, Button, Input } from '../common'
 
 interface AssetEditModalProps {
   asset: Asset | null

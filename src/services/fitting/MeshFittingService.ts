@@ -1250,10 +1250,13 @@ export class MeshFittingService {
               const relativeY = (vertex.y - sourceBounds.min.y) / (sourceBounds.max.y - sourceBounds.min.y)
               
               // Don't smooth lower back vertices at all
-              if (relativeY < 0.4) {
-                smoothingMask[i] = false
-                hasDisplacement[i] = hasDisplacement[i] // Keep the displacement but don't smooth
-              }
+                              if (relativeY < 0.4) {
+                  smoothingMask[i] = false
+                  // Keep the displacement but don't smooth; explicit no-op to clarify intent
+                  if (hasDisplacement[i]) {
+                    hasDisplacement[i] = true
+                  }
+                }
             }
           }
           
@@ -1547,12 +1550,12 @@ export class MeshFittingService {
     const vertexCount = position.count
     
     // Store original positions for reference
-    const originalPositions = new Float32Array(position.array)
+    const _originalPositions = new Float32Array(position.array)
     
     // Get centers
     const sourceBounds = new Box3().setFromObject(sourceMesh)
     const targetBounds = new Box3().setFromObject(targetMesh)
-    const sourceCenter = sourceBounds.getCenter(new Vector3())
+    const _sourceCenter = sourceBounds.getCenter(new Vector3())
     const targetCenter = targetBounds.getCenter(new Vector3())
     
     // Check if target is a box
@@ -1924,7 +1927,7 @@ export class MeshFittingService {
     const boundaryEdges: Array<[number, number]> = []
     const edgeVertices = new Set<number>()
     
-    for (const [key, edge] of edgeMap) {
+    for (const [_key, edge] of edgeMap) {
       if (edge.count === 1) {
         boundaryEdges.push(edge.vertices)
         edgeVertices.add(edge.vertices[0])
@@ -3232,7 +3235,7 @@ export class MeshFittingService {
     // DEAD SIMPLE APPROACH - HELMET BOUNDS MUST CONTAIN HEAD BOUNDS
     
     // Store original state
-    const originalMatrix = helmetMesh.matrix.clone()
+    const _originalMatrix = helmetMesh.matrix.clone()
     const originalPosition = helmetMesh.position.clone()
     const originalScale = helmetMesh.scale.clone()
     const originalRotation = helmetMesh.rotation.clone()

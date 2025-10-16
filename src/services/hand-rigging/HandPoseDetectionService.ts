@@ -8,8 +8,9 @@ import * as handPoseDetection from '@tensorflow-models/hand-pose-detection'
 import '@tensorflow/tfjs-backend-webgl'
 import '@mediapipe/hands'
 import * as THREE from 'three'
-import { TensorFlowHand, TensorFlowKeypoint } from '../../types/service-types'
+
 import { HAND_LANDMARKS, FINGER_JOINTS } from '../../constants'
+import { TensorFlowHand, TensorFlowKeypoint } from '../../types/service-types'
 
 export interface Point2D {
   x: number
@@ -289,7 +290,7 @@ export class HandPoseDetectionService {
   /**
    * Calculate finger bone positions from landmarks
    */
-  calculateBonePositions(hand: HandLandmarks, handSide: 'left' | 'right'): Record<string, Point3D[]> {
+  calculateBonePositions(hand: HandLandmarks, _handSide: 'left' | 'right'): Record<string, Point3D[]> {
     const bones: Record<string, Point3D[]> = {}
     
     // Add wrist as root

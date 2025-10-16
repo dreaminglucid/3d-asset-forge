@@ -1,7 +1,8 @@
+import { useGLTF, Html, Text as DreiText } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
 import React, { useRef, useState, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
-import { useFrame } from '@react-three/fiber'
-import { useGLTF, Html, Text as DreiText } from '@react-three/drei'
+
 import { AvatarArmorDemoProps } from '../types'
 
 export const AvatarArmorDemo: React.FC<AvatarArmorDemoProps> = ({ 
@@ -16,10 +17,10 @@ export const AvatarArmorDemo: React.FC<AvatarArmorDemoProps> = ({
     const armorRef = useRef<THREE.Group>(null)
     const [isLoaded, setIsLoaded] = useState(false)
 
-    const mixer = useRef<THREE.AnimationMixer>()
-    const lastTime = useRef(0)
-    const activeAction = useRef<THREE.AnimationAction | null>(null)
-    const animationFrame = useRef<number>()
+    const _mixer = useRef<THREE.AnimationMixer>()
+    const _lastTime = useRef(0)
+    const _activeAction = useRef<THREE.AnimationAction | null>(null)
+    const _animationFrame = useRef<number>()
 
     // Check if paths are valid before attempting to load
     const hasValidPaths = avatarPath && armorPath && avatarPath !== '' && armorPath !== ''
@@ -30,7 +31,7 @@ export const AvatarArmorDemo: React.FC<AvatarArmorDemoProps> = ({
     // Construct animation file path based on the model if animation is needed
     const animationPath = useMemo(() => {
         if (needsAnimationFile && avatarPath) {
-            const match = avatarPath.match(/gdd-assets\/([^\/]+)\//);
+            const match = avatarPath.match(new RegExp('gdd-assets/([^/]+)/'));
             if (match) {
                 const characterName = match[1];
                 const animFileName = currentAnimation === 'walking' ? 'anim_walk.glb' : 'anim_run.glb';
@@ -123,7 +124,7 @@ export const AvatarArmorDemo: React.FC<AvatarArmorDemoProps> = ({
         })
 
         return clone
-    }, [avatar, avatarPath]) // Re-clone when model changes
+    }, [avatar]) // Re-clone when model changes
 
     const armorClone = useMemo(() => {
         if (!armor) return null
@@ -146,7 +147,7 @@ export const AvatarArmorDemo: React.FC<AvatarArmorDemoProps> = ({
             }
         })
         return clone
-    }, [armor, armorPath]) // Re-clone when model changes
+    }, [armor]) // Re-clone when model changes
 
     // Reset when paths change
     useEffect(() => {

@@ -161,7 +161,20 @@ export class GenerationService extends EventEmitter {
         
         // For avatars, ensure T-pose is in the prompt
         // For armor, ensure it's standalone with hollow openings
+        // Build effective style text from custom prompts when available
+        // Also, if HQ cues are present, sanitize prompt from low-poly cues and add HQ details
+        const effectiveStyle = (pipeline.config.customPrompts && pipeline.config.customPrompts.gameStyle)
+          ? pipeline.config.customPrompts.gameStyle
+          : (pipeline.config.style || 'game-ready')
+
+        const wantsHQPrompt = /\b(4k|ultra|high\s*quality|realistic|cinematic|photoreal|pbr)\b/i.test(effectiveStyle)
         let imagePrompt = enhancedPrompt
+        if (wantsHQPrompt) {
+          imagePrompt = imagePrompt
+            .replace(/\b(low-?poly|stylized|minimalist|blocky|simplified)\b/gi, '')
+            .trim()
+          imagePrompt = `${imagePrompt} highly detailed, realistic, sharp features, high-resolution textures`
+        }
         if (pipeline.config.generationType === 'avatar' || pipeline.config.type === 'character') {
           const tposePrompt = generationPrompts?.posePrompts?.avatar?.tpose || 'standing in T-pose with arms stretched out horizontally'
           imagePrompt = `${enhancedPrompt} ${tposePrompt}`
@@ -179,7 +192,7 @@ export class GenerationService extends EventEmitter {
         const imageResult = await this.aiService.imageService.generateImage(
           imagePrompt,
           pipeline.config.type,
-          pipeline.config.style || 'runescape2007'
+          effectiveStyle
         )
         
         imageUrl = imageResult.imageUrl
@@ -236,12 +249,22 @@ export class GenerationService extends EventEmitter {
           }
         }
         
+        // Determine quality settings based on explicit config, style cues, and avatar type
+        const styleText = (pipeline.config.customPrompts && pipeline.config.customPrompts.gameStyle) || ''
+        const wantsHighQuality = /\b(4k|ultra|high\s*quality|realistic|cinematic|marvel|skyrim)\b/i.test(styleText)
+        const isAvatar = pipeline.config.generationType === 'avatar' || pipeline.config.type === 'character'
+
+        const quality = pipeline.config.quality || (wantsHighQuality || isAvatar ? 'ultra' : 'standard')
+        const targetPolycount = quality === 'ultra' ? 20000 : quality === 'high' ? 12000 : 6000
+        const textureResolution = quality === 'ultra' ? 4096 : quality === 'high' ? 2048 : 1024
+        const enablePbr = quality !== 'standard'
+
         meshyTaskId = await this.aiService.meshyService.startImageTo3D(imageUrlForMeshy, {
-          enable_pbr: false,
-          ai_model: 'meshy-4',
+          enable_pbr: enablePbr,
+          ai_model: 'meshy-5',
           topology: 'quad',
-          targetPolycount: 2000,
-          texture_resolution: 512
+          targetPolycount: targetPolycount,
+          texture_resolution: textureResolution
         })
         
         // Poll for completion
@@ -769,9 +792,12 @@ Your task is to enhance the user's description to create better results with ima
     
     systemPrompt += '\n' + (gpt4Prompts?.systemPrompt?.closingInstruction || 'Keep the enhanced prompt concise but detailed.')
     
+    // Include custom game style text (if present) ahead of the description for better style adherence
+    const stylePrefix = config.customPrompts?.gameStyle ? `${config.customPrompts.gameStyle} — ` : ''
+    const baseDescription = `${stylePrefix}${config.description}`
     const userPrompt = isArmor 
-      ? (gpt4Prompts?.typeSpecific?.armor?.enhancementPrefix || `Enhance this armor piece description for 3D generation. CRITICAL: The armor must be SHAPED FOR A T-POSE BODY - shoulder openings must point STRAIGHT SIDEWAYS at 90 degrees (like a scarecrow), NOT angled downward! Should look like a wide "T" shape. Ends at shoulders (no arm extensions), hollow openings, no armor stand: `) + `"${config.description}"`
-      : `Enhance this ${config.type} asset description for 3D generation: "${config.description}"`
+      ? (gpt4Prompts?.typeSpecific?.armor?.enhancementPrefix || `Enhance this armor piece description for 3D generation. CRITICAL: The armor must be SHAPED FOR A T-POSE BODY - shoulder openings must point STRAIGHT SIDEWAYS at 90 degrees (like a scarecrow), NOT angled downward! Should look like a wide "T" shape. Ends at shoulders (no arm extensions), hollow openings, no armor stand: `) + `"${baseDescription}"`
+      : `Enhance this ${config.type} asset description for 3D generation: "${baseDescription}"`
     
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -810,12 +836,12 @@ Your task is to enhance the user's description to create better results with ima
       // Load generation prompts for fallback
       const generationPrompts = await getGenerationPrompts()
       const fallbackTemplate = generationPrompts?.imageGeneration?.fallbackEnhancement || 
-        '${config.description}. ${config.style || "Low-poly RuneScape 2007"} style, clean geometry, game-ready 3D asset.'
+        '${config.description}. ${config.style || "game-ready"} style, clean geometry, game-ready 3D asset.'
       
       // Replace template variables
       const fallbackPrompt = fallbackTemplate
         .replace('${config.description}', config.description)
-        .replace('${config.style || "Low-poly RuneScape 2007"}', config.style || 'Low-poly RuneScape 2007')
+        .replace('${config.style || "game-ready"}', config.style || 'game-ready')
       
       return {
         originalPrompt: config.description,

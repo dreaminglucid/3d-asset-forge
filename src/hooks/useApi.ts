@@ -4,7 +4,11 @@
  */
 
 import { useState, useCallback } from 'react'
+
 import { useApp } from '../contexts/AppContext'
+
+import { apiFetch } from '@/utils/api'
+
 
 interface ApiOptions extends RequestInit {
   showError?: boolean
@@ -30,7 +34,7 @@ export function useApi() {
     setLoading(true)
     
     try {
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         ...fetchOptions,
         headers: {
           'Content-Type': 'application/json',

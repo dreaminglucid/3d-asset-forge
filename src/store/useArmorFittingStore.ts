@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
-import { Asset } from '../types'
-import { FittingConfig, BodyRegion, CollisionPoint } from '../services/fitting/ArmorFittingService'
+
 import { ArmorFittingViewerRef } from '../components/ArmorFitting/ArmorFittingViewer'
+import { FittingConfig, BodyRegion, CollisionPoint } from '../services/fitting/ArmorFittingService'
+import { Asset } from '../types'
 
 interface HistoryEntry {
   fittingConfig: FittingConfig

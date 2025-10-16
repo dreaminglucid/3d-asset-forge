@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react'
 import { Play, Pause, RotateCcw, Activity, Loader2, Eye, FileText, X, Download } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+
 import { Button, Modal } from '../common'
+
 import ThreeViewer, { ThreeViewerRef } from './ThreeViewer'
 
 interface AnimationPlayerProps {
@@ -31,7 +33,7 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
   )
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [animationsLoaded, setAnimationsLoaded] = useState(false)
+  const [_animationsLoaded, _setAnimationsLoaded] = useState(false)
   const [showingSkeleton, setShowingSkeleton] = useState(false)
   const [primaryModelUrl, setPrimaryModelUrl] = useState<string>('')
   const [showBonesModal, setShowBonesModal] = useState(false)
@@ -46,7 +48,7 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
   }, [])
   
   // Extract asset ID from the model URL or use provided assetId
-  const extractedAssetId = modelUrl?.match(/\/api\/assets\/([^\/]+)\/model/)?.[1] || ''
+  const extractedAssetId = modelUrl?.match(new RegExp('^/api/assets/([^/]+)/model'))?.[1] || ''
   const assetId = assetIdProp || extractedAssetId || ''
   
   // No need to fetch metadata separately, it's passed as a prop
@@ -128,16 +130,16 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
     if (!primaryModelUrl) return
     
     // All models are self-contained, no need to load animations separately
-    setAnimationsLoaded(true)
+    _setAnimationsLoaded(true)
     setIsLoading(false)
   }, [primaryModelUrl])
   
   // Cleanup on unmount
   useEffect(() => {
+    const viewerAtMount = viewerRef.current
     return () => {
-      // Stop any playing animations when component unmounts
-      if (viewerRef.current) {
-        viewerRef.current.stopAnimation()
+      if (viewerAtMount) {
+        viewerAtMount.stopAnimation()
       }
     }
   }, [])
@@ -197,7 +199,7 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
     }
   }
 
-  const handleReset = () => {
+  const _handleReset = () => {
     const defaultState = animations?.basic?.tpose ? 'tpose' : 'resting'
     setCurrentAnimation(defaultState)
     setIsPlaying(false)

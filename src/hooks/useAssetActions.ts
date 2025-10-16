@@ -1,8 +1,12 @@
 import { useCallback, RefObject } from 'react'
-import { Asset } from '../types'
-import { useAssetsStore } from '../store'
-import { ThreeViewerRef } from '../components/shared/ThreeViewer'
+
 import { API_ENDPOINTS } from '../constants'
+import { useAssetsStore } from '../store'
+import { Asset } from '../types'
+
+import { ThreeViewerRef } from '@/components/shared/ThreeViewer'
+import { apiFetch } from '@/utils/api'
+
 
 interface UseAssetActionsOptions {
   viewerRef: RefObject<ThreeViewerRef>
@@ -43,7 +47,7 @@ export function useAssetActions({ viewerRef, reloadAssets, forceReload, assets }
       // Close the edit modal immediately
       setShowEditModal(false)
 
-      const response = await fetch(`${API_ENDPOINTS.ASSETS}/${asset.id}?includeVariants=${includeVariants}`, {
+      const response = await apiFetch(`${API_ENDPOINTS.ASSETS}/${asset.id}?includeVariants=${includeVariants}`, {
         method: 'DELETE'
       })
 
@@ -85,7 +89,7 @@ export function useAssetActions({ viewerRef, reloadAssets, forceReload, assets }
 
   const handleSaveAsset = useCallback(async (updatedAsset: Partial<Asset>) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.ASSETS}/${updatedAsset.id}`, {
+      const response = await apiFetch(`${API_ENDPOINTS.ASSETS}/${updatedAsset.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

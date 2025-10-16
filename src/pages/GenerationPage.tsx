@@ -1,24 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react'
 import {
-  Button, Card, CardContent
-} from '../components/common'
-import {
-  ChevronRight, Sparkles,
+  Sparkles,
   Box, Grid3x3,
   FileText, Brain, Camera, Layers,
-  X, Loader2, User
+  Loader2, User
 } from 'lucide-react'
-import { MaterialPreset } from '../types'
-import { GenerationAPIClient } from '../services/api/GenerationAPIClient'
-import { Asset } from '../services/api/AssetService'
-import { spriteGeneratorClient } from '../utils/sprite-generator-client'
+import React, { useState, useEffect, useMemo } from 'react'
+
+
 import { useGenerationStore } from '../store'
 import type { PipelineStage } from '../store'
-import { usePipelineStatus } from '../hooks/usePipelineStatus'
-import { useMaterialPresets } from '../hooks/useMaterialPresets'
-import { useGameStylePrompts, useAssetTypePrompts, useMaterialPromptTemplates } from '../hooks/usePrompts'
+import { MaterialPreset } from '../types'
 import { buildGenerationConfig } from '../utils/generationConfigBuilder'
 import { notify } from '../utils/notify'
+import { spriteGeneratorClient } from '../utils/sprite-generator-client'
 
 // Import all Generation components from single location
 import {
@@ -39,7 +33,15 @@ import {
   GenerationTimeline,
   AssetActionsCard,
   NoAssetSelected
-} from '../components/Generation'
+} from '@/components/Generation'
+import {
+  Button, Card, CardContent
+} from '@/components/common'
+import { useGameStylePrompts, useAssetTypePrompts, useMaterialPromptTemplates } from '@/hooks'
+import { usePipelineStatus } from '@/hooks'
+import { useMaterialPresets } from '@/hooks'
+import { Asset, AssetService } from '@/services/api/AssetService'
+import { GenerationAPIClient } from '@/services/api/GenerationAPIClient'
 
 interface GenerationPageProps {
   onClose?: () => void
@@ -47,7 +49,7 @@ interface GenerationPageProps {
   onNavigateToAsset?: (assetId: string) => void
 }
 
-export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
+export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClose }) => {
   const [apiClient] = useState(() => new GenerationAPIClient())
 
   // Get all state and actions from the store
@@ -84,6 +86,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
     useGPT4Enhancement,
     enableRetexturing,
     enableSprites,
+    quality,
 
     // Avatar Configuration
     enableRigging,
@@ -126,6 +129,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
     setUseGPT4Enhancement,
     setEnableRetexturing,
     setEnableSprites,
+    setQuality,
     setEnableRigging,
     setCharacterHeight,
     setSelectedMaterials,
@@ -147,13 +151,13 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
   } = useGenerationStore()
 
   // Load prompts
-  const { prompts: gameStylePrompts, loading: gameStyleLoading, saveCustomGameStyle, deleteCustomGameStyle, getAllStyles: getAllGameStyles } = useGameStylePrompts()
+  const { prompts: gameStylePrompts, loading: gameStyleLoading, saveCustomGameStyle, deleteCustomGameStyle } = useGameStylePrompts()
   const { 
     prompts: loadedAssetTypePrompts, 
-    loading: assetTypeLoading, 
+    loading: _assetTypeLoading, 
     saveCustomAssetType,
     deleteCustomAssetType,
-    getAllTypes,
+    // getAllTypes,
     getTypesByGeneration 
   } = useAssetTypePrompts()
   const { templates: materialPromptTemplates } = useMaterialPromptTemplates()
@@ -223,7 +227,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
         setCustomGamePrompt(defaultPrompt)
       }
     }
-  }, [gameStyleLoading, gameStylePrompts])
+  }, [gameStyleLoading, gameStylePrompts, customGamePrompt, setCustomGamePrompt])
   
   // Apply game style specific prompts when game style changes
   useEffect(() => {
@@ -240,7 +244,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
         }
       }
     }
-  }, [gameStyle, customStyle, gameStyleLoading, gameStylePrompts])
+  }, [gameStyle, customStyle, gameStyleLoading, gameStylePrompts, setCustomGamePrompt])
 
   // Set asset type based on generation type
   useEffect(() => {
@@ -249,7 +253,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
     } else if (generationType === 'item') {
       setAssetType('weapon')
     }
-  }, [generationType])
+  }, [generationType, setAssetType])
 
   // Update pipeline stages based on configuration and generation type
   useEffect(() => {
@@ -257,31 +261,33 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
     initializePipelineStages()
   }, [generationType, useGPT4Enhancement, enableRetexturing, enableSprites, enableRigging, initializePipelineStages])
 
-  // Add icons to stages after they're initialized
+  // Add icons to stages after they're initialized (without creating an update loop)
   useEffect(() => {
     if (pipelineStages.length === 0) return
 
-    const stagesWithIcons = pipelineStages.map(stage => ({
-      ...stage,
-      icon: stage.id === 'text-input' ? <FileText className="w-4 h-4" /> :
-        stage.id === 'gpt4-enhancement' ? <Brain className="w-4 h-4" /> :
-          stage.id === 'image-generation' ? <Camera className="w-4 h-4" /> :
-            stage.id === 'image-to-3d' ? <Box className="w-4 h-4" /> :
-              stage.id === 'rigging' ? <User className="w-4 h-4" /> :
-                stage.id === 'retexturing' ? <Layers className="w-4 h-4" /> :
-                  stage.id === 'sprites' ? <Grid3x3 className="w-4 h-4" /> :
-                    <Sparkles className="w-4 h-4" /> // Default icon
-    }))
+    // Only set icons if any stage is missing one
+    const missingIcons = pipelineStages.some(stage => !stage.icon)
+    if (!missingIcons) return
 
-    // Only update if icons have changed
-    const needsUpdate = stagesWithIcons.some((stage, index) =>
-      stage.icon !== pipelineStages[index]?.icon
+    const iconFor = (id: string) => (
+      id === 'text-input' ? <FileText className="w-4 h-4" /> :
+      id === 'gpt4-enhancement' ? <Brain className="w-4 h-4" /> :
+      id === 'image-generation' ? <Camera className="w-4 h-4" /> :
+      id === 'image-to-3d' ? <Box className="w-4 h-4" /> :
+      id === 'rigging' ? <User className="w-4 h-4" /> :
+      id === 'retexturing' ? <Layers className="w-4 h-4" /> :
+      id === 'sprites' ? <Grid3x3 className="w-4 h-4" /> :
+      <Sparkles className="w-4 h-4" />
     )
 
-    if (needsUpdate) {
-      setPipelineStages(stagesWithIcons)
-    }
-  }, [pipelineStages.length]) // Only depend on length to avoid infinite loops
+    const stagesWithIcons = pipelineStages.map(stage => ({
+      ...stage,
+      icon: stage.icon ?? iconFor(stage.id)
+    }))
+
+    setPipelineStages(stagesWithIcons)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pipelineStages.length])
 
   // Handle model loading state when selected asset changes
   useEffect(() => {
@@ -289,76 +295,62 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
       setIsModelLoading(false)  // Don't show loading state, let ThreeViewer handle it
       setModelLoadError(null)
     }
-  }, [selectedAsset])
+  }, [selectedAsset, setIsModelLoading, setModelLoadError])
 
-  // Load material presets from JSON file
+  // Load material presets from API (run once), and default selections once
   useEffect(() => {
+    let didCancel = false
     const loadMaterialPresets = async () => {
       try {
-        console.log('[MaterialPresets] Starting to load material presets...')
-        const response = await fetch('/api/material-presets')
-        console.log('[MaterialPresets] Response:', response)
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch material presets: ${response.status}`)
-        }
-        
-        const data = await response.json()
-        console.log('[MaterialPresets] Parsed data:', data)
-        
+        setIsLoadingMaterials(true)
+        const data = await AssetService.getMaterialPresets()
         if (!Array.isArray(data)) {
           throw new Error('Material presets data is not an array')
         }
-        
-        console.log('[MaterialPresets] Setting', data.length, 'presets to store')
+        if (didCancel) return
         setMaterialPresets(data)
 
-        // Set default selected materials based on what's available
-        const defaultMaterials = ['bronze', 'steel', 'mithril']
-        const availableMaterials = defaultMaterials.filter(mat =>
-          data.some((preset: MaterialPreset) => preset.id === mat)
-        )
-
-        // Only update if no materials have been selected yet
-        if (selectedMaterials.length === 0 || selectedMaterials.every(m => defaultMaterials.includes(m))) {
-          setSelectedMaterials(availableMaterials)
+        // Set defaults only if nothing selected yet
+        if (selectedMaterials.length === 0) {
+          const defaults = ['bronze', 'steel', 'mithril']
+          const available = defaults.filter(id => data.some((p: MaterialPreset) => p.id === id))
+          setSelectedMaterials(available)
         }
-
-        setIsLoadingMaterials(false)
-        console.log('[MaterialPresets] Loading complete')
       } catch (error) {
         console.error('[MaterialPresets] Failed to load material presets:', error)
-        setIsLoadingMaterials(false)
+      } finally {
+        if (!didCancel) setIsLoadingMaterials(false)
       }
     }
     loadMaterialPresets()
+    return () => { didCancel = true }
+  // Intentionally run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Debug: Monitor materialPresets changes
-  useEffect(() => {
-    console.log('[MaterialPresets] materialPresets updated:', materialPresets)
-  }, [materialPresets])
 
   // Load existing assets when Results tab is accessed
   useEffect(() => {
     if (activeView === 'results' && generatedAssets.length === 0) {
       const loadExistingAssets = async () => {
         try {
-          const response = await fetch('/api/assets')
-          const assets = await response.json()
+          const assets = await AssetService.listAssets()
 
           // Transform API assets to match the expected format
           const transformedAssets = assets.map((asset: Asset) => ({
             id: asset.id,
             name: asset.name,
+            description: asset.description,
             type: asset.type,
             status: 'completed',
             hasModel: asset.hasModel,
             modelUrl: asset.hasModel ? `/api/assets/${asset.id}/model` : undefined,
             conceptArtUrl: `/api/assets/${asset.id}/concept-art.png`,
-            variants: ('variants' in asset.metadata && asset.metadata.variants) ? asset.metadata.variants : [],
+            variants: Array.isArray((asset as any).metadata?.variants)
+              ? ((asset.metadata as any).variants as { name: string; modelUrl: string }[])
+              : undefined,
             metadata: asset.metadata || {},
-            createdAt: asset.generatedAt || asset.metadata?.generatedAt
+            createdAt: (asset.generatedAt || asset.metadata?.generatedAt || new Date().toISOString()),
+            generatedAt: (asset.generatedAt || asset.metadata?.generatedAt || new Date().toISOString())
           }))
 
           setGeneratedAssets(transformedAssets)
@@ -374,7 +366,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
 
       loadExistingAssets()
     }
-  }, [activeView, generatedAssets.length, selectedAsset])
+  }, [activeView, generatedAssets, selectedAsset, setGeneratedAssets, setSelectedAsset])
 
   // Use the pipeline status hook
   usePipelineStatus({ apiClient })
@@ -494,7 +486,8 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
       materialPresets,
       materialPromptOverrides,
       materialPromptTemplates: materialPromptTemplates.templates,
-      gameStyleConfig
+      gameStyleConfig,
+      quality
     })
 
     console.log('Starting generation with config:', config)
@@ -640,10 +633,12 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose }) => {
                     enableRetexturing={enableRetexturing}
                     enableSprites={enableSprites}
                     enableRigging={enableRigging}
+                    quality={quality}
                     onUseGPT4EnhancementChange={setUseGPT4Enhancement}
                     onEnableRetexturingChange={setEnableRetexturing}
                     onEnableSpritesChange={setEnableSprites}
                     onEnableRiggingChange={setEnableRigging}
+                    onQualityChange={setQuality}
                   />
 
                   {/* Material Variants */}

@@ -1,12 +1,8 @@
 import { useRef, useCallback, useEffect } from 'react'
-import {
-  Search, Wand2, Camera, Activity
-} from 'lucide-react'
-import { ThreeViewerRef } from '../components/shared/ThreeViewer'
-import { HandRiggingService, HandRiggingResult } from '../services/hand-rigging/HandRiggingService'
-import { SimpleHandRiggingService, SimpleHandRiggingResult } from '../services/hand-rigging/SimpleHandRiggingService'
+
 import { useHandRiggingStore } from '../store'
 import type { ProcessingStage } from '../store'
+
 import {
   HandAvatarSelector,
   HandProcessingSteps,
@@ -17,7 +13,12 @@ import {
   DebugImages,
   HelpSection,
   ExportModal
-} from '../components/HandRigging'
+} from '@/components/HandRigging'
+import { ThreeViewerRef } from '@/components/shared/ThreeViewer'
+import { HandRiggingService, HandRiggingResult } from '@/services/hand-rigging/HandRiggingService'
+import { SimpleHandRiggingService, SimpleHandRiggingResult } from '@/services/hand-rigging/SimpleHandRiggingService'
+import { apiFetch } from '@/utils/api'
+
 
 export function HandRiggingPage() {
   const viewerRef = useRef<ThreeViewerRef>(null)
@@ -48,10 +49,10 @@ export function HandRiggingPage() {
     setServiceInitialized,
     setDebugImages,
     setShowExportModal,
-    reset,
-    toggleSkeleton,
-    getProcessingSteps,
-    canExport
+      reset: _reset,
+  toggleSkeleton,
+  getProcessingSteps: _getProcessingSteps,
+  canExport
   } = useHandRiggingStore()
 
   // Initialize services
@@ -111,7 +112,7 @@ export function HandRiggingPage() {
 
     try {
       // Fetch the model data from the already set modelUrl (which points to t-pose if available)
-      const response = await fetch(modelUrl)
+      const response = await apiFetch(modelUrl)
       if (!response.ok) {
         throw new Error('Failed to fetch avatar model')
       }

@@ -1,8 +1,9 @@
-import React from 'react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../common'
 import { Box, CheckCircle } from 'lucide-react'
-import { Asset } from '../../services/api/AssetService'
+import React from 'react'
+
 import { TIER_DISPLAY_COLORS } from '../../constants'
+import { Asset } from '../../services/api/AssetService'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../common'
 
 // Define the possible variant types based on GeneratedAsset
 type Variant = Asset | { name: string; modelUrl: string; id?: string; success?: boolean } | string

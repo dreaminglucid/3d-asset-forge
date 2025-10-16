@@ -1,10 +1,11 @@
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Badge, Checkbox } from '../common'
-import { cn } from '../../styles'
 import { 
   Settings, Wand2, Brain, Check, CheckCircle, 
   Sparkles, Loader2, RotateCw, X
 } from 'lucide-react'
+
 import { useHandRiggingStore } from '../../store'
+import { cn } from '../../styles'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Button, Badge, Checkbox } from '../common'
 
 interface HandRiggingControlsProps {
   onStartProcessing: () => void
@@ -17,7 +18,7 @@ export function HandRiggingControls({ onStartProcessing }: HandRiggingControlsPr
     useSimpleMode,
     showDebugImages,
     serviceInitialized,
-    error,
+    error: _error,
     setUseSimpleMode,
     toggleDebugImages,
     reset,

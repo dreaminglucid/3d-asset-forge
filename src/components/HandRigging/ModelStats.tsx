@@ -1,7 +1,8 @@
-import React from 'react'
-import { Card } from '../common'
-import { cn } from '../../styles'
 import { Grid3X3, Layers, Palette } from 'lucide-react'
+import React from 'react'
+
+import { cn } from '../../styles'
+import { Card } from '../common'
 
 interface ModelStatsProps {
   modelInfo: {

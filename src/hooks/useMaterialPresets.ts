@@ -1,7 +1,10 @@
 import { useCallback } from 'react'
-import { MaterialPreset } from '../types'
+
 import { useGenerationStore } from '../store'
+import { MaterialPreset } from '../types'
 import { notify } from '../utils/notify'
+
+import { apiFetch } from '@/utils/api'
 
 export function useMaterialPresets() {
   const {
@@ -35,7 +38,7 @@ export function useMaterialPresets() {
       const updatedPresets = [...materialPresets, ...newMaterials]
       
       // Save to JSON file
-      const response = await fetch('/api/material-presets', {
+      const response = await apiFetch('/api/material-presets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedPresets)
@@ -60,7 +63,7 @@ export function useMaterialPresets() {
         preset.id === updatedPreset.id ? updatedPreset : preset
       )
       
-      const response = await fetch('/api/material-presets', {
+      const response = await apiFetch('/api/material-presets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedPresets)
@@ -83,7 +86,7 @@ export function useMaterialPresets() {
     try {
       const updatedPresets = materialPresets.filter(preset => preset.id !== presetId)
       
-      const response = await fetch('/api/material-presets', {
+      const response = await apiFetch('/api/material-presets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedPresets)

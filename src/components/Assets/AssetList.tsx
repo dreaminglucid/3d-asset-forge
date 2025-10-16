@@ -1,13 +1,14 @@
-import React, { useState, useMemo } from 'react'
-import { Asset } from '../../types'
-import { useAssetsStore } from '../../store'
-import { getTierColor } from '../../constants'
-
 import {
   Package, Shield, Swords, Diamond, Hammer, Building,
   User, Trees, Box, Target, HelpCircle, Sparkles,
   ChevronRight, Layers
 } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+
+import { getTierColor } from '../../constants'
+import { useAssetsStore } from '../../store'
+import { Asset } from '../../types'
+
 
 interface AssetListProps {
   assets: Asset[]
@@ -155,7 +156,7 @@ const AssetList: React.FC<AssetListProps> = ({
     setExpandedGroups(newExpanded)
   }
 
-  const getAssetIcon = (type: string, subtype?: string) => {
+  const getAssetIcon = (type: string, _subtype?: string) => {
     switch (type) {
       case 'weapon':
         return <Swords size={20} />
@@ -189,19 +190,19 @@ const AssetList: React.FC<AssetListProps> = ({
       // Handle cases like "body-leather-base-01" or "legs-metal-base-02"
       const baseMatch = name.match(/^(.+?)-base-?(\d+)?$/i)
       if (baseMatch) {
-        const [, itemName, number] = baseMatch
+        const [, itemName, _number] = baseMatch
         const cleaned = itemName.replace(/-/g, ' ')
           .split(' ')
           .map(word => word.charAt(0).toUpperCase() + word.slice(1))
           .join(' ')
-        return number ? `${cleaned} ${number}` : cleaned
+        return _number ? `${cleaned} ${_number}` : cleaned
       }
     }
 
     // For variants, check if it's a numbered variant with redundant material names
     const variantMatch = name.match(/^(.+?)[-\s](\d+)[-\s](.+)$/)
     if (variantMatch && !isBase) {
-      const [, baseName, number, material] = variantMatch
+      const [, baseName, _number, material] = variantMatch
       // If the base name and material are similar, just return the material
       const baseWords = baseName.toLowerCase().split(/[-\s]+/)
       const materialWords = material.toLowerCase().split(/[-\s]+/)

@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { GenerationAPIClient } from '../services/api/GenerationAPIClient'
-import { GeneratedAsset, AssetType, BaseAssetMetadata, GenerationAssetMetadata } from '../types'
+
 import { useGenerationStore } from '../store'
+import { GeneratedAsset, AssetType, BaseAssetMetadata, GenerationAssetMetadata } from '../types'
+
+import { GenerationAPIClient } from '@/services/api/GenerationAPIClient'
 
 interface UsePipelineStatusOptions {
   apiClient: GenerationAPIClient
@@ -162,7 +164,24 @@ export function usePipelineStatus({ apiClient, onComplete }: UsePipelineStatusOp
         intervalRef.current = null
       }
     }
-  }, [currentPipelineId, apiClient, useGPT4Enhancement, enableRetexturing, enableSprites, assetName, updatePipelineStage])
+  }, [
+    currentPipelineId,
+    apiClient,
+    useGPT4Enhancement,
+    enableRetexturing,
+    enableSprites,
+    assetName,
+    assetType,
+    generationType,
+    characterHeight,
+    generatedAssets,
+    setIsGenerating,
+    updatePipelineStage,
+    setGeneratedAssets,
+    setSelectedAsset,
+    setActiveView,
+    onComplete
+  ])
   
   return { intervalRef }
 } 

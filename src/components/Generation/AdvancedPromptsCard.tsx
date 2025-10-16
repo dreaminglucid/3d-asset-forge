@@ -1,8 +1,9 @@
+import { Brain, ChevronRight, Plus, Trash2, Sparkles, Save, Edit2, Palette, Wand2, Check, FileText, Layers, X } from 'lucide-react'
 import React, { useState } from 'react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Textarea } from '../common'
-import { Brain, ChevronRight, Plus, Trash2, Sparkles, Save, Edit2, Palette, Wand2, Info, Check, FileText, Layers, X } from 'lucide-react'
+
 import { cn } from '../../styles'
 import { CustomAssetType } from '../../types/generation'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Textarea } from '../common'
 
 interface AdvancedPromptsCardProps {
   showAdvancedPrompts: boolean
@@ -41,20 +42,20 @@ interface AdvancedPromptsCardProps {
 
 export const AdvancedPromptsCard: React.FC<AdvancedPromptsCardProps> = ({
   showAdvancedPrompts,
-  showAssetTypeEditor,
+  showAssetTypeEditor: _showAssetTypeEditor,
   generationType,
-  assetType,
+  assetType: _assetType,
   customGamePrompt,
   customAssetTypePrompt,
   assetTypePrompts,
   customAssetTypes,
   currentStylePrompt,
   loadedPrompts,
-  gameStyle,
-  customStyle,
+  gameStyle: _gameStyle,
+  customStyle: _customStyle,
   gameStylePrompts,
   onToggleAdvancedPrompts,
-  onToggleAssetTypeEditor,
+  onToggleAssetTypeEditor: _onToggleAssetTypeEditor,
   onCustomGamePromptChange,
   onCustomAssetTypePromptChange,
   onAssetTypePromptsChange,
@@ -356,7 +357,7 @@ const PromptSection: React.FC<{
 )
 
 // Empty State Component
-const EmptyState: React.FC<{
+const _EmptyState: React.FC<{
   icon: React.ReactNode
   title: string
   description: string
@@ -724,7 +725,7 @@ const TypeCard: React.FC<{
   isDefault?: boolean
   isCustom?: boolean
   onDelete?: () => Promise<boolean>
-}> = ({ type, value, onChange, isDefault, isCustom, onDelete }) => {
+}> = ({ type, value, onChange, isDefault: _isDefault, isCustom, onDelete }) => {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 

@@ -1,13 +1,9 @@
+import { Sparkles, Package, Loader, CheckCircle, Wand2, Plus, Image as ImageIcon, Type } from 'lucide-react'
 import React, { useState } from 'react'
-import { Asset, MaterialPreset } from '../../types'
-import { useMaterialPresets, useRetexturing } from '../../hooks/useAssets'
-import { 
-  Sparkles, Package, Loader, CheckCircle, 
-  ChevronRight, Wand2, Plus,
-  Image as ImageIcon, Type
-} from 'lucide-react'
 
-// Import components and utilities
+import { useMaterialPresets, useRetexturing } from '../../hooks/useAssets'
+import { patterns, cn } from '../../styles'
+import { Asset, MaterialPreset } from '../../types'
 import {
   Modal,
   ModalHeader,
@@ -25,7 +21,7 @@ import {
   Badge,
   Progress
 } from '../common'
-import { patterns, cn } from '../../styles'
+// import { ImageUploader, Toggle } from '../ui'
 
 interface RetextureModalProps {
   asset: Asset
@@ -40,7 +36,7 @@ const RetextureModal: React.FC<RetextureModalProps> = ({
   onClose,
   onComplete
 }) => {
-  const { presets, loading: presetsLoading } = useMaterialPresets()
+  const { presets, loading: _presetsLoading } = useMaterialPresets()
   const { retextureAsset, isRetexturing } = useRetexturing()
   
   // States
@@ -55,9 +51,9 @@ const RetextureModal: React.FC<RetextureModalProps> = ({
   const [results, setResults] = useState<Array<{name: string, status: 'pending' | 'done' | 'error'}>>([])
   
   // Custom material creation
-  const [customMaterials, setCustomMaterials] = useState<MaterialPreset[]>([])
-  const [showCustomMaterialForm, setShowCustomMaterialForm] = useState(false)
-  const [customMaterialData, setCustomMaterialData] = useState({
+  const [_customMaterials, _setCustomMaterials] = useState<MaterialPreset[]>([])
+  const [_showCustomMaterialForm, _setShowCustomMaterialForm] = useState(false)
+  const [_customMaterialData, _setCustomMaterialData] = useState({
     name: '',
     displayName: '',
     category: '',
@@ -90,7 +86,7 @@ const RetextureModal: React.FC<RetextureModalProps> = ({
   })
   
   // Combine presets and custom materials
-  const allMaterials = [...presets, ...customMaterials]
+  const allMaterials = [...presets, ..._customMaterials]
   
   // Debug: Check for duplicate IDs
   const idCounts = allMaterials.reduce((acc, mat) => {
@@ -111,7 +107,6 @@ const RetextureModal: React.FC<RetextureModalProps> = ({
     : allMaterials
   
   const suggestedCategories = detectSuggestedCategories()
-  const hasGamePresets = allMaterials.length > 0
 
   // Workflow mode selection content
   const renderWorkflowSelection = () => (
@@ -155,10 +150,10 @@ const RetextureModal: React.FC<RetextureModalProps> = ({
                 )}
               </div>
               
-              <ChevronRight className={cn(
+              <span className={cn(
                 "w-5 h-5 text-gray-400 transition-all duration-200",
                 "group-hover:text-primary-600 group-hover:translate-x-1"
-              )} />
+              )}>›</span>
             </CardContent>
           </Card>
 
@@ -189,10 +184,10 @@ const RetextureModal: React.FC<RetextureModalProps> = ({
                 </CardDescription>
               </div>
               
-              <ChevronRight className={cn(
+              <span className={cn(
                 "w-5 h-5 text-gray-400 transition-all duration-200",
                 "group-hover:text-success-600 group-hover:translate-x-1"
-              )} />
+              )}>›</span>
             </CardContent>
           </Card>
 
@@ -223,10 +218,10 @@ const RetextureModal: React.FC<RetextureModalProps> = ({
                 </CardDescription>
               </div>
               
-              <ChevronRight className={cn(
+              <span className={cn(
                 "w-5 h-5 text-gray-400 transition-all duration-200",
                 "group-hover:text-warning-600 group-hover:translate-x-1"
-              )} />
+              )}>›</span>
             </CardContent>
           </Card>
         </div>
@@ -290,7 +285,7 @@ const RetextureModal: React.FC<RetextureModalProps> = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowCustomMaterialForm(true)}
+              onClick={() => _setShowCustomMaterialForm(true)}
               className="border border-dashed border-gray-300 hover:border-gray-400"
             >
               <Plus size={16} />

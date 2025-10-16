@@ -1,14 +1,18 @@
+import { OrbitControls } from '@react-three/drei'
+import { Canvas, useFrame } from '@react-three/fiber'
 import React, { useRef, useImperativeHandle, forwardRef, useEffect, useMemo, useState } from 'react'
 import * as THREE from 'three'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, useGLTF } from '@react-three/drei'
+// import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter'
 import { GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+
 // @ts-ignore - Three.js examples modules don't have proper type declarations
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter'
-import { MeshFittingService } from '../../services/fitting/MeshFittingService'
 import { ArmorFittingService, BodyRegion, CollisionPoint } from '../../services/fitting/ArmorFittingService'
-import { WeightTransferService } from '../../services/fitting/WeightTransferService'
+import { MeshFittingService } from '../../services/fitting/MeshFittingService'
+// import { WeightTransferService } from '../../services/fitting/WeightTransferService'
 import { notify } from '../../utils/notify'
+
+import { useArmorExport } from '@/hooks'
+import { apiFetch } from '@/utils/api'
 
 // Type declarations
 interface AnimatedGLTF extends GLTF {
@@ -95,7 +99,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
   const animationPath = useMemo(() => {
     if (needsAnimationFile && avatarUrl) {
       // Handle API paths (/api/assets/{id}/model)
-      const apiMatch = avatarUrl.match(/\/api\/assets\/([^\/]+)\/model/)
+      const apiMatch = avatarUrl.match(new RegExp('^/api/assets/([^/]+)/model'))
       if (apiMatch) {
         const assetId = apiMatch[1]
         const animFileName = currentAnimation === 'walking' ? 'anim_walk.glb' : 'anim_run.glb'
@@ -104,7 +108,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
       }
       
       // Handle direct gdd-assets paths (for local testing)
-      const gddMatch = avatarUrl.match(/gdd-assets\/([^\/]+)\//)
+      const gddMatch = avatarUrl.match(new RegExp('gdd-assets/([^/]+)/'))
       if (gddMatch) {
         const characterName = gddMatch[1]
         const animFileName = currentAnimation === 'walking' ? 'anim_walk.glb' : 'anim_run.glb'
@@ -127,7 +131,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
     const loader = new GLTFLoader()
     
     // First check if the animation file exists by attempting a HEAD request
-    fetch(animationPath, { method: 'HEAD' })
+    apiFetch(animationPath, { method: 'HEAD' })
       .then(response => {
         if (response.ok) {
           // File exists, load it
@@ -139,7 +143,7 @@ const ModelDemo: React.FC<ModelDemoProps> = ({
               console.log('Animation count:', gltf.animations.length)
               setAnimationGltf(gltf as AnimatedGLTF)
             },
-            (progress: ProgressEvent) => {
+            (_progress: ProgressEvent) => {
               // Progress callback
             },
             (error: unknown) => {
@@ -630,7 +634,7 @@ export const ArmorFittingViewer = forwardRef<
   // Services
   const genericFittingService = useRef(new MeshFittingService())
   const armorFittingService = useRef(new ArmorFittingService())
-  const weightTransferService = useRef(new WeightTransferService())
+  // const weightTransferService = useRef(new WeightTransferService())
   
   // Original geometry storage
   const originalArmorGeometryRef = useRef<THREE.BufferGeometry | null>(null)
@@ -641,6 +645,14 @@ export const ArmorFittingViewer = forwardRef<
   } | null>(null)
   
   const helmetGroupRef = useRef<THREE.Group | null>(null)
+  
+  // Export helper
+  const { exportFittedModel: exportFittedModelHook } = useArmorExport({
+    sceneRef,
+    equipmentSlot,
+    helmetMeshRef,
+    armorMeshRef
+  })
   
   // Visualization state
   const visualizationGroupRef = useRef<THREE.Group>((() => {
@@ -980,6 +992,7 @@ export const ArmorFittingViewer = forwardRef<
         clearTimeout(visualizationTimeoutRef.current)
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.visualizationMode, props.selectedBone, bodyRegions, collisions])
   
   useImperativeHandle(ref, () => ({
@@ -1462,7 +1475,7 @@ export const ArmorFittingViewer = forwardRef<
       // Store the current world transform
       currentArmorMesh.updateMatrixWorld(true)
       const perfectWorldPosition = currentArmorMesh.getWorldPosition(new THREE.Vector3())
-      const perfectWorldQuaternion = currentArmorMesh.getWorldQuaternion(new THREE.Quaternion())
+      const _perfectWorldQuaternion = currentArmorMesh.getWorldQuaternion(new THREE.Quaternion())
       const perfectWorldScale = currentArmorMesh.getWorldScale(new THREE.Vector3())
       
       console.log('=== FITTED ARMOR WORLD TRANSFORM ===')
@@ -1566,42 +1579,7 @@ export const ArmorFittingViewer = forwardRef<
     },
     
     exportFittedModel: async () => {
-      const meshToExport = equipmentSlot === 'Head' 
-        ? helmetMeshRef.current 
-        : armorMeshRef.current
-        
-      if (!meshToExport || !sceneRef.current) {
-        console.error('No mesh to export')
-        throw new Error('No mesh to export')
-      }
-      
-      // Create a temporary scene for export
-      const exportScene = new THREE.Scene()
-      const meshClone = meshToExport.clone()
-      exportScene.add(meshClone)
-      
-      // Export using GLTFExporter
-      const exporter = new GLTFExporter()
-      return new Promise<ArrayBuffer>((resolve, reject) => {
-                  exporter.parse(
-            exportScene,
-            (result: ArrayBuffer | { [key: string]: unknown }) => {
-              if (result instanceof ArrayBuffer) {
-                resolve(result)
-              } else {
-                // Convert JSON to ArrayBuffer if needed
-                const json = JSON.stringify(result)
-                const buffer = new TextEncoder().encode(json)
-                resolve(buffer.buffer)
-              }
-            },
-            (error: unknown) => {
-              console.error('Export failed:', error)
-              reject(error as Error)
-            },
-            { binary: true }
-          )
-      })
+      return await exportFittedModelHook()
     },
 
     resetTransform: () => {

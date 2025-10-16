@@ -1,7 +1,10 @@
 import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+
 import { GripBounds, GripCoordinates, GripDetectionData } from '../../types'
+
+import { apiFetch } from '@/utils/api'
 
 interface HandleDetectionResult {
   gripPoint: THREE.Vector3
@@ -405,7 +408,7 @@ export class WeaponHandleDetector {
     return false
   }
   
-  private renderToCanvas(model: THREE.Object3D): HTMLCanvasElement {
+  private renderToCanvas(_model: THREE.Object3D): HTMLCanvasElement {
     // Model is already added to scene in setupOrthographicCamera
     
     // Create offscreen canvas
@@ -425,7 +428,8 @@ export class WeaponHandleDetector {
     ctx.drawImage(this.renderer.domElement, 0, 0)
     
     // Add debug grid lines to help visualize sections
-    if (true) { // Enable for debugging
+    const SHOW_DEBUG_GRID = false
+    if (SHOW_DEBUG_GRID) {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'
       ctx.lineWidth = 1
       
@@ -568,7 +572,7 @@ export class WeaponHandleDetector {
     const base64Image = processedCanvas.toDataURL('image/png')
     
     try {
-      const response = await fetch('/api/weapon-handle-detect', {
+      const response = await apiFetch('/api/weapon-handle-detect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: base64Image })
@@ -667,7 +671,7 @@ export class WeaponHandleDetector {
       const base64Image = processedCanvas.toDataURL('image/png')
       
       try {
-        const response = await fetch('/api/weapon-handle-detect', {
+        const response = await apiFetch('/api/weapon-handle-detect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -1119,7 +1123,7 @@ export class WeaponHandleDetector {
     const base64Image = canvas.toDataURL('image/png')
     
     try {
-      const response = await fetch('/api/weapon-orientation-detect', {
+      const response = await apiFetch('/api/weapon-orientation-detect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: base64Image })

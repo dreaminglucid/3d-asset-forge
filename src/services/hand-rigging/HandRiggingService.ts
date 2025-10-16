@@ -4,13 +4,15 @@
  */
 
 import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
-import { HandPoseDetectionService, HandLandmarks, Point3D, HandDetectionResult } from './HandPoseDetectionService'
-import { OrthographicHandRenderer, WristBoneInfo, HandCaptureResult } from './OrthographicHandRenderer'
-import { HandSegmentationService, FingerSegmentation } from './HandSegmentationService'
-import { HandBoneStructure, HandRiggingResult, HandRiggingOptions, RequiredHandRiggingOptions, HandRiggingResultWithDebug } from '../../types'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+
 import { HAND_BONE_NAMES } from '../../constants'
+import { HandBoneStructure, HandRiggingResult, HandRiggingOptions, RequiredHandRiggingOptions, HandRiggingResultWithDebug } from '../../types'
+
+import { HandPoseDetectionService, HandLandmarks, Point3D, HandDetectionResult } from './HandPoseDetectionService'
+import { HandSegmentationService, FingerSegmentation } from './HandSegmentationService'
+import { OrthographicHandRenderer, WristBoneInfo, HandCaptureResult } from './OrthographicHandRenderer'
 
 // Re-export for backward compatibility
 export type { HandBoneStructure, HandRiggingResult, HandRiggingOptions }
@@ -501,7 +503,7 @@ export class HandRiggingService {
   /**
    * Estimate depth values for landmarks
    */
-  private estimateLandmarkDepths(hand: HandLandmarks): number[] {
+  private estimateLandmarkDepths(_hand: HandLandmarks): number[] {
     // Simple depth estimation based on hand anatomy
     const depths: number[] = []
     
@@ -553,7 +555,7 @@ export class HandRiggingService {
     )
     
     // Create palm bone (optional, helps with weighting)
-    const palmPos = new THREE.Vector3(
+    const _palmPos = new THREE.Vector3(
       landmarks3D[0].x,
       landmarks3D[0].y,
       landmarks3D[0].z
@@ -660,7 +662,7 @@ export class HandRiggingService {
     const skinWeights = geometry.attributes.skinWeight
     
     // Get bone indices in skeleton
-    const boneIndices = this.getBoneIndices(mesh.skeleton, handBones)
+    const _boneIndices = this.getBoneIndices(mesh.skeleton, handBones)
     
     // Count affected vertices
     let affectedVertices = 0
@@ -809,7 +811,7 @@ export class HandRiggingService {
     const positions = geometry.attributes.position
     
     // Build vertex neighbors (simplified - could use proper topology)
-    const neighbors: Map<number, number[]> = new Map()
+    const _neighbors: Map<number, number[]> = new Map()
     
     // For now, just smooth based on spatial proximity
     for (let iter = 0; iter < iterations; iter++) {

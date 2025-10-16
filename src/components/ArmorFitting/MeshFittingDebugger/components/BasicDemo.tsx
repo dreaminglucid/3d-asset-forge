@@ -1,6 +1,6 @@
+import { Text as DreiText } from '@react-three/drei'
 import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import * as THREE from 'three'
-import { Text as DreiText } from '@react-three/drei'
 
 interface BasicDemoProps {
     showWireframe: boolean

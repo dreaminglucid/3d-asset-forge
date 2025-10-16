@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react'
-import { Badge, Input } from '../common'
-import { cn } from '../../styles'
 import { Search, User, ChevronRight, Loader2, Sword, Box, HardHat, Shirt } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+
+import { cn } from '../../styles'
 import { Asset } from '../../types'
+import { Badge, Input } from '../common'
 
 interface ArmorAssetListProps {
   assets: Asset[]

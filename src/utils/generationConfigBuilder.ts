@@ -1,5 +1,4 @@
 import { GenerationConfig, MaterialPreset } from '../types'
-import { useGenerationStore } from '../store'
 
 interface BuildConfigOptions {
   assetName: string
@@ -14,6 +13,7 @@ interface BuildConfigOptions {
   enableSprites: boolean
   enableRigging: boolean
   characterHeight?: number
+  quality?: 'standard' | 'high' | 'ultra'
   selectedMaterials: string[]
   materialPresets: MaterialPreset[]
   materialPromptOverrides: Record<string, string>
@@ -43,6 +43,7 @@ export function buildGenerationConfig(options: BuildConfigOptions): GenerationCo
     enableSprites,
     enableRigging,
     characterHeight,
+    quality,
     selectedMaterials,
     materialPresets,
     materialPromptOverrides,
@@ -95,6 +96,7 @@ export function buildGenerationConfig(options: BuildConfigOptions): GenerationCo
     style: gameStyleConfig?.generation || (gameStyle === 'runescape' ? 'runescape2007' : customStyle),
     assetId: assetName.toLowerCase().replace(/\s+/g, '-'),
     generationType: generationType,
+    quality,
     metadata: {
       gameStyle,
       customGamePrompt: gameStyle === 'custom' ? customGamePrompt : undefined,

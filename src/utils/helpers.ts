@@ -2,7 +2,7 @@
  * Utility helpers
  */
 
-import { AssetMetadata } from '../types'
+// import { AssetMetadata } from '../types'
 
 /**
  * Generate a unique ID
@@ -220,7 +220,7 @@ export function generateMaterialDescription(
   itemType: 'weapon' | 'armor' | 'tool'
 ): string {
   const tier = MATERIAL_TIERS[materialTier]
-  const adjective = tier.adjectives[Math.floor(Math.random() * tier.adjectives.length)]
+  const _adjective = tier.adjectives[Math.floor(Math.random() * tier.adjectives.length)]
   
   // Add material-specific details
   let description = baseDescription

@@ -1,11 +1,12 @@
-import React, { useState } from 'react'
-import { Asset } from '../../types'
 import { 
   X, Package, Hash, Tag, Calendar, Layers, Palette, Box, 
   FileCode, ChevronRight, Copy, Check,
   Sparkles, AlertCircle, Download, Share2, Code
 } from 'lucide-react'
+import React, { useState } from 'react'
+
 import { getTierColor } from '../../constants'
+import { Asset } from '../../types'
 
 interface AssetDetailsPanelProps {
   asset: Asset

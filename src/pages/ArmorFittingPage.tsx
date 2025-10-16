@@ -1,9 +1,9 @@
-import React, { useRef } from 'react'
-import { ErrorNotification, EmptyState } from '../components/common'
-import { cn } from '../styles'
 import { Bug, Download, Upload, Package, RotateCcw } from 'lucide-react'
-import { useAssets } from '../hooks/useAssets'
+import React, { useRef } from 'react'
+
 import { useArmorFittingStore } from '../store/useArmorFittingStore'
+import { cn } from '../styles'
+
 import {
   ArmorFittingViewer,
   ArmorFittingViewerRef,
@@ -13,7 +13,11 @@ import {
   UndoRedoControls,
   FittingProgress,
   MeshFittingDebugger
-} from '../components/ArmorFitting'
+} from '@/components/ArmorFitting'
+import { ErrorNotification, EmptyState } from '@/components/common'
+import { useAssets } from '@/hooks'
+
+
 
 export const ArmorFittingPage: React.FC = () => {
   const { assets, loading } = useAssets()

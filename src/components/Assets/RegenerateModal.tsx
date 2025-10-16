@@ -3,11 +3,14 @@
  * Allows regenerating the base model for an asset
  */
 
-import React, { useState } from 'react'
-import { Asset } from '../../types'
-import { Modal, ModalHeader, ModalBody, ModalFooter, ModalSection, Button } from '../common'
-import { formatAssetName } from '../../utils/formatAssetName'
 import { RefreshCw, CheckCircle, AlertCircle, Loader2, AlertTriangle } from 'lucide-react'
+import React, { useState } from 'react'
+
+import { Asset } from '../../types'
+import { formatAssetName } from '../../utils/formatAssetName'
+import { Modal, ModalHeader, ModalBody, ModalFooter, ModalSection, Button } from '../common'
+
+import { apiFetch } from '@/utils/api'
 
 interface RegenerateModalProps {
   asset: Asset
@@ -40,7 +43,7 @@ const RegenerateModal: React.FC<RegenerateModalProps> = ({
         })
       }, 2000)
 
-      const response = await fetch(`/api/regenerate-base/${asset.id}`, {
+      const response = await apiFetch(`/api/regenerate-base/${asset.id}`, {
         method: 'POST'
       })
 

@@ -1,13 +1,14 @@
 import { MutableRefObject } from 'react'
 import * as THREE from 'three'
-import { MeshFittingService, MeshFittingParameters } from '../../../../services/fitting/MeshFittingService'
+
 import { ArmorFittingService } from '../../../../services/fitting/ArmorFittingService'
+import { MeshFittingService, MeshFittingParameters } from '../../../../services/fitting/MeshFittingService'
 import { ExtendedMesh } from '../../../../types'
 
 // Import modular hooks
 import { useArmorFitting } from './useArmorFitting'
-import { useHelmetFitting } from './useHelmetFitting'
 import { useBasicDemoFitting } from './useBasicDemoFitting'
+import { useHelmetFitting } from './useHelmetFitting'
 import { useResetHandlers } from './useResetHandlers'
 
 interface FittingHandlersProps {

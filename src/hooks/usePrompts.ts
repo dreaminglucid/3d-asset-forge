@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { PromptService, GameStylePrompt, AssetTypePrompt, AssetTypePromptsByCategory, PromptsResponse } from '../services/api/PromptService'
+
 import { useGenerationStore } from '../store'
+
+import { PromptService, GameStylePrompt, AssetTypePrompt, AssetTypePromptsByCategory, PromptsResponse } from '@/services/api/PromptService'
 
 export function useGameStylePrompts() {
   const [prompts, setPrompts] = useState<PromptsResponse<Record<string, GameStylePrompt>>>({
@@ -11,7 +13,7 @@ export function useGameStylePrompts() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const { customGamePrompt, setCustomGamePrompt } = useGenerationStore()
+  const { customGamePrompt: _customGamePrompt, setCustomGamePrompt: _setCustomGamePrompt } = useGenerationStore()
 
   useEffect(() => {
     const loadPrompts = async () => {
@@ -48,7 +50,7 @@ export function useGameStylePrompts() {
     loadPrompts()
   }, [])
 
-  const saveCustomGameStyle = useCallback(async (styleId: string, style: GameStylePrompt) => {
+  const saveCustomGameStyle = useCallback(async (styleId: string, style: { name: string; base: string; enhanced?: string }) => {
     try {
       const updatedPrompts = {
         ...prompts,
@@ -219,7 +221,7 @@ export function useAssetTypePrompts() {
 
 // Hook for material prompt templates
 export function useMaterialPromptTemplates() {
-  const [templates, setTemplates] = useState({
+  const [templates, setTemplates] = useState<{ templates: { runescape: string; generic: string } & Record<string, string>; customOverrides: Record<string, string>}>({
     templates: {
       runescape: '${materialId} texture, low-poly RuneScape style',
       generic: '${materialId} texture'

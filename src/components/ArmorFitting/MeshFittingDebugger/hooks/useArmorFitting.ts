@@ -1,7 +1,8 @@
-import * as THREE from 'three'
 import { MutableRefObject } from 'react'
-import { MeshFittingService, MeshFittingParameters } from '../../../../services/fitting/MeshFittingService'
+import * as THREE from 'three'
+
 import { ArmorFittingService } from '../../../../services/fitting/ArmorFittingService'
+import { MeshFittingService, MeshFittingParameters } from '../../../../services/fitting/MeshFittingService'
 import { ExtendedMesh } from '../../../../types'
 import {
     calculateScaleRatio,
@@ -40,7 +41,7 @@ export function useArmorFitting({
     armorMeshRef,
     originalArmorGeometryRef,
     debugArrowGroupRef,
-    hullMeshRef,
+    hullMeshRef: _hullMeshRef,
     fittingService,
     armorFittingService,
     setIsProcessing,
@@ -50,7 +51,7 @@ export function useArmorFitting({
     setSkinnedArmorMesh,
     setError,
     isProcessing,
-    showHull,
+    showHull: _showHull,
     fittingParameters,
     selectedAvatar
 }: ArmorFittingProps) {
@@ -119,7 +120,7 @@ export function useArmorFitting({
             return
         }
 
-        const { torsoCenter, torsoSize, torsoBounds } = torsoInfo
+        const { torsoCenter, torsoSize, torsoBounds: _torsoBounds } = torsoInfo
 
         // Scale and position armor
         const scaledArmor = scaleAndPositionArmor(
@@ -207,7 +208,7 @@ export function useArmorFitting({
             // Store the current world transform
             currentArmorMesh.updateMatrixWorld(true)
             const perfectWorldPosition = currentArmorMesh.getWorldPosition(new THREE.Vector3())
-            const perfectWorldQuaternion = currentArmorMesh.getWorldQuaternion(new THREE.Quaternion())
+            const _perfectWorldQuaternion = currentArmorMesh.getWorldQuaternion(new THREE.Quaternion())
             const perfectWorldScale = currentArmorMesh.getWorldScale(new THREE.Vector3())
 
             console.log('=== FITTED ARMOR WORLD TRANSFORM ===')
@@ -436,7 +437,7 @@ function scaleAndPositionArmor(
     // Calculate scales
     const targetScale = calculateFittingScale(armorSize, torsoSize)
     const minScale = 0.5
-    const finalScale = Math.max(targetScale, minScale)
+    const _finalScale = Math.max(targetScale, minScale)
     
     // Get character-specific adjustments
     const characterProfile = selectedAvatar?.name?.toLowerCase().includes('goblin') 

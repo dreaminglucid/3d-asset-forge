@@ -1,17 +1,18 @@
+import { MutableRefObject } from 'react'
 import * as THREE from 'three'
-import { useCallback, useRef, MutableRefObject } from 'react'
+
 import { MeshFittingService } from '../../../../services/fitting/MeshFittingService'
 import { ExtendedMesh } from '../../../../types'
+import { notify } from '../../../../utils/notify'
 import {
     storeWorldTransform,
     applyWorldTransform,
     applyExtremeScaleMaterialFixes,
-    findHeadBone,
+    findHeadBone as _findHeadBone,
     getSkeletonFromMesh,
-    getBoneWorldPosition,
-    disposeMesh
+    getBoneWorldPosition as _getBoneWorldPosition,
+    disposeMesh as _disposeMesh
 } from '../utils'
-import { notify } from '../../../../utils/notify'
 
 interface HelmetFittingProps {
     sceneRef: MutableRefObject<THREE.Scene | null>
@@ -41,12 +42,12 @@ export function useHelmetFitting({
     sceneRef,
     avatarMeshRef,
     helmetMeshRef,
-    originalHelmetTransformRef,
+    originalHelmetTransformRef: _originalHelmetTransformRef,
     fittingService,
     setIsProcessing,
     setIsHelmetFitted,
     setIsHelmetAttached,
-    isProcessing,
+    isProcessing: _isProcessing,
     helmetFittingMethod,
     helmetSizeMultiplier,
     helmetFitTightness,

@@ -1,9 +1,9 @@
-import { useRef, useEffect, forwardRef, useImperativeHandle, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { SkeletonHelper } from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 export interface Transform {
   position: { x: number; y: number; z: number }
@@ -59,7 +59,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
   const avatarRef = useRef<THREE.Object3D | null>(null)
   const equipmentRef = useRef<THREE.Object3D | null>(null)
   const loader = useRef(new GLTFLoader())
-  const exporter = useRef(new GLTFExporter())
+  // const exporter = useRef(new GLTFExporter())
   const skeletonHelperRef = useRef<SkeletonHelper | null>(null)
   const equipmentWrapperRef = useRef<THREE.Group | null>(null)
   const animationMixerRef = useRef<THREE.AnimationMixer | null>(null)
@@ -97,10 +97,14 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
   
   // Initialize Three.js scene
   useEffect(() => {
+    console.log(`🔧 EquipmentViewer initializing (instance: ${instanceId.current})`)
+
     if (!containerRef.current) return
-    
-    console.log(`🎨 EquipmentViewer instance ${instanceId.current} initializing`)
-    
+
+    // Cache stable references for cleanup
+    const containerEl = containerRef.current
+    const instanceAtMount = instanceId.current
+
     // Scene setup
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x1a1a1a)
@@ -246,11 +250,11 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
     window.addEventListener('resize', handleResize)
     
     return () => {
-      console.log(`🧹 EquipmentViewer instance ${instanceId.current} cleaning up`)
+      console.log(`🧹 EquipmentViewer instance ${instanceAtMount} cleaning up`)
       window.removeEventListener('resize', handleResize)
       cancelAnimationFrame(animationFrameId)
       renderer.dispose()
-      containerRef.current?.removeChild(renderer.domElement)
+      containerEl?.removeChild(renderer.domElement)
     }
   }, [])
   
@@ -341,7 +345,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
     // Debug the hierarchy
     console.log(`🌳 Normalized weapon hierarchy:`)
     console.log(`   - ${weaponGroup.name} (Group)`)
-    let depth = 0
+    let _depth = 0
     normalizedWeapon.traverse((child) => {
       if (child !== normalizedWeapon) {
         console.log(`     - ${child.name || 'unnamed'} (${child.type})`)
@@ -376,6 +380,68 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
     return worldScale
   }
   
+  // Helper: estimate avatar height from its bounding box
+  const calculateAvatarHeight = (avatar: THREE.Object3D): number => {
+    avatar.updateMatrixWorld(true)
+    let minY = Infinity
+    let maxY = -Infinity
+    let foundMesh = false
+    avatar.traverse((child) => {
+      if (child instanceof THREE.SkinnedMesh) {
+        foundMesh = true
+        const box = new THREE.Box3().setFromObject(child)
+        minY = Math.min(minY, box.min.y)
+        maxY = Math.max(maxY, box.max.y)
+      }
+    })
+    if (!foundMesh) {
+      const box = new THREE.Box3().setFromObject(avatar)
+      minY = box.min.y
+      maxY = box.max.y
+    }
+    const height = maxY - minY
+    if (height < 0.1 || height > 10) return 1.8
+    return height
+  }
+
+  // Helper: compute weapon scale relative to avatar height
+  const calculateWeaponScale = (
+    weapon: THREE.Object3D,
+    avatar: THREE.Object3D,
+    weaponType: string,
+    avatarHeight: number
+  ): number => {
+    weapon.updateMatrixWorld(true)
+    const weaponBox = new THREE.Box3().setFromObject(weapon)
+    const weaponSize = new THREE.Vector3()
+    weaponBox.getSize(weaponSize)
+    const weaponLength = Math.max(weaponSize.x, weaponSize.y, weaponSize.z)
+    if (weaponType === 'armor') return 1.0
+    let targetProportion = 0.65
+    if (weaponType === 'dagger' || weaponType === 'knife') targetProportion = 0.25
+    else if (weaponType === 'sword' || weaponType === 'axe') {
+      if (avatarHeight < 1.2) targetProportion = 0.72
+      else if (avatarHeight > 2.5) targetProportion = 0.55
+      else targetProportion = 0.65
+    } else if (weaponType === 'spear' || weaponType === 'staff') targetProportion = 1.1
+    else if (weaponType === 'bow') targetProportion = 0.8
+    const targetWeaponLength = avatarHeight * targetProportion
+    const scaleFactor = targetWeaponLength / weaponLength
+    return scaleFactor
+  }
+
+  // Helper: default orientation based on weapon type
+  const calculateWeaponOrientation = (
+    _weapon: THREE.Object3D,
+    _targetBone: THREE.Bone,
+    weaponType: string = 'weapon'
+  ): THREE.Euler => {
+    if (weaponType === 'sword' || weaponType === 'melee') {
+      return new THREE.Euler(Math.PI / 2, Math.PI / 2, 0, 'XYZ')
+    }
+    return new THREE.Euler(0, 0, 0, 'XYZ')
+  }
+ 
   // Load avatar
   useEffect(() => {
     if (!isInitialized || !avatarUrl || !sceneRef.current) return
@@ -396,7 +462,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
         animationClipsRef.current = []
         
         // Store equipment state before removing avatar
-        const hadEquipmentAttached = shouldAttachEquipmentRef.current && equipmentRef.current && equipmentRef.current.parent
+        const _hadEquipmentAttached = shouldAttachEquipmentRef.current && equipmentRef.current && equipmentRef.current.parent
         
         // Remove existing avatar
         if (avatarRef.current) {
@@ -548,6 +614,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
     }
     
     loadAvatar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInitialized, avatarUrl])  // Only reload when URL changes, not animation state
   
   // Load equipment
@@ -703,7 +770,8 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
     }
     
     loadEquipment()
-  }, [isInitialized, equipmentUrl, weaponType, avatarHeight, scaleOverride, gripOffset?.x, gripOffset?.y, gripOffset?.z])  // Use individual values to avoid object reference issues
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitialized, equipmentUrl, weaponType, avatarHeight, autoScale, scaleOverride, gripOffset?.x, gripOffset?.y, gripOffset?.z])  // Use individual values to avoid object reference issues
   
   // Update equipment when avatar height or scale changes
   useEffect(() => {
@@ -731,26 +799,429 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
       equipmentRef.current.updateMatrix()
       equipmentRef.current.updateMatrixWorld(true)
     }
-  }, [avatarHeight, autoScale, scaleOverride, weaponType])
+  }, [isInitialized, avatarHeight, autoScale, scaleOverride, weaponType])
   
+  // Effects that depend on memoized callbacks are placed after their declarations
+  const updateEquipmentTransform = () => {
+    if (!equipmentRef.current || !avatarRef.current) return
+    
+    // Check if armor has been fitted - if so, skip everything
+    if (equipmentRef.current.userData.isFitted) {
+      console.log('🛡️ Skipping transform update - armor has been fitted')
+      return
+    }
+    
+    // Calculate scale
+    const effectiveHeight = avatarHeight || calculateAvatarHeight(avatarRef.current)
+    const autoScaleFactor = calculateWeaponScale(equipmentRef.current, avatarRef.current, weaponType, effectiveHeight)
+    const finalScale = autoScale ? scaleOverride * autoScaleFactor : scaleOverride
+    
+    // Store target scale
+    equipmentRef.current.userData.targetScale = finalScale
+    
+    // If attached to a bone, compensate for bone scale
+    const attachedBone = getAttachedBone(equipmentRef.current)
+    if (attachedBone) {
+      const boneWorldScale = getWorldScale(attachedBone)
+      const compensatedScale = finalScale / boneWorldScale.x
+      equipmentRef.current.scale.set(compensatedScale, compensatedScale, compensatedScale)
+      console.log(`Updated equipment scale to ${compensatedScale.toFixed(3)} (compensated for bone scale ${boneWorldScale.x.toFixed(3)})`)
+    } else {
+      equipmentRef.current.scale.set(finalScale, finalScale, finalScale)
+      console.log(`Updated equipment scale to ${finalScale.toFixed(3)}`)
+    }
+    
+    equipmentRef.current.updateMatrix()
+    equipmentRef.current.updateMatrixWorld(true)
+  }
+  
+  // Manual update function for position and rotation
+  const updateEquipmentPose = useCallback(() => {
+    if (!equipmentRef.current || !avatarRef.current) return
+    
+    // Skip pose updates for armor - let fitting algorithms handle it
+    if (weaponType === 'armor') {
+      return
+    }
+    
+    // Find the wrapper - equipment is now always in a wrapper
+    let wrapper = equipmentRef.current.parent
+    if (!wrapper || wrapper.name !== 'EquipmentWrapper') {
+      console.warn('Equipment is not in expected wrapper structure')
+      return
+    }
+    
+    const attachedBone = getAttachedBone(equipmentRef.current)
+    if (!attachedBone) {
+      console.warn('Could not find attached bone')
+      return
+    }
+    
+    // Update position
+    const avatarHeight = calculateAvatarHeight(avatarRef.current)
+    const handOffsetDistance = avatarHeight * 0.045
+    const isRightHand = equipmentSlot.includes('_R') || equipmentSlot.includes('Right')
+    
+    // Get default offsets for weapon type
+    const defaultOffsets: Record<string, { position: { x: number; y: number; z: number }; rotation: { x: number; y: number; z: number } }> = {
+      sword: {
+        position: { 
+          x: isRightHand ? 0.076 : -0.076,
+          y: 0.077,
+          z: 0.028
+        },
+        rotation: { x: 92, y: 0, z: 0 }
+      },
+      '2h-sword': {
+        position: { 
+          x: isRightHand ? 0.076 : -0.076,
+          y: 0.077,
+          z: 0.028
+        },
+        rotation: { x: 92, y: 0, z: 0 }
+      },
+      mace: {
+        position: { 
+          x: isRightHand ? 0.076 : -0.076,
+          y: 0.077,
+          z: 0.028
+        },
+        rotation: { x: 92, y: 0, z: 0 }
+      },
+      bow: {
+        position: { 
+          x: isRightHand ? 0.05 : -0.05,
+          y: 0.1,
+          z: 0
+        },
+        rotation: { x: 0, y: 90, z: 0 }
+      },
+      crossbow: {
+        position: { 
+          x: isRightHand ? 0.076 : -0.076,
+          y: 0.05,
+          z: 0.05
+        },
+        rotation: { x: 0, y: 0, z: 0 }
+      },
+      shield: {
+        position: { 
+          x: isRightHand ? 0.05 : -0.05,
+          y: 0.05,
+          z: 0
+        },
+        rotation: { x: 0, y: 0, z: 0 }
+      },
+      default: {
+        position: { 
+          x: isRightHand ? -handOffsetDistance : handOffsetDistance,
+          y: 0,
+          z: 0
+        },
+        rotation: { x: 0, y: 0, z: 0 }
+      }
+    }
+    
+    const weaponDefaults = defaultOffsets[weaponType] || defaultOffsets.default
+    const basePosition = new THREE.Vector3(
+      weaponDefaults.position.x,
+      weaponDefaults.position.y,
+      weaponDefaults.position.z
+    )
+    
+    // Get bone scale to compensate for it
+    const boneScale = getWorldScale(attachedBone)
+    console.log(`🦴 Bone scale: (${boneScale.x.toFixed(3)}, ${boneScale.y.toFixed(3)}, ${boneScale.z.toFixed(3)})`)
+    
+    // Update wrapper userData with current offsets
+    wrapper.userData.baseHandOffset = basePosition.clone()
+    wrapper.userData.manualPositionOffset = positionOffset || { x: 0, y: 0, z: 0 }
+    wrapper.userData.manualRotationOffset = orientationOffset || { x: 0, y: 0, z: 0 }
+    wrapper.userData.boneScale = boneScale.x // Store bone scale for render loop
+    
+    // Set wrapper position (relative to bone) - compensate for bone scale
+    const compensatedBase = basePosition.clone().divideScalar(boneScale.x)
+    wrapper.position.copy(compensatedBase)
+    
+    if (positionOffset) {
+      // Compensate manual offsets for bone scale
+      wrapper.position.x += (positionOffset.x || 0) / boneScale.x
+      wrapper.position.y += (positionOffset.y || 0) / boneScale.x
+      wrapper.position.z += (positionOffset.z || 0) / boneScale.x
+    }
+    
+    console.log(`🎯 Setting wrapper position - Base: (${basePosition.x.toFixed(3)}, ${basePosition.y.toFixed(3)}, ${basePosition.z.toFixed(3)}), Compensated: (${wrapper.position.x.toFixed(3)}, ${wrapper.position.y.toFixed(3)}, ${wrapper.position.z.toFixed(3)}), Bone scale: ${boneScale.x.toFixed(3)}`)
+    
+    // Show the effect of bone scale compensation
+    if (positionOffset && (positionOffset.x || positionOffset.y || positionOffset.z)) {
+      console.log(`📊 Bone scale compensation: Manual offset (${(positionOffset.x || 0).toFixed(3)}, ${(positionOffset.y || 0).toFixed(3)}, ${(positionOffset.z || 0).toFixed(3)}) becomes (${((positionOffset.x || 0) / boneScale.x).toFixed(3)}, ${((positionOffset.y || 0) / boneScale.x).toFixed(3)}, ${((positionOffset.z || 0) / boneScale.x).toFixed(3)}) in local space`)
+    }
+    
+    // Get world position to see the actual position
+    const worldPos = new THREE.Vector3()
+    wrapper.getWorldPosition(worldPos)
+    console.log(`🌍 Wrapper world position: (${worldPos.x.toFixed(3)}, ${worldPos.y.toFixed(3)}, ${worldPos.z.toFixed(3)})`)
+    
+    // Update rotation
+    const baseOrientation = calculateWeaponOrientation(equipmentRef.current, attachedBone, weaponType)
+    wrapper.rotation.copy(baseOrientation)
+    
+    // Apply default rotation for weapon type
+    const defaultRotation = weaponDefaults.rotation
+    wrapper.rotation.x += THREE.MathUtils.degToRad(defaultRotation.x)
+    wrapper.rotation.y += THREE.MathUtils.degToRad(defaultRotation.y)
+    wrapper.rotation.z += THREE.MathUtils.degToRad(defaultRotation.z)
+    
+    if (orientationOffset) {
+      wrapper.rotation.x += THREE.MathUtils.degToRad(orientationOffset.x)
+      wrapper.rotation.y += THREE.MathUtils.degToRad(orientationOffset.y)
+      wrapper.rotation.z += THREE.MathUtils.degToRad(orientationOffset.z)
+    }
+    
+    // Force matrix updates
+    wrapper.updateMatrix()
+    wrapper.updateMatrixWorld(true)
+    
+    console.log(`🔄 Updated equipment pose - Position: (${wrapper.position.x.toFixed(3)}, ${wrapper.position.y.toFixed(3)}, ${wrapper.position.z.toFixed(3)}), Rotation: (${THREE.MathUtils.radToDeg(wrapper.rotation.x).toFixed(1)}°, ${THREE.MathUtils.radToDeg(wrapper.rotation.y).toFixed(1)}°, ${THREE.MathUtils.radToDeg(wrapper.rotation.z).toFixed(1)}°)`)
+  }, [equipmentSlot, orientationOffset, positionOffset, weaponType])
+  
+  const attachEquipmentToAvatar = useCallback(() => {
+    if (!avatarRef.current || !equipmentRef.current || !sceneRef.current) return
+    
+    // Prevent multiple simultaneous attachment attempts
+    if (isAttachingEquipmentRef.current) {
+      console.log('⏳ Already attaching equipment, skipping...')
+      return
+    }
+    
+    isAttachingEquipmentRef.current = true
+    
+    // Special handling for armor - position on the target body region
+    if (weaponType === 'armor') {
+      console.log('🛡️ Handling armor piece - positioning on body region')
+      
+      // Find the target bone based on equipment slot
+      const targetBone = findBone(avatarRef.current, equipmentSlot)
+      
+      if (targetBone) {
+        console.log(`🛡️ Found target bone for armor: ${targetBone.name}`)
+        
+        // Get bone world position for initial placement
+        targetBone.updateMatrixWorld(true)
+        const boneWorldPos = new THREE.Vector3()
+        targetBone.getWorldPosition(boneWorldPos)
+        
+        // Position armor at the bone location as a starting point
+        equipmentRef.current.position.copy(boneWorldPos)
+        
+        // Add some offset based on slot type
+        if (equipmentSlot === 'Head') {
+          equipmentRef.current.position.y += 0.1 // Move helmet up slightly
+        } else if (equipmentSlot === 'Spine2') {
+          // Chest armor centered on torso
+          equipmentRef.current.position.y -= 0.05
+        } else if (equipmentSlot === 'Hips') {
+          // Leg armor positioned lower
+          equipmentRef.current.position.y -= 0.1
+        }
+        
+        console.log(`🛡️ Armor initial position: ${equipmentRef.current.position.x.toFixed(3)}, ${equipmentRef.current.position.y.toFixed(3)}, ${equipmentRef.current.position.z.toFixed(3)}`)
+      } else {
+        console.log('🛡️ No target bone found, positioning at origin')
+        equipmentRef.current.position.set(0, 0, 0)
+      }
+      
+      isAttachingEquipmentRef.current = false
+      return
+    }
+    
+    // Non-armor equipment: resolve the target bone by slot and attach
+    const targetBone = findBone(avatarRef.current, equipmentSlot)
+    if (!targetBone) {
+      console.warn(`⚠️ Could not resolve target bone for slot: ${equipmentSlot}`)
+      isAttachingEquipmentRef.current = false
+      return
+    }
+    
+    // Create or reuse wrapper
+    let wrapper = equipmentRef.current.parent
+    if (!wrapper || wrapper.name !== 'EquipmentWrapper') {
+      wrapper = new THREE.Group()
+      wrapper.name = 'EquipmentWrapper'
+      targetBone.add(wrapper)
+      wrapper.add(equipmentRef.current)
+    } else if (wrapper.parent !== targetBone) {
+      // Ensure wrapper is parented to the correct bone
+      if (wrapper.parent) {
+        wrapper.parent.remove(wrapper)
+      }
+      targetBone.add(wrapper)
+    }
+
+    // Initial transform similar to the old working logic
+    avatarRef.current.updateMatrixWorld(true)
+    targetBone.updateMatrixWorld(true)
+
+    const isRightHand = equipmentSlot.includes('_R') || equipmentSlot.includes('Right')
+    const effectiveHeight = avatarHeight || calculateAvatarHeight(avatarRef.current)
+    const handOffsetDistance = effectiveHeight * 0.045
+    const defaultOffsets: Record<string, { position: { x: number; y: number; z: number }; rotation: { x: number; y: number; z: number } }> = {
+      sword: { position: { x: isRightHand ? 0.076 : -0.076, y: 0.077, z: 0.028 }, rotation: { x: 92, y: 0, z: 0 } },
+      '2h-sword': { position: { x: isRightHand ? 0.076 : -0.076, y: 0.077, z: 0.028 }, rotation: { x: 92, y: 0, z: 0 } },
+      mace: { position: { x: isRightHand ? 0.076 : -0.076, y: 0.077, z: 0.028 }, rotation: { x: 92, y: 0, z: 0 } },
+      bow: { position: { x: isRightHand ? 0.05 : -0.05, y: 0.1, z: 0 }, rotation: { x: 0, y: 90, z: 0 } },
+      crossbow: { position: { x: isRightHand ? 0.076 : -0.076, y: 0.05, z: 0.05 }, rotation: { x: 0, y: 0, z: 0 } },
+      shield: { position: { x: isRightHand ? 0.05 : -0.05, y: 0.05, z: 0 }, rotation: { x: 0, y: 0, z: 0 } },
+      default: { position: { x: isRightHand ? -handOffsetDistance : handOffsetDistance, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 } }
+    }
+    const weaponDefaults = defaultOffsets[weaponType] || defaultOffsets.default
+
+    // Position with bone scale compensation
+    const handOffset = new THREE.Vector3(weaponDefaults.position.x, weaponDefaults.position.y, weaponDefaults.position.z)
+    const boneScale = getWorldScale(targetBone)
+    wrapper.position.copy(handOffset.clone().divideScalar(boneScale.x))
+
+    // Store offsets on wrapper for later pose updates
+    wrapper.userData.baseHandOffset = handOffset.clone()
+    wrapper.userData.manualPositionOffset = positionOffset || { x: 0, y: 0, z: 0 }
+    wrapper.userData.manualRotationOffset = orientationOffset || { x: 0, y: 0, z: 0 }
+    wrapper.userData.boneScale = boneScale.x
+
+    // Orientation
+    const orientation = calculateWeaponOrientation(equipmentRef.current, targetBone, weaponType)
+    wrapper.rotation.copy(orientation)
+    wrapper.rotation.x += THREE.MathUtils.degToRad(weaponDefaults.rotation.x)
+    wrapper.rotation.y += THREE.MathUtils.degToRad(weaponDefaults.rotation.y)
+    wrapper.rotation.z += THREE.MathUtils.degToRad(weaponDefaults.rotation.z)
+    if (orientationOffset) {
+      wrapper.rotation.x += THREE.MathUtils.degToRad(orientationOffset.x)
+      wrapper.rotation.y += THREE.MathUtils.degToRad(orientationOffset.y)
+      wrapper.rotation.z += THREE.MathUtils.degToRad(orientationOffset.z)
+    }
+
+    // Apply scale after attachment with bone compensation if a target scale was computed
+    if (equipmentRef.current.userData.targetScale) {
+      const targetScale = equipmentRef.current.userData.targetScale
+      const boneWorldScale = getWorldScale(targetBone)
+      const compensatedScale = targetScale / boneWorldScale.x
+      equipmentRef.current.scale.set(compensatedScale, compensatedScale, compensatedScale)
+      equipmentRef.current.updateMatrix()
+      equipmentRef.current.updateMatrixWorld(true)
+    }
+    
+    // Ensure correct transform hierarchy
+    wrapper.updateMatrixWorld(true)
+    equipmentRef.current.updateMatrixWorld(true)
+    
+    // Finalize by invoking pose update to keep behavior consistent
+    updateEquipmentPose()
+    
+    isAttachingEquipmentRef.current = false
+  }, [equipmentSlot, updateEquipmentPose, weaponType, avatarHeight, orientationOffset, positionOffset])
+  
+  const findBone = (object: THREE.Object3D, boneName: string): THREE.Bone | null => {
+    const possibleNames = BONE_MAPPING[boneName] || [boneName]
+    let foundBone: THREE.Bone | null = null
+    
+    // Debug: log all bones found
+    const allBones: string[] = []
+    
+    // Search through all SkinnedMesh objects and their skeletons
+    object.traverse((child) => {
+      if (child instanceof THREE.SkinnedMesh && child.skeleton) {
+        child.skeleton.bones.forEach(bone => {
+          allBones.push(bone.name)
+          
+          // Check exact matches first
+          if (possibleNames.includes(bone.name)) {
+            foundBone = bone
+            console.log(`✅ Found matching bone: ${bone.name} for slot ${boneName}`)
+          }
+          // If no exact match, check partial matches
+          else if (!foundBone) {
+            for (const possibleName of possibleNames) {
+              if (bone.name.toLowerCase().includes(possibleName.toLowerCase()) ||
+                  possibleName.toLowerCase().includes(bone.name.toLowerCase())) {
+                foundBone = bone
+                console.log(`✅ Found partial match bone: ${bone.name} for slot ${boneName}`)
+                break
+              }
+            }
+          }
+        })
+      }
+    })
+    
+    if (!foundBone) {
+      console.log(`❌ Could not find bone for slot ${boneName}`)
+      console.log(`   Looked for: [${possibleNames.join(', ')}]`)
+      console.log(`   Available bones: [${allBones.join(', ')}]`)
+    }
+    
+    return foundBone
+  }
+  
+  const updateSkeletonHelper = useCallback(() => {
+    if (!avatarRef.current || !sceneRef.current) return
+    
+    // Remove existing helper
+    if (skeletonHelperRef.current) {
+      sceneRef.current.remove(skeletonHelperRef.current)
+      skeletonHelperRef.current = null
+    }
+    
+    if (showSkeleton) {
+      // Find skinned mesh
+      avatarRef.current.traverse((child) => {
+        if (child instanceof THREE.SkinnedMesh && child.skeleton) {
+          const helper = new THREE.SkeletonHelper(child.skeleton.bones[0])
+          helper.material = new THREE.LineBasicMaterial({ 
+            color: 0x00ff00,
+            linewidth: 2,
+            depthTest: false,
+            depthWrite: false
+          })
+          sceneRef.current!.add(helper)
+          skeletonHelperRef.current = helper
+        }
+      })
+    }
+  }, [showSkeleton])
+
   // Update equipment orientation when manual offset changes
   useEffect(() => {
     if (isInitialized && equipmentRef.current) {
       updateEquipmentPose()
     }
-  }, [orientationOffset?.x, orientationOffset?.y, orientationOffset?.z, weaponType, isInitialized])
+  }, [orientationOffset?.x, orientationOffset?.y, orientationOffset?.z, weaponType, isInitialized, updateEquipmentPose])
   
   // Update equipment position when manual position offset changes
   useEffect(() => {
     if (isInitialized && equipmentRef.current) {
       updateEquipmentPose()
     }
-  }, [positionOffset?.x, positionOffset?.y, positionOffset?.z, equipmentSlot, isInitialized])
+  }, [positionOffset?.x, positionOffset?.y, positionOffset?.z, equipmentSlot, isInitialized, updateEquipmentPose])
   
   // Update skeleton visibility
   useEffect(() => {
     updateSkeletonHelper()
-  }, [showSkeleton])
+  }, [showSkeleton, updateSkeletonHelper])
+  
+  // Re-attach equipment when grip offset changes
+  useEffect(() => {
+    if (isInitialized && equipmentRef.current && avatarRef.current && equipmentSlot) {
+      console.log('Grip offset changed, re-attaching equipment...')
+      attachEquipmentToAvatar()
+    }
+  }, [gripOffset?.x, gripOffset?.y, gripOffset?.z, isInitialized, attachEquipmentToAvatar, equipmentSlot])
+  
+  // Re-attach equipment when slot changes
+  useEffect(() => {
+    if (isInitialized && equipmentRef.current && avatarRef.current && equipmentSlot) {
+      console.log('Equipment slot changed to:', equipmentSlot)
+      attachEquipmentToAvatar()
+    }
+  }, [equipmentSlot, isInitialized, attachEquipmentToAvatar])
   
   // Update animation ref when prop changes
   useEffect(() => {
@@ -760,25 +1231,11 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
   // Initialize animation ref
   useEffect(() => {
     isAnimatingRef.current = isAnimating
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   
-  // Re-attach equipment when grip offset changes
-  useEffect(() => {
-    if (isInitialized && equipmentRef.current && avatarRef.current && equipmentSlot) {
-      console.log('Grip offset changed, re-attaching equipment...')
-      attachEquipmentToAvatar()
-    }
-  }, [gripOffset?.x, gripOffset?.y, gripOffset?.z])
-  
-  // Re-attach equipment when slot changes
-  useEffect(() => {
-    if (isInitialized && equipmentRef.current && avatarRef.current && equipmentSlot) {
-      console.log('Equipment slot changed to:', equipmentSlot)
-      attachEquipmentToAvatar()
-    }
-  }, [equipmentSlot])
-  
   // Handle animation state changes
+   
   useEffect(() => {
     console.log(`🎬 Animation state changed - isAnimating: ${isAnimating}, animationType: ${animationType}`)
     console.log(`   animationMixerRef: ${!!animationMixerRef.current}, avatarRef: ${!!avatarRef.current}`)
@@ -927,788 +1384,30 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
         }
       }
     }, 150) // Slightly longer delay to ensure animation has updated
-  }, [isAnimating, animationType])
-  
-  const updateEquipmentTransform = () => {
-    if (!equipmentRef.current || !avatarRef.current) return
-    
-    // Check if armor has been fitted - if so, skip everything
-    if (equipmentRef.current.userData.isFitted) {
-      console.log('🛡️ Skipping transform update - armor has been fitted')
-      return
-    }
-    
-    // Calculate scale
-    const effectiveHeight = avatarHeight || calculateAvatarHeight(avatarRef.current)
-    const autoScaleFactor = calculateWeaponScale(equipmentRef.current, avatarRef.current, weaponType, effectiveHeight)
-    const finalScale = autoScale ? scaleOverride * autoScaleFactor : scaleOverride
-    
-    // Store target scale
-    equipmentRef.current.userData.targetScale = finalScale
-    
-    // If attached to a bone, compensate for bone scale
-    const attachedBone = getAttachedBone(equipmentRef.current)
-    if (attachedBone) {
-      const boneWorldScale = getWorldScale(attachedBone)
-      const compensatedScale = finalScale / boneWorldScale.x
-      equipmentRef.current.scale.set(compensatedScale, compensatedScale, compensatedScale)
-      console.log(`Updated equipment scale to ${compensatedScale.toFixed(3)} (compensated for bone scale ${boneWorldScale.x.toFixed(3)})`)
-    } else {
-      equipmentRef.current.scale.set(finalScale, finalScale, finalScale)
-      console.log(`Updated equipment scale to ${finalScale.toFixed(3)}`)
-    }
-    
-    equipmentRef.current.updateMatrix()
-    equipmentRef.current.updateMatrixWorld(true)
-  }
-  
-  // Manual update function for position and rotation
-  const updateEquipmentPose = () => {
-    if (!equipmentRef.current || !avatarRef.current) return
-    
-    // Skip pose updates for armor - let fitting algorithms handle it
-    if (weaponType === 'armor') {
-      return
-    }
-    
-    // Find the wrapper - equipment is now always in a wrapper
-    let wrapper = equipmentRef.current.parent
-    if (!wrapper || wrapper.name !== 'EquipmentWrapper') {
-      console.warn('Equipment is not in expected wrapper structure')
-      return
-    }
-    
-    const attachedBone = getAttachedBone(equipmentRef.current)
-    if (!attachedBone) {
-      console.warn('Could not find attached bone')
-      return
-    }
-    
-    // Update position
-    const avatarHeight = calculateAvatarHeight(avatarRef.current)
-    const handOffsetDistance = avatarHeight * 0.045
-    const isRightHand = equipmentSlot.includes('_R') || equipmentSlot.includes('Right')
-    
-    // Get default offsets for weapon type
-    const defaultOffsets: Record<string, { position: { x: number; y: number; z: number }; rotation: { x: number; y: number; z: number } }> = {
-      sword: {
-        position: { 
-          x: isRightHand ? 0.076 : -0.076,
-          y: 0.077,
-          z: 0.028
-        },
-        rotation: { x: 92, y: 0, z: 0 }
-      },
-      '2h-sword': {
-        position: { 
-          x: isRightHand ? 0.076 : -0.076,
-          y: 0.077,
-          z: 0.028
-        },
-        rotation: { x: 92, y: 0, z: 0 }
-      },
-      mace: {
-        position: { 
-          x: isRightHand ? 0.076 : -0.076,
-          y: 0.077,
-          z: 0.028
-        },
-        rotation: { x: 92, y: 0, z: 0 }
-      },
-      bow: {
-        position: { 
-          x: isRightHand ? 0.05 : -0.05,
-          y: 0.1,
-          z: 0
-        },
-        rotation: { x: 0, y: 90, z: 0 }
-      },
-      crossbow: {
-        position: { 
-          x: isRightHand ? 0.076 : -0.076,
-          y: 0.05,
-          z: 0.05
-        },
-        rotation: { x: 0, y: 0, z: 0 }
-      },
-      shield: {
-        position: { 
-          x: isRightHand ? 0.05 : -0.05,
-          y: 0.05,
-          z: 0
-        },
-        rotation: { x: 0, y: 0, z: 0 }
-      },
-      default: {
-        position: { 
-          x: isRightHand ? -handOffsetDistance : handOffsetDistance,
-          y: 0,
-          z: 0
-        },
-        rotation: { x: 0, y: 0, z: 0 }
-      }
-    }
-    
-    const weaponDefaults = defaultOffsets[weaponType] || defaultOffsets.default
-    const basePosition = new THREE.Vector3(
-      weaponDefaults.position.x,
-      weaponDefaults.position.y,
-      weaponDefaults.position.z
-    )
-    
-    // Get bone scale to compensate for it
-    const boneScale = getWorldScale(attachedBone)
-    console.log(`🦴 Bone scale: (${boneScale.x.toFixed(3)}, ${boneScale.y.toFixed(3)}, ${boneScale.z.toFixed(3)})`)
-    
-    // Update wrapper userData with current offsets
-    wrapper.userData.baseHandOffset = basePosition.clone()
-    wrapper.userData.manualPositionOffset = positionOffset || { x: 0, y: 0, z: 0 }
-    wrapper.userData.manualRotationOffset = orientationOffset || { x: 0, y: 0, z: 0 }
-    wrapper.userData.boneScale = boneScale.x // Store bone scale for render loop
-    
-    // Set wrapper position (relative to bone) - compensate for bone scale
-    const compensatedBase = basePosition.clone().divideScalar(boneScale.x)
-    wrapper.position.copy(compensatedBase)
-    
-    if (positionOffset) {
-      // Compensate manual offsets for bone scale
-      wrapper.position.x += (positionOffset.x || 0) / boneScale.x
-      wrapper.position.y += (positionOffset.y || 0) / boneScale.x
-      wrapper.position.z += (positionOffset.z || 0) / boneScale.x
-    }
-    
-    console.log(`🎯 Setting wrapper position - Base: (${basePosition.x.toFixed(3)}, ${basePosition.y.toFixed(3)}, ${basePosition.z.toFixed(3)}), Compensated: (${wrapper.position.x.toFixed(3)}, ${wrapper.position.y.toFixed(3)}, ${wrapper.position.z.toFixed(3)}), Bone scale: ${boneScale.x.toFixed(3)}`)
-    
-    // Show the effect of bone scale compensation
-    if (positionOffset && (positionOffset.x || positionOffset.y || positionOffset.z)) {
-      console.log(`📊 Bone scale compensation: Manual offset (${(positionOffset.x || 0).toFixed(3)}, ${(positionOffset.y || 0).toFixed(3)}, ${(positionOffset.z || 0).toFixed(3)}) becomes (${((positionOffset.x || 0) / boneScale.x).toFixed(3)}, ${((positionOffset.y || 0) / boneScale.x).toFixed(3)}, ${((positionOffset.z || 0) / boneScale.x).toFixed(3)}) in local space`)
-    }
-    
-    // Get world position to see the actual position
-    const worldPos = new THREE.Vector3()
-    wrapper.getWorldPosition(worldPos)
-    console.log(`🌍 Wrapper world position: (${worldPos.x.toFixed(3)}, ${worldPos.y.toFixed(3)}, ${worldPos.z.toFixed(3)})`)
-    
-    // Update rotation
-    const baseOrientation = calculateWeaponOrientation(equipmentRef.current, attachedBone, weaponType)
-    wrapper.rotation.copy(baseOrientation)
-    
-    // Apply default rotation for weapon type
-    const defaultRotation = weaponDefaults.rotation
-    wrapper.rotation.x += THREE.MathUtils.degToRad(defaultRotation.x)
-    wrapper.rotation.y += THREE.MathUtils.degToRad(defaultRotation.y)
-    wrapper.rotation.z += THREE.MathUtils.degToRad(defaultRotation.z)
-    
-    if (orientationOffset) {
-      wrapper.rotation.x += THREE.MathUtils.degToRad(orientationOffset.x)
-      wrapper.rotation.y += THREE.MathUtils.degToRad(orientationOffset.y)
-      wrapper.rotation.z += THREE.MathUtils.degToRad(orientationOffset.z)
-    }
-    
-    // Force matrix updates
-    wrapper.updateMatrix()
-    wrapper.updateMatrixWorld(true)
-    
-    console.log(`🔄 Updated equipment pose - Position: (${wrapper.position.x.toFixed(3)}, ${wrapper.position.y.toFixed(3)}, ${wrapper.position.z.toFixed(3)}), Rotation: (${THREE.MathUtils.radToDeg(wrapper.rotation.x).toFixed(1)}°, ${THREE.MathUtils.radToDeg(wrapper.rotation.y).toFixed(1)}°, ${THREE.MathUtils.radToDeg(wrapper.rotation.z).toFixed(1)}°)`)
-  }
-  
-  const attachEquipmentToAvatar = () => {
-    if (!avatarRef.current || !equipmentRef.current || !sceneRef.current) return
-    
-    // Prevent multiple simultaneous attachment attempts
-    if (isAttachingEquipmentRef.current) {
-      console.log('⏳ Already attaching equipment, skipping...')
-      return
-    }
-    
-    isAttachingEquipmentRef.current = true
-    
-    // Special handling for armor - position on the target body region
-    if (weaponType === 'armor') {
-      console.log('🛡️ Handling armor piece - positioning on body region')
-      
-      // Find the target bone based on equipment slot
-      const targetBone = findBone(avatarRef.current, equipmentSlot)
-      
-      if (targetBone) {
-        console.log(`🛡️ Found target bone for armor: ${targetBone.name}`)
-        
-        // Get bone world position for initial placement
-        targetBone.updateMatrixWorld(true)
-        const boneWorldPos = new THREE.Vector3()
-        targetBone.getWorldPosition(boneWorldPos)
-        
-        // Position armor at the bone location as a starting point
-        equipmentRef.current.position.copy(boneWorldPos)
-        
-        // Add some offset based on slot type
-        if (equipmentSlot === 'Head') {
-          equipmentRef.current.position.y += 0.1 // Move helmet up slightly
-        } else if (equipmentSlot === 'Spine2') {
-          // Chest armor centered on torso
-          equipmentRef.current.position.y -= 0.05
-        } else if (equipmentSlot === 'Hips') {
-          // Leg armor positioned lower
-          equipmentRef.current.position.y -= 0.1
-        }
-        
-        console.log(`🛡️ Armor initial position: ${equipmentRef.current.position.x.toFixed(3)}, ${equipmentRef.current.position.y.toFixed(3)}, ${equipmentRef.current.position.z.toFixed(3)}`)
-      } else {
-        console.log('🛡️ No target bone found, positioning at origin')
-        equipmentRef.current.position.set(0, 0, 0)
-      }
-      
-      equipmentRef.current.rotation.set(0, 0, 0)
-      
-      // Add armor to scene directly (not attached to any bone)
-      if (!equipmentRef.current.parent || equipmentRef.current.parent !== sceneRef.current) {
-        sceneRef.current.add(equipmentRef.current)
-      }
-      
-      // Apply scale if needed
-      if (equipmentRef.current.userData.targetScale) {
-        const targetScale = equipmentRef.current.userData.targetScale
-        equipmentRef.current.scale.set(targetScale, targetScale, targetScale)
-        console.log(`🛡️ Applied scale: ${targetScale.toFixed(3)}`)
-      }
-      
-      // Mark that armor is ready for fitting
-      equipmentRef.current.userData.readyForFitting = true
-      
-      console.log('✅ Armor positioned and ready for fitting algorithms')
-      isAttachingEquipmentRef.current = false
-      return
-    }
-    
-    console.log(`Attempting to attach equipment to slot: ${equipmentSlot}`)
-    
-    // Find the target bone
-    const targetBone = findBone(avatarRef.current, equipmentSlot)
-    
-    if (targetBone) {
-      console.log(`✅ Found target bone: ${targetBone.name}`)
-      
-      // Update matrices
-      avatarRef.current.updateMatrixWorld(true)
-      targetBone.updateMatrixWorld(true)
-      
-      // Clean up any existing wrapper
-      const existingWrapper = targetBone.getObjectByName('EquipmentWrapper')
-      if (existingWrapper) {
-        targetBone.remove(existingWrapper)
-      }
-      
-      const isNormalized = equipmentRef.current.userData.isNormalized
-      
-      // Always create a wrapper to allow for position/rotation offsets
-      const wrapper = new THREE.Group()
-      wrapper.name = 'EquipmentWrapper'
-      wrapper.userData.isWrapper = true
-      
-      // Store wrapper reference
-      equipmentWrapperRef.current = wrapper
-      
-      if (isNormalized) {
-        // For normalized weapons, the grip is already at origin
-        console.log('✅ Weapon is normalized (grip at origin)')
-        wrapper.add(equipmentRef.current)
-      } else {
-        // For non-normalized weapons, apply grip offset
-        console.log('⚠️ Weapon is not normalized, applying grip offset')
-        
-        // Apply grip offset if available
-        if (gripOffset) {
-          equipmentRef.current.position.set(-gripOffset.x, -gripOffset.y, -gripOffset.z)
-        }
-        wrapper.add(equipmentRef.current)
-      }
-      
-      // Attach wrapper to bone
-      targetBone.add(wrapper)
-      
-      // Debug: Add visual indicator for wrapper position
-      if (true) { // Set to false to disable debug visualization
-        const debugGeometry = new THREE.BoxGeometry(0.02, 0.02, 0.02)
-        const debugMaterial = new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true })
-        const debugMesh = new THREE.Mesh(debugGeometry, debugMaterial)
-        debugMesh.name = 'WrapperDebugIndicator'
-        wrapper.add(debugMesh)
-      }
-      
-      // Calculate hand offset
-      const avatarHeight = calculateAvatarHeight(avatarRef.current!)
-      const handOffsetDistance = avatarHeight * 0.045 // 4.5% of avatar height (about 8cm for 1.8m character)
-      
-      // Simple offset: move to the right for right hand (negative X)
-      const isRightHand = equipmentSlot.includes('_R') || equipmentSlot.includes('Right')
-      
-      // Get default offsets for weapon type
-      const defaultOffsets: Record<string, { position: { x: number; y: number; z: number }; rotation: { x: number; y: number; z: number } }> = {
-        sword: {
-          position: { 
-            x: isRightHand ? 0.076 : -0.076,
-            y: 0.077,
-            z: 0.028
-          },
-          rotation: { x: 92, y: 0, z: 0 }
-        },
-        '2h-sword': {
-          position: { 
-            x: isRightHand ? 0.076 : -0.076,
-            y: 0.077,
-            z: 0.028
-          },
-          rotation: { x: 92, y: 0, z: 0 }
-        },
-        mace: {
-          position: { 
-            x: isRightHand ? 0.076 : -0.076,
-            y: 0.077,
-            z: 0.028
-          },
-          rotation: { x: 92, y: 0, z: 0 }
-        },
-        bow: {
-          position: { 
-            x: isRightHand ? 0.05 : -0.05,
-            y: 0.1,
-            z: 0
-          },
-          rotation: { x: 0, y: 90, z: 0 }
-        },
-        crossbow: {
-          position: { 
-            x: isRightHand ? 0.076 : -0.076,
-            y: 0.05,
-            z: 0.05
-          },
-          rotation: { x: 0, y: 0, z: 0 }
-        },
-        shield: {
-          position: { 
-            x: isRightHand ? 0.05 : -0.05,
-            y: 0.05,
-            z: 0
-          },
-          rotation: { x: 0, y: 0, z: 0 }
-        },
-        default: {
-          position: { 
-            x: isRightHand ? -handOffsetDistance : handOffsetDistance,
-            y: 0,
-            z: 0
-          },
-          rotation: { x: 0, y: 0, z: 0 }
-        }
-      }
-      
-      // Get default offsets for weapon type
-      const weaponDefaults = defaultOffsets[weaponType] || defaultOffsets.default
-      
-      const handOffset = new THREE.Vector3(
-        weaponDefaults.position.x,
-        weaponDefaults.position.y,
-        weaponDefaults.position.z
-      )
-      
-      wrapper.position.copy(handOffset)
-      console.log(`🤚 Applied automatic hand offset for ${weaponType}: X:${handOffset.x.toFixed(3)}, Y:${handOffset.y.toFixed(3)}, Z:${handOffset.z.toFixed(3)}`)
-      
-      // Get bone scale and compensate for it
-      const boneScale = getWorldScale(targetBone)
-      const compensatedPosition = wrapper.position.clone().divideScalar(boneScale.x)
-      wrapper.position.copy(compensatedPosition)
-      console.log(`🦴 Compensated for bone scale: ${boneScale.x.toFixed(3)} - Final local position: (${wrapper.position.x.toFixed(3)}, ${wrapper.position.y.toFixed(3)}, ${wrapper.position.z.toFixed(3)})`)
-      
-      // Store offset data in wrapper for render loop updates
-      wrapper.userData.baseHandOffset = handOffset.clone()
-      wrapper.userData.manualPositionOffset = positionOffset || { x: 0, y: 0, z: 0 }
-      wrapper.userData.manualRotationOffset = orientationOffset || { x: 0, y: 0, z: 0 }
-      wrapper.userData.boneScale = boneScale.x
-      
-      // Apply manual position offset
-      if (positionOffset) {
-        wrapper.position.x += (positionOffset.x || 0) / boneScale.x
-        wrapper.position.y += (positionOffset.y || 0) / boneScale.x
-        wrapper.position.z += (positionOffset.z || 0) / boneScale.x
-        console.log(`📍 Applied manual position offset: X:${(positionOffset.x || 0).toFixed(3)}, Y:${(positionOffset.y || 0).toFixed(3)}, Z:${(positionOffset.z || 0).toFixed(3)} (compensated)`)
-      }
-      
-      // Apply rotation to point weapon forward
-      const orientation = calculateWeaponOrientation(equipmentRef.current, targetBone, weaponType)
-      wrapper.rotation.copy(orientation)
-      
-      // Apply default rotation offset for weapon type
-      const defaultRotation = weaponDefaults.rotation
-      wrapper.rotation.x += THREE.MathUtils.degToRad(defaultRotation.x)
-      wrapper.rotation.y += THREE.MathUtils.degToRad(defaultRotation.y)
-      wrapper.rotation.z += THREE.MathUtils.degToRad(defaultRotation.z)
-      console.log(`🎯 Applied automatic rotation offset for ${weaponType}: X:${defaultRotation.x}°, Y:${defaultRotation.y}°, Z:${defaultRotation.z}°`)
-      
-      // Apply manual orientation offset
-      if (orientationOffset) {
-        wrapper.rotation.x += THREE.MathUtils.degToRad(orientationOffset.x)
-        wrapper.rotation.y += THREE.MathUtils.degToRad(orientationOffset.y)
-        wrapper.rotation.z += THREE.MathUtils.degToRad(orientationOffset.z)
-        console.log(`🎯 Applied manual orientation offset: X:${orientationOffset.x}°, Y:${orientationOffset.y}°, Z:${orientationOffset.z}°`)
-      }
-      
-      // Force matrix updates
-      targetBone.updateMatrixWorld(true)
-      equipmentRef.current.updateMatrixWorld(true)
-      
-      // Apply scale after attachment
-      if (equipmentRef.current.userData.targetScale) {
-        const targetScale = equipmentRef.current.userData.targetScale
-        
-        // Get the bone's world scale to compensate for it
-        const boneWorldScale = getWorldScale(targetBone)
-        console.log(`🦴 Bone world scale: (${boneWorldScale.x.toFixed(3)}, ${boneWorldScale.y.toFixed(3)}, ${boneWorldScale.z.toFixed(3)})`)
-        
-        // Compensate for bone scale - if bone is scaled down, scale weapon up
-        const compensatedScale = targetScale / boneWorldScale.x // Assuming uniform scale
-        
-        equipmentRef.current.scale.set(compensatedScale, compensatedScale, compensatedScale)
-        console.log(`Applied compensated scale ${compensatedScale.toFixed(3)} (target: ${targetScale.toFixed(3)}, bone scale: ${boneWorldScale.x.toFixed(3)})`)
-        
-        // Update matrices after scaling
-        equipmentRef.current.updateMatrix()
-        equipmentRef.current.updateMatrixWorld(true)
-      }
-      
-      // Get final world positions
-      const boneWorldPos = new THREE.Vector3()
-      targetBone.getWorldPosition(boneWorldPos)
-      console.log(`🤚 Bone world position: (${boneWorldPos.x.toFixed(3)}, ${boneWorldPos.y.toFixed(3)}, ${boneWorldPos.z.toFixed(3)})`)
-      
-      // Get grip world position
-      const gripWorldPos = new THREE.Vector3()
-      if (isNormalized) {
-        // For normalized weapons, grip is at the equipment's position
-        equipmentRef.current.getWorldPosition(gripWorldPos)
-        console.log(`✅ Normalized weapon grip at: (${gripWorldPos.x.toFixed(3)}, ${gripWorldPos.y.toFixed(3)}, ${gripWorldPos.z.toFixed(3)})`)
-    } else {
-        // For non-normalized weapons, calculate grip position
-        const gripLocal = new THREE.Vector3(0, 0, 0) // Default grip at origin
-        if (gripOffset && gripOffset instanceof THREE.Vector3) {
-          gripLocal.copy(gripOffset)
-        } else if (gripOffset && typeof gripOffset === 'object' && 'x' in gripOffset && 'y' in gripOffset && 'z' in gripOffset) {
-          gripLocal.set(gripOffset.x, gripOffset.y, gripOffset.z)
-        }
-        gripWorldPos.copy(gripLocal)
-        equipmentRef.current.localToWorld(gripWorldPos)
-        console.log(`📍 Weapon grip at: (${gripWorldPos.x.toFixed(3)}, ${gripWorldPos.y.toFixed(3)}, ${gripWorldPos.z.toFixed(3)})`)
-      }
-      
-      // Create debug spheres
-      // createDebugSpheres(boneWorldPos, gripWorldPos)
-      
-      // Clean up any existing debug spheres immediately
-      if (debugSpheres.handSphere) {
-        sceneRef.current?.remove(debugSpheres.handSphere)
-        debugSpheres.handSphere.geometry.dispose()
-        ;(debugSpheres.handSphere.material as THREE.Material).dispose()
-      }
-      if (debugSpheres.gripSphere) {
-        sceneRef.current?.remove(debugSpheres.gripSphere)
-        debugSpheres.gripSphere.geometry.dispose()
-        ;(debugSpheres.gripSphere.material as THREE.Material).dispose()
-      }
-      if (debugSpheres.centerSphere) {
-        sceneRef.current?.remove(debugSpheres.centerSphere)
-        debugSpheres.centerSphere.geometry.dispose()
-        ;(debugSpheres.centerSphere.material as THREE.Material).dispose()
-      }
-      if (debugSpheres.line) {
-        sceneRef.current?.remove(debugSpheres.line)
-        debugSpheres.line.geometry.dispose()
-        ;(debugSpheres.line.material as THREE.Material).dispose()
-      }
-      if (debugSpheres.wristSphere) {
-        sceneRef.current?.remove(debugSpheres.wristSphere)
-        debugSpheres.wristSphere.geometry.dispose()
-        ;(debugSpheres.wristSphere.material as THREE.Material).dispose()
-      }
-      setDebugSpheres({})
-      
-      // Additional debug: Show where the grip point would be in non-normalized weapon
-      if (gripOffset && isNormalized && equipmentRef.current) {
-        const gripOffsetLocal = new THREE.Vector3()
-        if (gripOffset instanceof THREE.Vector3) {
-          gripOffsetLocal.copy(gripOffset)
-        } else if (typeof gripOffset === 'object' && 'x' in gripOffset && 'y' in gripOffset && 'z' in gripOffset) {
-          gripOffsetLocal.set(gripOffset.x, gripOffset.y, gripOffset.z)
-        }
-        
-        // Find the actual weapon mesh inside the normalized wrapper
-        const children = equipmentRef.current.children
-        if (children.length > 0 && children[0]) {
-          const weaponMesh = children[0]
-          
-          console.log(`🔧 Weapon mesh position in wrapper: (${weaponMesh.position.x.toFixed(3)}, ${weaponMesh.position.y.toFixed(3)}, ${weaponMesh.position.z.toFixed(3)})`)
-          console.log(`🔧 Expected offset should be: (${-gripOffsetLocal.x.toFixed(3)}, ${-gripOffsetLocal.y.toFixed(3)}, ${-gripOffsetLocal.z.toFixed(3)})`)
-          console.log(`🔧 Grip offset was: (${gripOffsetLocal.x.toFixed(3)}, ${gripOffsetLocal.y.toFixed(3)}, ${gripOffsetLocal.z.toFixed(3)})`)
-          
-          // Check if the offset matches
-          const offsetDiff = new THREE.Vector3(
-            weaponMesh.position.x + gripOffsetLocal.x,
-            weaponMesh.position.y + gripOffsetLocal.y,
-            weaponMesh.position.z + gripOffsetLocal.z
-          )
-          console.log(`🔧 Offset difference: (${offsetDiff.x.toFixed(3)}, ${offsetDiff.y.toFixed(3)}, ${offsetDiff.z.toFixed(3)}) - should be near (0,0,0)`)
-        }
-      }
-      
-      // Final size check and blade direction
-      equipmentRef.current.updateMatrixWorld(true)
-      if (sceneRef.current) {
-        sceneRef.current.updateMatrixWorld(true)
-      }
-      
-      const finalBounds = new THREE.Box3().setFromObject(equipmentRef.current)
-      const finalSize = new THREE.Vector3()
-      finalBounds.getSize(finalSize)
-      console.log(`📦 Final weapon size: X:${finalSize.x.toFixed(3)}, Y:${finalSize.y.toFixed(3)}, Z:${finalSize.z.toFixed(3)}`)
-      console.log(`📏 Equipment scale: (${equipmentRef.current.scale.x.toFixed(3)}, ${equipmentRef.current.scale.y.toFixed(3)}, ${equipmentRef.current.scale.z.toFixed(3)})`)
-      
-      // Test blade direction
-      const bladeDir = new THREE.Vector3(0, 0, 1) // Assuming blade points along +Z in local space
-      bladeDir.applyQuaternion(equipmentRef.current.quaternion)
-      bladeDir.normalize()
-      console.log(`🗡️ Blade direction in world space: (${bladeDir.x.toFixed(3)}, ${bladeDir.y.toFixed(3)}, ${bladeDir.z.toFixed(3)})`)
-      
-      console.log(`✅ Successfully attached ${weaponType} to ${targetBone.name}`)
-      
-      // Mark that equipment is attached
-      shouldAttachEquipmentRef.current = true
-      
-      // Apply manual position/rotation offsets
-      setTimeout(() => {
-        updateEquipmentPose()
-        isAttachingEquipmentRef.current = false
-      }, 0)
-      
-    } else {
-      console.error(`❌ Could not find bone for slot ${equipmentSlot}`)
-      isAttachingEquipmentRef.current = false
-    }
-  }
-  
-  const findBone = (object: THREE.Object3D, boneName: string): THREE.Bone | null => {
-    const possibleNames = BONE_MAPPING[boneName] || [boneName]
-    let foundBone: THREE.Bone | null = null
-    
-    // Debug: log all bones found
-    const allBones: string[] = []
-    
-    // Search through all SkinnedMesh objects and their skeletons
-    object.traverse((child) => {
-      if (child instanceof THREE.SkinnedMesh && child.skeleton) {
-        child.skeleton.bones.forEach(bone => {
-          allBones.push(bone.name)
-          
-          // Check exact matches first
-          if (possibleNames.includes(bone.name)) {
-            foundBone = bone
-            console.log(`✅ Found matching bone: ${bone.name} for slot ${boneName}`)
-          }
-          // If no exact match, check partial matches
-          else if (!foundBone) {
-            for (const possibleName of possibleNames) {
-              if (bone.name.toLowerCase().includes(possibleName.toLowerCase()) ||
-                  possibleName.toLowerCase().includes(bone.name.toLowerCase())) {
-                foundBone = bone
-                console.log(`✅ Found partial match bone: ${bone.name} for slot ${boneName}`)
-                break
-              }
-            }
-          }
-        })
-      }
-    })
-    
-    if (!foundBone) {
-      console.log(`❌ Could not find bone for slot ${boneName}`)
-      console.log(`   Looked for: [${possibleNames.join(', ')}]`)
-      console.log(`   Available bones: [${allBones.join(', ')}]`)
-    }
-    
-    return foundBone
-  }
-  
-  const updateSkeletonHelper = () => {
-    if (!avatarRef.current || !sceneRef.current) return
-    
-    // Remove existing helper
-    if (skeletonHelperRef.current) {
-      sceneRef.current.remove(skeletonHelperRef.current)
-      skeletonHelperRef.current = null
-    }
-    
-    if (showSkeleton) {
-      // Find skinned mesh
-      avatarRef.current.traverse((child) => {
-        if (child instanceof THREE.SkinnedMesh && child.skeleton) {
-          const helper = new THREE.SkeletonHelper(child.skeleton.bones[0])
-          helper.material = new THREE.LineBasicMaterial({ 
-            color: 0x00ff00,
-            linewidth: 2,
-            depthTest: false,
-            depthWrite: false
-          })
-          sceneRef.current!.add(helper)
-          skeletonHelperRef.current = helper
-        }
-      })
-    }
-  }
-  
-  const calculateAvatarHeight = (avatar: THREE.Object3D): number => {
-    // Update world matrices first
-    avatar.updateMatrixWorld(true)
-    
-    // Find all SkinnedMesh objects and calculate combined bounds
-    let minY = Infinity
-    let maxY = -Infinity
-    let foundMesh = false
-    
-    avatar.traverse((child) => {
-      if (child instanceof THREE.SkinnedMesh) {
-        foundMesh = true
-        
-        // Get world space bounding box
-        const box = new THREE.Box3()
-        box.setFromObject(child)
-        
-        minY = Math.min(minY, box.min.y)
-        maxY = Math.max(maxY, box.max.y)
-      }
-    })
-    
-    if (!foundMesh) {
-      // Fallback to overall bounding box
-      const box = new THREE.Box3().setFromObject(avatar)
-      minY = box.min.y
-      maxY = box.max.y
-    }
-    
-    const height = maxY - minY
-    console.log(`📏 Calculated avatar height: ${height.toFixed(2)}m (Y range: ${minY.toFixed(2)} to ${maxY.toFixed(2)})`)
-    
-    // Sanity check - if height seems wrong, use default
-    if (height < 0.1 || height > 10) {
-      console.warn(`⚠️ Calculated height seems incorrect (${height.toFixed(2)}m), using default 1.8m`)
-      return 1.8
-    }
-    
-    return height
-  }
-  
-  const calculateWeaponScale = (
-    weapon: THREE.Object3D, 
-    avatar: THREE.Object3D, 
-    weaponType: string,
-    avatarHeight: number
-  ): number => {
-    // Update matrices before measuring
-    weapon.updateMatrixWorld(true)
-    
-    // Measure the entire weapon object
-    const weaponBox = new THREE.Box3().setFromObject(weapon)
-    const weaponSize = new THREE.Vector3()
-    weaponBox.getSize(weaponSize)
-    const weaponLength = Math.max(weaponSize.x, weaponSize.y, weaponSize.z)
-    
-    console.log(`📏 Avatar height: ${avatarHeight.toFixed(3)}m`)
-    console.log(`📏 ${weaponType === 'armor' ? 'Armor' : 'Weapon'} length: ${weaponLength.toFixed(3)}m`)
-    console.log(`📏 ${weaponType === 'armor' ? 'Armor' : 'Weapon'} dimensions: X:${weaponSize.x.toFixed(3)}, Y:${weaponSize.y.toFixed(3)}, Z:${weaponSize.z.toFixed(3)}`)
-    console.log(`📏 ${weaponType === 'armor' ? 'Armor' : 'Weapon'} bounds: min(${weaponBox.min.x.toFixed(3)}, ${weaponBox.min.y.toFixed(3)}, ${weaponBox.min.z.toFixed(3)}) max(${weaponBox.max.x.toFixed(3)}, ${weaponBox.max.y.toFixed(3)}, ${weaponBox.max.z.toFixed(3)})`)
-    
-    // Special handling for armor - don't auto-scale
-    if (weaponType === 'armor') {
-      console.log(`🛡️ Armor - returning scale 1.0 (armor fitting handled by ArmorFittingService)`)
-      return 1.0
-    }
-    
-    // Different weapon types should have different proportions relative to character height
-    let targetProportion = 0.65  // Default: weapon is 65% of character height
-    
-    if (weaponType === 'dagger' || weaponType === 'knife') {
-      targetProportion = 0.25  // Daggers are about 25% of character height
-    } else if (weaponType === 'sword' || weaponType === 'axe') {
-      // Swords scale based on creature size
-      if (avatarHeight < 1.2) {
-        targetProportion = 0.72  // Smaller creatures use proportionally larger weapons
-      } else if (avatarHeight > 2.5) {
-        targetProportion = 0.55  // Larger creatures use proportionally smaller weapons
-      } else {
-        targetProportion = 0.65  // Medium creatures use standard proportion
-      }
-    } else if (weaponType === 'spear' || weaponType === 'staff') {
-      targetProportion = 1.1  // Spears/staves are taller than character
-    } else if (weaponType === 'bow') {
-      targetProportion = 0.8  // Bows are about 80% of character height
-    }
-    
-    const targetWeaponLength = avatarHeight * targetProportion
-    const scaleFactor = targetWeaponLength / weaponLength
-    
-    console.log(`📏 Target proportion: ${targetProportion} (${(targetProportion * 100).toFixed(0)}% of avatar height)`)
-    console.log(`📏 Scale factor: ${scaleFactor.toFixed(3)}`)
-    
-    return scaleFactor
-  }
-  
-  const calculateWeaponOrientation = (weapon: THREE.Object3D, targetBone: THREE.Bone, weaponType: string = 'weapon'): THREE.Euler => {
-    console.log(`🎯 Calculating orientation for weapon type: ${weaponType}`)
-    
-    if (weaponType === 'sword' || weaponType === 'melee') {
-      // Based on user's white drawing:
-      // - Character has arm extended to the side
-      // - Sword blade points forward from the hand
-      // - After AI flip, our blade points -Y
-      
-      // Step 1: Rotate 90° around X to get blade horizontal (from -Y to -Z)
-      // Step 2: Rotate around Y to point blade in correct direction
-      
-      // For the character pose in the image (arm to side), we need:
-      const rotation = new THREE.Euler(
-        Math.PI / 2,     // 90° X: blade from down (-Y) to back (-Z)
-        Math.PI / 2,     // 90° Y: blade from back (-Z) to left (-X), which is forward for the character
-        0,               // No Z rotation
-        'XYZ'
-      )
-      
-      console.log(`🗡️ Sword orientation for sideways grip: X:90°, Y:90°, Z:0°`)
-      return rotation
-    }
-    
-    // Default orientation (no rotation)
-    return new THREE.Euler(0, 0, 0, 'XYZ')
-  }
+  }, [isAnimating, animationType, equipmentSlot, attachEquipmentToAvatar])
   
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
     exportEquippedModel: async () => {
-      if (!avatarRef.current) throw new Error('No avatar loaded')
-      
-      const exporter = new GLTFExporter()
-      const gltf = await exporter.parseAsync(avatarRef.current, {
-        binary: true
+      if (!avatarRef.current) return new ArrayBuffer(0)
+
+      // Export the avatar with attached equipment
+      const _exporter = new GLTFExporter()
+      const gltf = await _exporter.parseAsync(avatarRef.current, {
+        binary: true,
+        includeCustomExtensions: true
       })
-      
-      return new Blob([gltf as ArrayBuffer], { type: 'application/octet-stream' }).arrayBuffer()
+      return gltf as ArrayBuffer
     },
     
     exportAlignedEquipment: async () => {
-      if (!equipmentRef.current) throw new Error('No equipment loaded')
-      
-      const exporter = new GLTFExporter()
-      const gltf = await exporter.parseAsync(equipmentRef.current, {
-        binary: true
+      if (!equipmentRef.current) return new ArrayBuffer(0)
+      const _exporter = new GLTFExporter()
+      const gltf = await _exporter.parseAsync(equipmentRef.current, {
+        binary: true,
+        includeCustomExtensions: true
       })
-      
-      return new Blob([gltf as ArrayBuffer], { type: 'application/octet-stream' }).arrayBuffer()
+      return gltf as ArrayBuffer
     },
     
     reattachEquipment: () => {
@@ -1762,7 +1461,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
   }))
   
   // Cleanup function
-  const cleanup = () => {
+  const cleanup = useCallback(() => {
     // Clean up animations
     if (currentActionRef.current) {
       currentActionRef.current.stop()
@@ -1800,37 +1499,20 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
       equipmentRef.current = null
     }
     
-    // Clean up debug spheres
-    if (debugSpheres.handSphere) {
-      sceneRef.current?.remove(debugSpheres.handSphere)
-      debugSpheres.handSphere.geometry.dispose()
-      ;(debugSpheres.handSphere.material as THREE.Material).dispose()
+    if (skeletonHelperRef.current) {
+      sceneRef.current?.remove(skeletonHelperRef.current)
+      skeletonHelperRef.current = null
     }
-    if (debugSpheres.gripSphere) {
-      sceneRef.current?.remove(debugSpheres.gripSphere)
-      debugSpheres.gripSphere.geometry.dispose()
-      ;(debugSpheres.gripSphere.material as THREE.Material).dispose()
-    }
-    if (debugSpheres.centerSphere) {
-      sceneRef.current?.remove(debugSpheres.centerSphere)
-      debugSpheres.centerSphere.geometry.dispose()
-      ;(debugSpheres.centerSphere.material as THREE.Material).dispose()
-    }
-    if (debugSpheres.line) {
-      sceneRef.current?.remove(debugSpheres.line)
-      debugSpheres.line.geometry.dispose()
-      ;(debugSpheres.line.material as THREE.Material).dispose()
-    }
-    if (debugSpheres.wristSphere) {
-      sceneRef.current?.remove(debugSpheres.wristSphere)
-      debugSpheres.wristSphere.geometry.dispose()
-      ;(debugSpheres.wristSphere.material as THREE.Material).dispose()
-    }
+    
     setDebugSpheres({})
-  }
+    
+    // Reset flags
+    shouldAttachEquipmentRef.current = false
+    isAttachingEquipmentRef.current = false
+  }, [])
   
   // Create debug spheres
-  const createDebugSpheres = (handPosition: THREE.Vector3, gripPosition: THREE.Vector3) => {
+  const _createDebugSpheres = (handPosition: THREE.Vector3, gripPosition: THREE.Vector3) => {
     // Remove existing spheres
     if (debugSpheres.handSphere) {
       sceneRef.current?.remove(debugSpheres.handSphere)
@@ -1928,7 +1610,7 @@ const EquipmentViewer = forwardRef<EquipmentViewerRef, EquipmentViewerProps>((pr
     return () => {
       cleanup()
     }
-  }, [])
+  }, [cleanup])
   
   return <div ref={containerRef} className="w-full h-full equipment-viewer-container" data-instance-id={instanceId.current} />
 })

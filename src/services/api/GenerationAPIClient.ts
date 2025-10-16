@@ -3,9 +3,11 @@
  * Handles communication with the backend generation service
  */
 
-import { TypedEventEmitter } from '../../utils/TypedEventEmitter'
-import { GenerationConfig } from '../../types/generation'
 import { ExtendedImportMeta } from '../../types'
+import { GenerationConfig } from '../../types/generation'
+import { TypedEventEmitter } from '../../utils/TypedEventEmitter'
+
+import { apiFetch } from '@/utils/api'
 
 // Define pipeline types matching backend
 export interface PipelineStage {
@@ -86,12 +88,13 @@ export class GenerationAPIClient extends TypedEventEmitter<GenerationAPIEvents> 
    * Start a new generation pipeline
    */
   async startPipeline(config: GenerationConfig): Promise<string> {
-    const response = await fetch(`${this.apiUrl}/generation/pipeline`, {
+    const response = await apiFetch(`${this.apiUrl}/generation/pipeline`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(config)
+      body: JSON.stringify(config),
+      timeoutMs: 30000
     })
     
     if (!response.ok) {
@@ -133,7 +136,7 @@ export class GenerationAPIClient extends TypedEventEmitter<GenerationAPIEvents> 
    * Fetch pipeline status from API
    */
   async fetchPipelineStatus(pipelineId: string): Promise<PipelineResult> {
-    const response = await fetch(`${this.apiUrl}/generation/pipeline/${pipelineId}`)
+    const response = await apiFetch(`${this.apiUrl}/generation/pipeline/${pipelineId}`, { timeoutMs: 15000 })
     
     if (!response.ok) {
       const error = await response.json()
@@ -213,7 +216,7 @@ export class GenerationAPIClient extends TypedEventEmitter<GenerationAPIEvents> 
    */
   async healthCheck(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.apiUrl}/health`)
+      const response = await apiFetch(`${this.apiUrl}/health`, { timeoutMs: 5000 })
       return response.ok
     } catch {
       return false

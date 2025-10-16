@@ -1,33 +1,36 @@
-import { useRef, useImperativeHandle, forwardRef, useEffect, useState, useCallback } from 'react'
-import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
-import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js'
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
-import { ExtendedWindow } from '../../types'
-import { ENVIRONMENTS } from '../../constants/three'
-import { getTierColor } from '../../constants/materials'
 import { 
   Grid3X3, 
   Box, 
   Info, 
   RotateCw,
-  Pause,
-  Play,
+
   Download,
   Keyboard,
   X,
   Hand
 } from 'lucide-react'
+import { useRef, useImperativeHandle, forwardRef, useEffect, useState, useCallback } from 'react'
+import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
+import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+
+import { getTierColor } from '../../constants/materials'
+import { ENVIRONMENTS } from '../../constants/three'
+import { ExtendedWindow } from '../../types'
+
 
 interface ThreeViewerProps {
   modelUrl?: string
   isWireframe?: boolean
   showGroundPlane?: boolean
   isLightBackground?: boolean
+  // Light/performance mode for lightweight viewers (e.g., asset tabs)
+  lightMode?: boolean
   onModelLoad?: (info: { vertices: number, faces: number, materials: number, fileSize?: number }) => void
   assetInfo?: {
     name?: string
@@ -70,6 +73,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
   isWireframe = false,
   showGroundPlane = false,
   isLightBackground = false,
+  lightMode = false,
   onModelLoad,
   assetInfo,
   isAnimationPlayer = false
@@ -97,7 +101,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
   const [autoRotate, setAutoRotate] = useState(false)
   const [currentEnvironment, setCurrentEnvironment] = useState<keyof typeof ENVIRONMENTS>('neutral')
   const [animations, setAnimations] = useState<THREE.AnimationClip[]>([])
-  const [currentAnimation, setCurrentAnimation] = useState<number>(-1)
+  const [_currentAnimation, setCurrentAnimation] = useState<number>(-1)
   const [isPlaying, setIsPlaying] = useState(true)
   const [showSkeleton, setShowSkeleton] = useState(false)
   const [hasRiggedModel, setHasRiggedModel] = useState(false)
@@ -125,6 +129,44 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
   const handRotationsRef = useRef(handRotations)
   const [rotationAxis, setRotationAxis] = useState<'x' | 'y' | 'z'>('x')
   const rotationAxisRef = useRef(rotationAxis)
+  const shouldReframeOnResizeRef = useRef(false)
+
+  const computeDistanceToFit = (size: THREE.Vector3, camera: THREE.PerspectiveCamera) => {
+    const aspect = camera.aspect || 1
+    const fov = camera.fov * (Math.PI / 180)
+    const halfFov = fov / 2
+    const heightBased = size.y
+    const widthBased = size.x / aspect
+    const target = Math.max(heightBased, widthBased) * 1.2 // 20% margin
+    return target / (2 * Math.tan(halfFov))
+  }
+
+  const frameCameraToCurrentModel = useCallback(() => {
+    const model = modelRef.current
+    const camera = cameraRef.current
+    const controls = controlsRef.current
+    if (!model || !camera || !controls) return
+    const finalBox = new THREE.Box3().setFromObject(model)
+    const finalCenter = finalBox.getCenter(new THREE.Vector3())
+    const finalSize = finalBox.getSize(new THREE.Vector3())
+    const distance = computeDistanceToFit(finalSize, camera)
+    if (assetInfo?.isAnimationFile && assetInfo?.characterHeight) {
+      camera.position.set(
+        finalCenter.x + distance * 0.5,
+        finalCenter.y + assetInfo.characterHeight * 0.3,
+        finalCenter.z + distance * 0.5
+      )
+    } else {
+      camera.position.set(
+        finalCenter.x + distance * 0.7,
+        finalCenter.y + distance * 0.5,
+        finalCenter.z + distance * 0.7
+      )
+    }
+    camera.lookAt(finalCenter)
+    controls.target.copy(finalCenter)
+    controls.update()
+  }, [assetInfo])
   
   // Helper functions
   
@@ -446,7 +488,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
       },
       options
     )
-  }, [assetInfo])
+  }, [assetInfo, modelUrl])
 
   // Expose methods for external control
   useImperativeHandle(ref, () => ({
@@ -1059,15 +1101,20 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
         }
       }
     }
-  }), [animations, assetInfo, exportTPoseModel, isAnimationPlayer])
+  }), [animations, assetInfo, exportTPoseModel, showSkeleton])
   
   // Initialize Three.js scene with professional setup
+   
   useEffect(() => {
     console.log('🎬 ThreeViewer mounting...')
     mountedRef.current = true
     
     if (!containerRef.current) return
     
+    const containerEl = containerRef.current
+    // Guard against zero-sized container (e.g., when hidden)
+    const initialWidth = Math.max(1, containerRef.current.clientWidth || 0)
+    const initialHeight = Math.max(1, containerRef.current.clientHeight || 0)
     // Scene setup
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(isLightBackground ? '#e8e8e8' : '#0a0a0a')
@@ -1077,7 +1124,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
     // Camera setup
     const camera = new THREE.PerspectiveCamera(
       45,
-      containerRef.current.clientWidth / containerRef.current.clientHeight,
+      initialWidth / initialHeight,
       0.1,
       1000
     )
@@ -1091,8 +1138,10 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
       preserveDrawingBuffer: true,
       powerPreference: "high-performance"
     })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight)
+    // Cap pixel ratio in light mode for perf
+    const maxPixelRatio = lightMode ? 1 : 2
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio))
+    renderer.setSize(initialWidth, initialHeight)
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -1101,22 +1150,21 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
     containerRef.current.appendChild(renderer.domElement)
     rendererRef.current = renderer
     
-    // Post-processing setup
+    // Post-processing setup (always create composer as in the working version)
     const composer = new EffectComposer(renderer)
     const renderPass = new RenderPass(scene, camera)
     composer.addPass(renderPass)
     
-    // SSAO for better depth perception
-    const ssaoPass = new SSAOPass(scene, camera, containerRef.current.clientWidth, containerRef.current.clientHeight)
-    ssaoPass.kernelRadius = 16
+    const ssaoPass = new SSAOPass(scene, camera, initialWidth, initialHeight)
+    // Balanced defaults
+    ssaoPass.kernelRadius = 12
     ssaoPass.minDistance = 0.001
-    ssaoPass.maxDistance = 0.1
+    ssaoPass.maxDistance = 0.08
     composer.addPass(ssaoPass)
     
-    // Bloom for emissive materials
     const bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(containerRef.current.clientWidth, containerRef.current.clientHeight),
-      0.5, 0.4, 0.85
+      new THREE.Vector2(initialWidth, initialHeight),
+      0.4, 0.35, 0.85
     )
     composer.addPass(bloomPass)
     
@@ -1331,26 +1379,52 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
       }
       
       controls.update()
-      composer.render()
+      if (composerRef.current) composerRef.current.render()
+      else renderer.render(scene, camera)
     }
     animate()
     
     // Handle resize
     const handleResize = () => {
       if (!containerRef.current) return
-      const width = containerRef.current.clientWidth
-      const height = containerRef.current.clientHeight
+      // Avoid zero-size which breaks WebGL framebuffers
+      const width = Math.max(1, containerRef.current.clientWidth || 0)
+      const height = Math.max(1, containerRef.current.clientHeight || 0)
       
       camera.aspect = width / height
       camera.updateProjectionMatrix()
       
       renderer.setSize(width, height)
-      composer.setSize(width, height)
+      if (composerRef.current) {
+        composerRef.current.setSize(width, height)
+      }
       
       // SSAO pass will automatically resize with composer
+      if (shouldReframeOnResizeRef.current) {
+        // Reframe once after first non-zero resize
+        shouldReframeOnResizeRef.current = false
+        requestAnimationFrame(() => frameCameraToCurrentModel())
+      }
     }
     
-    window.addEventListener('resize', handleResize)
+    // Debounced resize to avoid rapid target reallocations
+    let resizeTimeout: number | null = null
+    const debouncedResize = () => {
+      if (resizeTimeout) cancelAnimationFrame(resizeTimeout)
+      resizeTimeout = requestAnimationFrame(handleResize)
+    }
+    window.addEventListener('resize', debouncedResize)
+    // Also observe element size changes (e.g., when toggling hidden/visible)
+    let resizeObserver: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => handleResize())
+      resizeObserver.observe(containerEl)
+    }
+
+    // If we mounted with a tiny/hidden container, schedule a one-shot reframe
+    if (initialWidth <= 1 || initialHeight <= 1) {
+      shouldReframeOnResizeRef.current = true
+    }
     
     // Keyboard shortcuts
     const handleKeydown = (e: KeyboardEvent) => {
@@ -1532,21 +1606,20 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
     window.addEventListener('keydown', handleKeydown)
     
     return () => {
-      console.log('🏁 ThreeViewer unmounting...')
-      mountedRef.current = false
-      
-      window.removeEventListener('resize', handleResize)
+      console.log('🧹 ThreeViewer unmounting...')
+      if (resizeTimeout) cancelAnimationFrame(resizeTimeout)
+      window.removeEventListener('resize', debouncedResize)
       window.removeEventListener('keydown', handleKeydown)
-      if (frameIdRef.current) {
-        cancelAnimationFrame(frameIdRef.current)
-      }
+      if (resizeObserver) resizeObserver.disconnect()
+      if (frameIdRef.current) cancelAnimationFrame(frameIdRef.current)
       renderer.dispose()
-      composer.dispose()
+      if (composerRef.current) composerRef.current.dispose()
       controls.dispose()
-      if (containerRef.current && renderer.domElement) {
-        containerRef.current.removeChild(renderer.domElement)
+      if (containerEl && renderer.domElement) {
+        containerEl.removeChild(renderer.domElement)
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   
   // Update refs when state changes
@@ -2387,34 +2460,11 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
             
             console.log(`📷 Camera framing: center=(${finalCenter.x.toFixed(2)}, ${finalCenter.y.toFixed(2)}, ${finalCenter.z.toFixed(2)}), size=(${finalSize.x.toFixed(2)}, ${finalSize.y.toFixed(2)}, ${finalSize.z.toFixed(2)})`)
             
-            // Get the maximum dimension and use it to calculate distance
-            const maxDim = Math.max(finalSize.x, finalSize.y, finalSize.z)
-            
-            // Calculate FOV-based distance with padding
-            const fov = cameraRef.current.fov * (Math.PI / 180)
-            const cameraAspect = cameraRef.current.aspect
-            
-            // Use the larger of horizontal or vertical FOV
-            let distance
-            if (finalSize.y / finalSize.x > cameraAspect) {
-              // Height is limiting factor
-              distance = (finalSize.y * 1.5) / (2 * Math.tan(fov / 2))
-            } else {
-              // Width is limiting factor
-              const hFov = 2 * Math.atan(Math.tan(fov / 2) * cameraAspect)
-              distance = (finalSize.x * 1.5) / (2 * Math.tan(hFov / 2))
-            }
-            
-            // Add extra distance for better framing
-            // Use more padding for smaller objects
-            const paddingMultiplier = maxDim < 2 ? 2.5 : 2.0
-            distance *= paddingMultiplier
-            
-            // Ensure minimum distance to prevent being too close
-            const minDistance = 8
-            distance = Math.max(distance, minDistance)
+            // Compute camera distance to fit model regardless of aspect
+            let distance = computeDistanceToFit(finalSize, cameraRef.current)
             
             // For smaller models (like characters), reduce minimum distance
+            const maxDim = Math.max(finalSize.x, finalSize.y, finalSize.z)
             if (assetInfo?.isAnimationFile && maxDim < 3) {
               const characterMinDistance = 4
               distance = Math.max(distance, characterMinDistance)
@@ -2439,7 +2489,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
               controlsRef.current.update()
             } else {
               // Normal camera positioning
-              console.log(`📷 Camera distance: ${distance.toFixed(2)}m (maxDim: ${maxDim.toFixed(2)}, padding: ${paddingMultiplier})`)
+              console.log(`📷 Camera distance: ${distance.toFixed(2)}m (maxDim: ${maxDim.toFixed(2)})`)
               
               // Position camera at a nice angle
               cameraRef.current.position.set(
@@ -2466,6 +2516,18 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
               console.log(`   Camera position: (${cameraRef.current?.position.x.toFixed(2)}, ${cameraRef.current?.position.y.toFixed(2)}, ${cameraRef.current?.position.z.toFixed(2)})`)
               console.log(`   Controls target: (${controlsRef.current?.target.x.toFixed(2)}, ${controlsRef.current?.target.y.toFixed(2)}, ${controlsRef.current?.target.z.toFixed(2)})`)
               
+              // If target drifted to origin (or far from model center), recenter the view
+              if (controlsRef.current && cameraRef.current) {
+                const target = controlsRef.current.target.clone()
+                const distanceFromCenter = target.sub(finalWorldCenter).length()
+                if (distanceFromCenter > 0.5) {
+                  console.warn('⚠️ Controls target off-center after load. Recentering on model.')
+                  controlsRef.current.target.copy(finalWorldCenter)
+                  cameraRef.current.lookAt(finalWorldCenter)
+                  controlsRef.current.update()
+                }
+              }
+
               // If the model is still tiny, try to fix it
               if (assetInfo?.isAnimationFile && assetInfo?.characterHeight && finalWorldSize.y < assetInfo.characterHeight * 0.9) {
                 console.error(`❌ Model is still too small! Expected ${assetInfo.characterHeight}m, got ${finalWorldSize.y.toFixed(3)}m`)
@@ -2484,11 +2546,19 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
                   console.log(`🔧 Forced camera reposition to distance ${distance}m`)
                 }
               }
+
+              // If the model appears too small or off-frame (common after hidden mount), reframe once
+              const maxDim = Math.max(finalWorldSize.x, finalWorldSize.y, finalWorldSize.z)
+              if (maxDim > 0) {
+                requestAnimationFrame(() => frameCameraToCurrentModel())
+              }
             }
           }, 100)
         },
         (progress) => {
-          setLoadingProgress((progress.loaded / progress.total) * 100)
+          if (progress && progress.total && progress.total > 0) {
+            setLoadingProgress((progress.loaded / progress.total) * 100)
+          }
         },
         (error) => {
           console.error('Error loading model:', error)
@@ -2525,7 +2595,9 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
         currentModelUrlRef.current = null
       }
     }
-  }, [modelUrl, onModelLoad, assetInfo?.isAnimationFile])
+  // Intentionally keep dependencies minimal to avoid reloading during internal state updates
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelUrl, onModelLoad, assetInfo?.isAnimationFile, assetInfo?.requiresAnimationStrip, assetInfo?.characterHeight])
   
   // Apply wireframe mode
   useEffect(() => {
@@ -2542,7 +2614,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
           }
         }
       })
-  }, [isWireframe, modelUrl])
+  }, [isWireframe, modelUrl, assetInfo?.requiresAnimationStrip, assetInfo?.characterHeight, showSkeleton])
 
   // Grid helper
   useEffect(() => {
@@ -2576,7 +2648,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
       helper.name = 'boundingBox'
       sceneRef.current.add(helper)
     }
-  }, [showBounds, modelUrl])
+  }, [showBounds, modelUrl, assetInfo?.requiresAnimationStrip, assetInfo?.characterHeight, showSkeleton])
   
   // Ground plane
   useEffect(() => {
@@ -2604,7 +2676,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
   }, [showGroundPlane])
   
   // Play animation
-  const playAnimation = useCallback((index: number) => {
+  const _playAnimation = useCallback((index: number) => {
     if (!mixerRef.current || !animations[index]) return
     
     mixerRef.current.stopAllAction()
@@ -2614,7 +2686,7 @@ const ThreeViewer = forwardRef<ThreeViewerRef, ThreeViewerProps>(({
     setIsPlaying(true)
   }, [animations])
   
-  const togglePlayPause = useCallback(() => {
+  const _togglePlayPause = useCallback(() => {
     if (!mixerRef.current) return
     
     if (isPlaying) {

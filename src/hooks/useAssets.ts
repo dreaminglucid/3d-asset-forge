@@ -4,8 +4,10 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { AssetService, Asset, MaterialPreset, RetextureRequest, RetextureResponse } from '../services/api/AssetService'
+
 import { useApp } from '../contexts/AppContext'
+
+import { AssetService, Asset, MaterialPreset, RetextureRequest, RetextureResponse } from '@/services/api/AssetService'
 
 export const useAssets = () => {
   const [assets, setAssets] = useState<Asset[]>([])
@@ -17,9 +19,9 @@ export const useAssets = () => {
       setLoading(true)
       const data = await AssetService.listAssets()
       setAssets(data)
-    } catch (err) {
+    } catch (_err) {
       showNotification(
-        err instanceof Error ? err.message : 'Failed to load assets',
+        _err instanceof Error ? _err.message : 'Failed to load assets',
         'error'
       )
     } finally {
@@ -55,7 +57,7 @@ export const useMaterialPresets = () => {
       setLoading(true)
       const data = await AssetService.getMaterialPresets()
       setPresets(data)
-    } catch (err) {
+    } catch {
       showNotification(
         'Failed to load material presets',
         'error'
