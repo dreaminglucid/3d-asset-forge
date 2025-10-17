@@ -12,6 +12,7 @@ interface BuildConfigOptions {
   enableRetexturing: boolean
   enableSprites: boolean
   enableRigging: boolean
+  useGPT4Enhancement?: boolean
   characterHeight?: number
   quality?: 'standard' | 'high' | 'ultra'
   selectedMaterials: string[]
@@ -27,6 +28,11 @@ interface BuildConfigOptions {
     generation?: string
     enhanced?: string
   }
+  // Optional reference image inputs from UI
+  referenceImageMode?: 'auto' | 'custom'
+  referenceImageSource?: 'upload' | 'url' | null
+  referenceImageUrl?: string | null
+  referenceImageDataUrl?: string | null
 }
 
 export function buildGenerationConfig(options: BuildConfigOptions): GenerationConfig {
@@ -42,6 +48,7 @@ export function buildGenerationConfig(options: BuildConfigOptions): GenerationCo
     enableRetexturing,
     enableSprites,
     enableRigging,
+    useGPT4Enhancement,
     characterHeight,
     quality,
     selectedMaterials,
@@ -49,6 +56,10 @@ export function buildGenerationConfig(options: BuildConfigOptions): GenerationCo
     materialPromptOverrides,
     materialPromptTemplates,
     gameStyleConfig
+    ,referenceImageMode
+    ,referenceImageSource
+    ,referenceImageUrl
+    ,referenceImageDataUrl
   } = options
 
   // Prepare material variants
@@ -100,7 +111,9 @@ export function buildGenerationConfig(options: BuildConfigOptions): GenerationCo
     metadata: {
       gameStyle,
       customGamePrompt: gameStyle === 'custom' ? customGamePrompt : undefined,
-      customAssetTypePrompt
+      customAssetTypePrompt,
+      // Respect GPT-4 enhancement toggle for backend pipeline
+      useGPT4Enhancement: useGPT4Enhancement === false ? false : true
     },
     materialPresets: generationType === 'item' ? materialVariants.map(mat => ({
       id: mat.id,
@@ -126,6 +139,19 @@ export function buildGenerationConfig(options: BuildConfigOptions): GenerationCo
     customPrompts: {
       gameStyle: customGamePrompt || gameStyleConfig?.base,
       assetType: customAssetTypePrompt
+    }
+  }
+
+  // Attach optional reference image if selected by user
+  if (referenceImageMode === 'custom') {
+    const useUrl = referenceImageSource === 'url' && !!referenceImageUrl
+    const useData = referenceImageSource === 'upload' && !!referenceImageDataUrl
+    if (useUrl || useData) {
+      ;(config as any).referenceImage = {
+        source: useData ? 'data' : 'url',
+        url: useUrl ? referenceImageUrl! : undefined,
+        dataUrl: useData ? referenceImageDataUrl! : undefined
+      }
     }
   }
   

@@ -46,8 +46,8 @@ app.use((req, res, next) => {
   next()
 })
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }))
+// Body parsing (allow larger payloads for base64 images)
+app.use(express.json({ limit: '25mb' }))
 
 // Static file serving with security headers
 app.use('/assets', express.static(path.join(ROOT_DIR, 'public/assets'), {

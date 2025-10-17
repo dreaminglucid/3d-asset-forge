@@ -124,7 +124,7 @@ export class GenerationService extends EventEmitter {
       let meshyTaskId = null
       let baseModelPath = null
       
-      // Stage 1: GPT-4 Prompt Enhancement
+      // Stage 1: GPT-4 Prompt Enhancement (honor toggle; skip if explicitly disabled)
       if (pipeline.config.metadata?.useGPT4Enhancement !== false) {
         pipeline.stages.promptOptimization.status = 'processing'
         
@@ -152,61 +152,72 @@ export class GenerationService extends EventEmitter {
         pipeline.stages.promptOptimization.status = 'skipped'
       }
       
-      // Stage 2: Image Generation with GPT-Image-1
-      pipeline.stages.imageGeneration.status = 'processing'
-      
-      try {
-        // Load generation prompts
-        const generationPrompts = await getGenerationPrompts()
+      // Stage 2: Image Source (User-provided or AI-generated)
+      const hasUserRef = !!(pipeline.config.referenceImage && (pipeline.config.referenceImage.url || pipeline.config.referenceImage.dataUrl))
+      if (hasUserRef) {
+        // Use user-provided reference image; skip auto image generation
+        imageUrl = pipeline.config.referenceImage.dataUrl || pipeline.config.referenceImage.url
+        pipeline.stages.imageGeneration.status = 'skipped'
+        pipeline.stages.imageGeneration.progress = 0
+        pipeline.stages.imageGeneration.result = { source: 'user-provided' }
+        pipeline.results.imageGeneration = pipeline.stages.imageGeneration.result
+        pipeline.progress = 20
+      } else {
+        pipeline.stages.imageGeneration.status = 'processing'
         
-        // For avatars, ensure T-pose is in the prompt
-        // For armor, ensure it's standalone with hollow openings
-        // Build effective style text from custom prompts when available
-        // Also, if HQ cues are present, sanitize prompt from low-poly cues and add HQ details
-        const effectiveStyle = (pipeline.config.customPrompts && pipeline.config.customPrompts.gameStyle)
-          ? pipeline.config.customPrompts.gameStyle
-          : (pipeline.config.style || 'game-ready')
-
-        const wantsHQPrompt = /\b(4k|ultra|high\s*quality|realistic|cinematic|photoreal|pbr)\b/i.test(effectiveStyle)
-        let imagePrompt = enhancedPrompt
-        if (wantsHQPrompt) {
-          imagePrompt = imagePrompt
-            .replace(/\b(low-?poly|stylized|minimalist|blocky|simplified)\b/gi, '')
-            .trim()
-          imagePrompt = `${imagePrompt} highly detailed, realistic, sharp features, high-resolution textures`
-        }
-        if (pipeline.config.generationType === 'avatar' || pipeline.config.type === 'character') {
-          const tposePrompt = generationPrompts?.posePrompts?.avatar?.tpose || 'standing in T-pose with arms stretched out horizontally'
-          imagePrompt = `${enhancedPrompt} ${tposePrompt}`
-        } else if (pipeline.config.type === 'armor') {
-          const isChest = pipeline.config.subtype?.toLowerCase().includes('chest') || pipeline.config.subtype?.toLowerCase().includes('body')
-          if (isChest) {
-            const chestPrompt = generationPrompts?.posePrompts?.armor?.chest || 'floating chest armor SHAPED FOR T-POSE BODY - shoulder openings must point STRAIGHT OUT SIDEWAYS at 90 degrees like a scarecrow (NOT angled down), wide "T" shape when viewed from front, ends at shoulders with no arm extensions, torso-only armor piece, hollow shoulder openings pointing horizontally, no armor stand'
-            imagePrompt = `${enhancedPrompt} ${chestPrompt}`
-          } else {
-            const genericArmorPrompt = generationPrompts?.posePrompts?.armor?.generic || 'floating armor piece shaped for T-pose body fitting, openings positioned at correct angles for T-pose (horizontal for shoulders), hollow openings, no armor stand or mannequin'
-            imagePrompt = `${enhancedPrompt} ${genericArmorPrompt}`
-          }
-        }
+        try {
+          // Load generation prompts
+          const generationPrompts = await getGenerationPrompts()
           
-        const imageResult = await this.aiService.imageService.generateImage(
-          imagePrompt,
-          pipeline.config.type,
-          effectiveStyle
-        )
-        
-        imageUrl = imageResult.imageUrl
-        
-        pipeline.stages.imageGeneration.status = 'completed'
-        pipeline.stages.imageGeneration.progress = 100
-        pipeline.stages.imageGeneration.result = imageResult
-        pipeline.results.imageGeneration = imageResult
-        pipeline.progress = 25
-      } catch (error) {
-        console.error('Image generation failed:', error)
-        pipeline.stages.imageGeneration.status = 'failed'
-        pipeline.stages.imageGeneration.error = error.message
-        throw error
+          // For avatars, ensure T-pose is in the prompt
+          // For armor, ensure it's standalone with hollow openings
+          // Build effective style text from custom prompts when available
+          // Also, if HQ cues are present, sanitize prompt from low-poly cues and add HQ details
+          const effectiveStyle = (pipeline.config.customPrompts && pipeline.config.customPrompts.gameStyle)
+            ? pipeline.config.customPrompts.gameStyle
+            : (pipeline.config.style || 'game-ready')
+
+          const wantsHQPrompt = /\b(4k|ultra|high\s*quality|realistic|cinematic|photoreal|pbr)\b/i.test(effectiveStyle)
+          let imagePrompt = enhancedPrompt
+          if (wantsHQPrompt) {
+            imagePrompt = imagePrompt
+              .replace(/\b(low-?poly|stylized|minimalist|blocky|simplified)\b/gi, '')
+              .trim()
+            imagePrompt = `${imagePrompt} highly detailed, realistic, sharp features, high-resolution textures`
+          }
+          if (pipeline.config.generationType === 'avatar' || pipeline.config.type === 'character') {
+            const tposePrompt = generationPrompts?.posePrompts?.avatar?.tpose || 'standing in T-pose with arms stretched out horizontally'
+            imagePrompt = `${enhancedPrompt} ${tposePrompt}`
+          } else if (pipeline.config.type === 'armor') {
+            const isChest = pipeline.config.subtype?.toLowerCase().includes('chest') || pipeline.config.subtype?.toLowerCase().includes('body')
+            if (isChest) {
+              const chestPrompt = generationPrompts?.posePrompts?.armor?.chest || 'floating chest armor SHAPED FOR T-POSE BODY - shoulder openings must point STRAIGHT OUT SIDEWAYS at 90 degrees like a scarecrow (NOT angled down), wide "T" shape when viewed from front, ends at shoulders with no arm extensions, torso-only armor piece, hollow shoulder openings pointing horizontally, no armor stand'
+              imagePrompt = `${enhancedPrompt} ${chestPrompt}`
+            } else {
+              const genericArmorPrompt = generationPrompts?.posePrompts?.armor?.generic || 'floating armor piece shaped for T-pose body fitting, openings positioned at correct angles for T-pose (horizontal for shoulders), hollow openings, no armor stand or mannequin'
+              imagePrompt = `${enhancedPrompt} ${genericArmorPrompt}`
+            }
+          }
+            
+          const imageResult = await this.aiService.imageService.generateImage(
+            imagePrompt,
+            pipeline.config.type,
+            effectiveStyle
+          )
+          
+          imageUrl = imageResult.imageUrl
+          
+          pipeline.stages.imageGeneration.status = 'completed'
+          pipeline.stages.imageGeneration.progress = 100
+          pipeline.stages.imageGeneration.result = imageResult
+          pipeline.results.imageGeneration = imageResult
+          pipeline.progress = 25
+        } catch (error) {
+          console.error('Image generation failed:', error)
+          pipeline.stages.imageGeneration.status = 'failed'
+          pipeline.stages.imageGeneration.error = error.message
+          throw error
+        }
       }
       
       // Stage 3: Image to 3D with Meshy AI
@@ -234,9 +245,13 @@ export class GenerationService extends EventEmitter {
         // Ensure we have a publicly accessible URL for Meshy
         console.log('📸 Initial image URL:', imageUrlForMeshy)
         
-        // Check if we're using localhost - Meshy can't access localhost URLs
-        if (imageUrlForMeshy.includes('localhost') || imageUrlForMeshy.includes('127.0.0.1')) {
-          console.warn('⚠️ Localhost URL detected - uploading to public hosting...')
+        // Meshy can't access localhost, 127.0.0.1, or data URIs - rehost if needed
+        if (
+          imageUrlForMeshy.startsWith('data:') ||
+          imageUrlForMeshy.includes('localhost') ||
+          imageUrlForMeshy.includes('127.0.0.1')
+        ) {
+          console.warn('⚠️ Non-public image reference detected - uploading to public hosting...')
           
           // Use the image hosting service to get a public URL
           try {

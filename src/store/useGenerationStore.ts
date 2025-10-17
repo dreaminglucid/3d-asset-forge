@@ -69,6 +69,12 @@ interface GenerationState {
   gameStyle: 'runescape' | 'custom'
   customStyle: string
   
+  // Reference image input
+  referenceImageMode: 'auto' | 'custom'
+  referenceImageSource: 'upload' | 'url' | null
+  referenceImageUrl: string | null
+  referenceImageDataUrl: string | null
+  
   // Custom Prompts
   customGamePrompt: string
   customAssetTypePrompt: string
@@ -117,6 +123,12 @@ interface GenerationState {
   setShowAssetTypeEditor: (show: boolean) => void
   setEditMaterialPrompts: (edit: boolean) => void
   setShowDeleteConfirm: (id: string | null) => void
+  
+  // Reference image actions
+  setReferenceImageMode: (mode: 'auto' | 'custom') => void
+  setReferenceImageSource: (source: 'upload' | 'url' | null) => void
+  setReferenceImageUrl: (url: string | null) => void
+  setReferenceImageDataUrl: (dataUrl: string | null) => void
   
   // Material Actions
   setMaterialPresets: (presets: MaterialPreset[]) => void
@@ -207,6 +219,10 @@ export const useGenerationStore = create<GenerationState>()(
           description: '',
           gameStyle: 'runescape',
           customStyle: '',
+          referenceImageMode: 'auto',
+          referenceImageSource: null,
+          referenceImageUrl: null,
+          referenceImageDataUrl: null,
           
           customGamePrompt: '',
           customAssetTypePrompt: '',
@@ -264,6 +280,25 @@ export const useGenerationStore = create<GenerationState>()(
           
           setShowDeleteConfirm: (id) => set((state) => {
             state.showDeleteConfirm = id
+          }),
+          
+          // Reference image actions
+          setReferenceImageMode: (mode) => set((state) => {
+            state.referenceImageMode = mode
+            if (mode === 'auto') {
+              state.referenceImageSource = null
+              state.referenceImageUrl = null
+              state.referenceImageDataUrl = null
+            }
+          }),
+          setReferenceImageSource: (source) => set((state) => {
+            state.referenceImageSource = source
+          }),
+          setReferenceImageUrl: (url) => set((state) => {
+            state.referenceImageUrl = url
+          }),
+          setReferenceImageDataUrl: (dataUrl) => set((state) => {
+            state.referenceImageDataUrl = dataUrl
           }),
           
           // Material Actions
@@ -448,6 +483,10 @@ export const useGenerationStore = create<GenerationState>()(
             state.assetName = ''
             state.description = ''
             state.customAssetTypePrompt = ''
+            state.referenceImageMode = 'auto'
+            state.referenceImageSource = null
+            state.referenceImageUrl = null
+            state.referenceImageDataUrl = null
             // Don't reset other configuration settings
           }),
           
@@ -554,7 +593,11 @@ export const useGenerationStore = create<GenerationState>()(
           selectedMaterials: state.selectedMaterials,
           customMaterials: state.customMaterials,
           materialPromptOverrides: state.materialPromptOverrides,
-          showAdvancedPrompts: state.showAdvancedPrompts
+          showAdvancedPrompts: state.showAdvancedPrompts,
+          // Persist the selection mode but not the potentially large data URL
+          referenceImageMode: state.referenceImageMode,
+          referenceImageSource: state.referenceImageSource,
+          referenceImageUrl: state.referenceImageUrl
         })
       }
     ),

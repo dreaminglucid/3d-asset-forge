@@ -108,6 +108,13 @@ export interface GenerationConfig {
   // Generation type
   generationType?: 'item' | 'avatar'
   
+  // Optional user-provided reference image to bypass auto image generation
+  referenceImage?: {
+    source: 'url' | 'data'
+    url?: string
+    dataUrl?: string
+  }
+  
   // Pipeline stages control
   enableGeneration?: boolean
   enableRetexturing?: boolean

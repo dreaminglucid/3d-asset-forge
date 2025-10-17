@@ -32,7 +32,8 @@ import {
   DeleteConfirmationModal,
   GenerationTimeline,
   AssetActionsCard,
-  NoAssetSelected
+  NoAssetSelected,
+  ReferenceImageCard
 } from '@/components/Generation'
 import {
   Button, Card, CardContent
@@ -91,6 +92,12 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
     // Avatar Configuration
     enableRigging,
     characterHeight,
+    
+    // Reference image state
+    referenceImageMode,
+    referenceImageSource,
+    referenceImageUrl,
+    referenceImageDataUrl,
 
     // Material Configuration
     selectedMaterials,
@@ -132,6 +139,10 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
     setQuality,
     setEnableRigging,
     setCharacterHeight,
+    setReferenceImageMode,
+    setReferenceImageSource,
+    setReferenceImageUrl,
+    setReferenceImageDataUrl,
     setSelectedMaterials,
     setCustomMaterials,
     setMaterialPromptOverrides,
@@ -478,6 +489,7 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
       customStyle,
       customGamePrompt: customGamePrompt || gameStyleConfig?.base,
       customAssetTypePrompt: currentAssetTypePrompt,
+      useGPT4Enhancement,
       enableRetexturing,
       enableSprites,
       enableRigging,
@@ -489,6 +501,19 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
       gameStyleConfig,
       quality
     })
+
+    // Attach reference image into config when selected
+    if (referenceImageMode === 'custom') {
+      const imgUrl = (referenceImageSource === 'url' && referenceImageUrl) ? referenceImageUrl : null
+      const dataUrl = (referenceImageSource === 'upload' && referenceImageDataUrl) ? referenceImageDataUrl : null
+      if (imgUrl || dataUrl) {
+        ;(config as any).referenceImage = {
+          source: dataUrl ? 'data' : 'url',
+          url: imgUrl || undefined,
+          dataUrl: dataUrl || undefined
+        }
+      }
+    }
 
     console.log('Starting generation with config:', config)
     console.log('Material variants to generate:', config.materialPresets)
@@ -681,6 +706,19 @@ export const GenerationPage: React.FC<GenerationPageProps> = ({ onClose: _onClos
                       onCharacterHeightChange={setCharacterHeight}
                     />
                   )}
+
+                  {/* Reference Image Selection */}
+                  <ReferenceImageCard
+                    generationType={generationType}
+                    mode={referenceImageMode}
+                    source={referenceImageSource}
+                    url={referenceImageUrl}
+                    dataUrl={referenceImageDataUrl}
+                    onModeChange={setReferenceImageMode}
+                    onSourceChange={setReferenceImageSource}
+                    onUrlChange={setReferenceImageUrl}
+                    onDataUrlChange={setReferenceImageDataUrl}
+                  />
 
                   {/* Start Generation Button */}
                   <Card className="overflow-hidden bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 border-primary/20">
